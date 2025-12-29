@@ -44,6 +44,7 @@ export const getUserProgress = async (userId: string) => {
      JOIN levels l ON s.level_id = l.id
      JOIN session_questions sq ON s.id = sq.session_id
      WHERE s.user_id = ?
+     GROUP BY s.id, c.title, l.title, s.status, s.completed_at
      ORDER BY s.started_at DESC
      LIMIT 1`,
     [userId]
