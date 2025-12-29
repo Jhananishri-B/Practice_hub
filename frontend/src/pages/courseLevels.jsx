@@ -48,17 +48,19 @@ const CourseLevels = () => {
   const getCourseImage = () => {
     const title = course?.title?.toLowerCase() || '';
 
-    // Use a single clean, neutral image for all domains, but you can adjust per course if needed
-    if (title.includes('python')) {
-      return 'https://images.pexels.com/photos/1181675/pexels-photo-1181675.jpeg?auto=compress&cs=tinysrgb&w=800';
-    }
+    // Use external image URLs for each course
     if (title.includes('c programming') || title === 'c') {
-      return 'https://images.pexels.com/photos/1181263/pexels-photo-1181263.jpeg?auto=compress&cs=tinysrgb&w=800';
+      return 'https://miro.medium.com/v2/resize:fit:1100/format:webp/1*2p6xGs1MCtjM7Giw5gmkpQ.jpeg';
     }
     if (title.includes('machine learning')) {
-      return 'https://images.pexels.com/photos/1181671/pexels-photo-1181671.jpeg?auto=compress&cs=tinysrgb&w=800';
+      return 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSB9ktsMFQBpwgQEp6lzgBkqNoBzZJ5UK5WoQ&s';
     }
-    return 'https://images.pexels.com/photos/3861964/pexels-photo-3861964.jpeg?auto=compress&cs=tinysrgb&w=800';
+    if (title.includes('python')) {
+      return 'https://webandcrafts.com/_next/image?url=https%3A%2F%2Fadmin.wac.co%2Fuploads%2FFeatures_Of_Python_1_f4ccd6d9f7.jpg&w=4500&q=90';
+    }
+
+    // Fallback gradient
+    return 'linear-gradient(to bottom right, #667eea, #764ba2)';
   };
 
   if (loading) {
@@ -95,6 +97,11 @@ const CourseLevels = () => {
                   src={getCourseImage()}
                   alt={course?.title || 'Course banner'}
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    // Fallback to gradient if image fails to load
+                    e.target.style.display = 'none';
+                    e.target.parentElement.style.background = 'linear-gradient(to bottom right, #667eea, #764ba2)';
+                  }}
                 />
               </div>
               <div className="p-6">
