@@ -27,9 +27,10 @@ export interface PracticeSession {
 export const startSession = async (
   userId: string,
   courseId: string,
-  levelId: string
+  levelId: string,
+  requestedSessionType?: 'coding' | 'mcq'
 ): Promise<PracticeSession> => {
-  // Get course info to determine session type
+  // Get course info to determine default session type (for backward compatibility)
   const courseResult = await pool.query(
     'SELECT title FROM courses WHERE id = ?',
     [courseId]
@@ -37,37 +38,53 @@ export const startSession = async (
   const courseRows = getRows(courseResult);
   const courseTitle = courseRows[0]?.title || '';
 
-  // Determine session type
-  const sessionType = courseTitle === 'Machine Learning' && levelId.includes('660e8400-e29b-41d4-a716-446655440021') 
-    ? 'mcq' 
-    : 'coding';
+  let sessionType: 'coding' | 'mcq';
 
-  // Get questions for this level (2 for coding, 10 for MCQ)
-  const questionCount = sessionType === 'mcq' ? 10 : 2;
-  
-  const questionsResult = await pool.query(
-    `SELECT id, question_type, title, description, input_format, output_format, constraints
-     FROM questions
-     WHERE level_id = ?
-     ORDER BY RAND()
-     LIMIT ?`,
-    [levelId, questionCount]
-  );
+  if (requestedSessionType === 'coding' || requestedSessionType === 'mcq') {
+    sessionType = requestedSessionType;
+  } else {
+    // Fallback: preserve original behaviour – ML Level 1 as MCQ, everything else coding
+    sessionType =
+      courseTitle === 'Machine Learning' &&
+      levelId.includes('660e8400-e29b-41d4-a716-446655440021')
+        ? 'mcq'
+        : 'coding';
+  }
 
+  // Get questions for this level
+  // - Always return ALL questions so the frontend can control how many are used
+  // - Filter by question_type when a specific sessionType is requested
+  let query = `SELECT id, question_type, title, description, input_format, output_format, constraints
+               FROM questions
+               WHERE level_id = ?`;
+  const params: any[] = [levelId];
+
+  if (sessionType === 'coding') {
+    query += ' AND question_type = ?';
+    params.push('coding');
+  } else if (sessionType === 'mcq') {
+    query += ' AND question_type = ?';
+    params.push('mcq');
+  }
+
+  query += ' ORDER BY created_at ASC';
+
+  const questionsResult = await pool.query(query, params);
   const questionsRows = getRows(questionsResult);
+
   if (questionsRows.length === 0) {
     throw new Error('No questions available for this level');
   }
 
-  // Create session
+  // Create session (store total available questions)
   const sessionId = randomUUID();
   await pool.query(
     `INSERT INTO practice_sessions (id, user_id, course_id, level_id, session_type, status, total_questions, time_limit)
      VALUES (?, ?, ?, ?, ?, 'in_progress', ?, 3600)`,
-    [sessionId, userId, courseId, levelId, sessionType, questionCount]
+    [sessionId, userId, courseId, levelId, sessionType, questionsRows.length]
   );
 
-  // Add questions to session and fetch options for MCQ
+  // Add questions to session and fetch options / test cases
   const sessionQuestions = [];
   for (let index = 0; index < questionsRows.length; index++) {
     const q = questionsRows[index];
@@ -82,13 +99,20 @@ export const startSession = async (
       constraints: q.constraints,
     };
 
-    // Fetch options for MCQ questions
     if (q.question_type === 'mcq') {
+      // Fetch options for MCQ questions
       const optionsResult = await pool.query(
         'SELECT id, option_text, is_correct, option_letter FROM mcq_options WHERE question_id = ? ORDER BY option_letter',
         [q.id]
       );
       questionData.options = getRows(optionsResult);
+    } else if (q.question_type === 'coding') {
+      // Fetch test cases for coding questions so the UI can show visible / hidden test cases
+      const testCasesResult = await pool.query(
+        'SELECT id, input_data, expected_output, is_hidden, test_case_number FROM test_cases WHERE question_id = ? ORDER BY test_case_number',
+        [q.id]
+      );
+      questionData.test_cases = getRows(testCasesResult);
     }
 
     sessionQuestions.push(questionData);

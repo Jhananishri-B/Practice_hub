@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import api from '../services/api';
 import { ArrowRight, CheckCircle } from 'lucide-react';
@@ -7,38 +7,44 @@ import { ArrowRight, CheckCircle } from 'lucide-react';
 const MCQPractice = () => {
   const { courseId, levelId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [session, setSession] = useState(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedOptions, setSelectedOptions] = useState({});
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [timeLeft, setTimeLeft] = useState(3600);
+  const [autoSubmitted, setAutoSubmitted] = useState(false);
 
   useEffect(() => {
     startSession();
   }, [courseId, levelId]);
 
+  useEffect(() => {
+    if (!session) return;
+
+    if (timeLeft <= 0 && !autoSubmitted) {
+      handleFinish(true);
+      return;
+    }
+
+    if (timeLeft > 0) {
+      const timer = setTimeout(() => setTimeLeft((prev) => prev - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [timeLeft, session, autoSubmitted]);
+
   const startSession = async () => {
     try {
-      const response = await api.post('/sessions/start', { courseId, levelId });
-      const sessionData = response.data;
-      
-      // Fetch full question details with options
-      const questionsWithOptions = await Promise.all(
-        sessionData.questions.map(async (q) => {
-          try {
-            // For MCQ, we need to fetch options - this would be done in the backend
-            // For now, assume options are included in the response
-            return q;
-          } catch (err) {
-            return q;
-          }
-        })
-      );
-      
-      setSession({
-        ...sessionData,
-        questions: questionsWithOptions,
+      const sessionTypeFromState = location.state?.sessionType || 'mcq';
+      const response = await api.post('/sessions/start', {
+        courseId,
+        levelId,
+        sessionType: sessionTypeFromState,
       });
+      const sessionData = response.data;
+
+      setSession(sessionData);
       setLoading(false);
     } catch (error) {
       console.error('Failed to start session:', error);
@@ -81,14 +87,40 @@ const MCQPractice = () => {
       setSubmitted(true);
 
       if (currentQuestionIndex === session.questions.length - 1) {
-        // All questions answered, complete session
-        await api.post(`/sessions/${session.id}/complete`);
-        navigate(`/results/${session.id}`);
+        alert('You have answered all questions. You can review or finish the test.');
       }
     } catch (error) {
       console.error('Failed to submit:', error);
       alert('Failed to submit answer');
     }
+  };
+
+  const handleFinish = async (auto = false) => {
+    if (!session) return;
+
+    if (!auto) {
+      const confirmFinish = window.confirm('Are you willing to finish the test?');
+      if (!confirmFinish) {
+        return;
+      }
+    } else {
+      setAutoSubmitted(true);
+    }
+
+    try {
+      await api.post(`/sessions/${session.id}/complete`);
+      alert(auto ? 'Test submitted successfully' : 'Test submitted successfully');
+      navigate(`/results/${session.id}`);
+    } catch (error) {
+      console.error('Failed to complete session:', error);
+      alert('Failed to complete session');
+    }
+  };
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
   if (loading || !session) {
@@ -138,14 +170,19 @@ const MCQPractice = () => {
                 <span className="text-sm text-gray-600">
                   QUESTION {currentQuestionIndex + 1} OF {session.questions.length}
                 </span>
-                <button
-                  onClick={handleNext}
-                  disabled={currentQuestionIndex === session.questions.length - 1}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next Question
-                  <ArrowRight size={18} />
-                </button>
+                <div className="flex items-center gap-4">
+                  <div className="text-sm font-semibold text-gray-800">
+                    Time Left: {formatTime(timeLeft)}
+                  </div>
+                  <button
+                    onClick={handleNext}
+                    disabled={currentQuestionIndex === session.questions.length - 1}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next Question
+                    <ArrowRight size={18} />
+                  </button>
+                </div>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div
@@ -192,13 +229,19 @@ const MCQPractice = () => {
               )}
             </div>
 
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-3">
               <button
                 onClick={handleSubmit}
                 disabled={!selectedOption || submitted}
                 className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Submit
+              </button>
+              <button
+                onClick={() => handleFinish(false)}
+                className="px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700"
+              >
+                Finish Test
               </button>
             </div>
           </div>

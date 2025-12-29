@@ -5,7 +5,7 @@ import logger from '../config/logger';
 
 export const startSessionController = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { courseId, levelId } = req.body;
+    const { courseId, levelId, sessionType } = req.body;
     const userId = req.user?.userId;
 
     if (!userId) {
@@ -18,7 +18,12 @@ export const startSessionController = async (req: AuthRequest, res: Response): P
       return;
     }
 
-    const session = await startSession(userId, courseId, levelId);
+    const session = await startSession(
+      userId,
+      courseId,
+      levelId,
+      sessionType === 'coding' || sessionType === 'mcq' ? sessionType : undefined
+    );
     res.json(session);
   } catch (error: any) {
     logger.error('Start session error:', error);
