@@ -1,0 +1,154 @@
+import { Response } from 'express';
+import { getTutorResponse, getInitialHint, TutorContext } from '../services/aiTutorService';
+import { AuthRequest } from '../middlewares/auth';
+import logger from '../config/logger';
+import pool from '../config/database';
+
+export const chatWithTutor = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { sessionId, message } = req.body;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    // Get session and question context
+    const sessionResult = await pool.query(
+      `SELECT s.id, s.session_type, sq.question_id, q.title, q.description, q.question_type
+       FROM practice_sessions s
+       JOIN session_questions sq ON s.id = sq.session_id
+       JOIN questions q ON sq.question_id = q.id
+       WHERE s.id = $1 AND s.user_id = $2
+       ORDER BY sq.question_order
+       LIMIT 1`,
+      [sessionId, userId]
+    );
+
+    if (sessionResult.rows.length === 0) {
+      res.status(404).json({ error: 'Session not found' });
+      return;
+    }
+
+    const session = sessionResult.rows[0];
+    const questionId = session.question_id;
+
+    // Get user submission
+    const submissionResult = await pool.query(
+      `SELECT submitted_code, language, selected_option_id
+       FROM user_submissions
+       WHERE session_id = $1 AND question_id = $2 AND user_id = $3
+       ORDER BY submitted_at DESC
+       LIMIT 1`,
+      [sessionId, questionId, userId]
+    );
+
+    const submission = submissionResult.rows[0] || null;
+
+    // Get failed test cases if coding question
+    let failedTestCases = [];
+    if (session.question_type === 'coding' && submission) {
+      const testResults = await pool.query(
+        `SELECT tc.input_data, tc.expected_output, tcr.actual_output, tcr.error_message
+         FROM test_case_results tcr
+         JOIN test_cases tc ON tcr.test_case_id = tc.id
+         WHERE tcr.submission_id = (
+           SELECT id FROM user_submissions 
+           WHERE session_id = $1 AND question_id = $2 AND user_id = $3
+           ORDER BY submitted_at DESC LIMIT 1
+         )
+         AND tcr.passed = false`,
+        [sessionId, questionId, userId]
+      );
+      failedTestCases = testResults.rows;
+    }
+
+    // Get correct answer for MCQ
+    let correctAnswer = null;
+    if (session.question_type === 'mcq') {
+      const correctOption = await pool.query(
+        `SELECT option_text FROM mcq_options
+         WHERE question_id = $1 AND is_correct = true
+         LIMIT 1`,
+        [questionId]
+      );
+      correctAnswer = correctOption.rows[0]?.option_text || null;
+    }
+
+    // Get reference solution for coding
+    const questionResult = await pool.query(
+      'SELECT reference_solution FROM questions WHERE id = $1',
+      [questionId]
+    );
+    const correctCode = questionResult.rows[0]?.reference_solution || null;
+
+    const context: TutorContext = {
+      questionTitle: session.title,
+      questionDescription: session.description,
+      userCode: submission?.submitted_code || null,
+      correctCode: correctCode,
+      failedTestCases: failedTestCases.map((tc) => ({
+        input: tc.input_data,
+        expected: tc.expected_output,
+        actual: tc.actual_output || '',
+        error: tc.error_message || undefined,
+      })),
+      questionType: session.question_type as 'coding' | 'mcq',
+      selectedAnswer: submission?.selected_option_id || null,
+      correctAnswer: correctAnswer,
+    };
+
+    const response = await getTutorResponse(message, context);
+
+    res.json({ message: response });
+  } catch (error: any) {
+    logger.error('AI Tutor error:', error);
+    res.status(500).json({ error: 'Failed to get tutor response' });
+  }
+};
+
+export const getInitialHintController = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { sessionId } = req.params;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    // Get session context (similar to chatWithTutor)
+    const sessionResult = await pool.query(
+      `SELECT s.session_type, sq.question_id, q.title, q.question_type
+       FROM practice_sessions s
+       JOIN session_questions sq ON s.id = sq.session_id
+       JOIN questions q ON sq.question_id = q.id
+       WHERE s.id = $1 AND s.user_id = $2
+       ORDER BY sq.question_order
+       LIMIT 1`,
+      [sessionId, userId]
+    );
+
+    if (sessionResult.rows.length === 0) {
+      res.status(404).json({ error: 'Session not found' });
+      return;
+    }
+
+    const session = sessionResult.rows[0];
+
+    const context: TutorContext = {
+      questionTitle: session.title,
+      questionDescription: '',
+      questionType: session.question_type as 'coding' | 'mcq',
+    };
+
+    const hint = getInitialHint(context);
+
+    res.json({ hint });
+  } catch (error: any) {
+    logger.error('Get initial hint error:', error);
+    res.status(500).json({ error: 'Failed to get hint' });
+  }
+};
+

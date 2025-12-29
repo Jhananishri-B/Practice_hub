@@ -1,0 +1,174 @@
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
+
+// Pages
+import Login from './pages/login';
+import Dashboard from './pages/dashboard';
+import CourseLevels from './pages/courseLevels';
+import Practice from './pages/practice';
+import MCQPractice from './pages/mcqPractice';
+import Results from './pages/results';
+import Progress from './pages/progress';
+import Leaderboard from './pages/leaderboard';
+import AICoach from './pages/aiCoach';
+
+// Admin Pages
+import AdminOverview from './pages/admin/overview';
+import AdminCourses from './pages/admin/courses';
+import AdminCourseLevels from './pages/admin/courseLevels';
+import AdminUsers from './pages/admin/users';
+import CreateQuestion from './pages/admin/createQuestion';
+
+const AppRoutes = () => {
+  const { user } = useAuth();
+
+  return (
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/courses/:courseId/levels"
+        element={
+          <ProtectedRoute>
+            <CourseLevels />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/practice/:courseId/:levelId"
+        element={
+          <ProtectedRoute>
+            <Practice />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/mcq-practice/:courseId/:levelId"
+        element={
+          <ProtectedRoute>
+            <MCQPractice />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/results/:sessionId"
+        element={
+          <ProtectedRoute>
+            <Results />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/progress"
+        element={
+          <ProtectedRoute>
+            <Progress />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/leaderboard"
+        element={
+          <ProtectedRoute>
+            <Leaderboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/ai-coach"
+        element={
+          <ProtectedRoute>
+            <AICoach />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Admin Routes */}
+      <Route
+        path="/admin/overview"
+        element={
+          <ProtectedRoute requireAdmin>
+            <AdminOverview />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/users"
+        element={
+          <ProtectedRoute requireAdmin>
+            <AdminUsers />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/courses"
+        element={
+          <ProtectedRoute requireAdmin>
+            <AdminCourses />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/courses/:courseId/levels"
+        element={
+          <ProtectedRoute requireAdmin>
+            <AdminCourseLevels />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/questions/create"
+        element={
+          <ProtectedRoute requireAdmin>
+            <CreateQuestion />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/questions/edit/:questionId"
+        element={
+          <ProtectedRoute requireAdmin>
+            <CreateQuestion />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/"
+        element={
+          user ? (
+            user.role === 'admin' ? (
+              <Navigate to="/admin/overview" replace />
+            ) : (
+              <Navigate to="/dashboard" replace />
+            )
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+    </Routes>
+  );
+};
+
+function App() {
+  return (
+    <Router>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </Router>
+  );
+}
+
+export default App;
+
