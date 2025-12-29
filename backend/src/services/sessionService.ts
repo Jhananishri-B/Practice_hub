@@ -1,6 +1,7 @@
 import pool from '../config/database';
 import { randomUUID } from 'crypto';
 import { validateLanguage } from '../utils/codeExecutor';
+import { getRows } from '../utils/mysqlHelper';
 
 export interface SessionQuestion {
   question_id: string;
@@ -30,10 +31,11 @@ export const startSession = async (
 ): Promise<PracticeSession> => {
   // Get course info to determine session type
   const courseResult = await pool.query(
-    'SELECT title FROM courses WHERE id = $1',
+    'SELECT title FROM courses WHERE id = ?',
     [courseId]
   );
-  const courseTitle = courseResult.rows[0]?.title || '';
+  const courseRows = getRows(courseResult);
+  const courseTitle = courseRows[0]?.title || '';
 
   // Determine session type
   const sessionType = courseTitle === 'Machine Learning' && levelId.includes('660e8400-e29b-41d4-a716-446655440021') 
@@ -46,13 +48,14 @@ export const startSession = async (
   const questionsResult = await pool.query(
     `SELECT id, question_type, title, description, input_format, output_format, constraints
      FROM questions
-     WHERE level_id = $1
-     ORDER BY RANDOM()
-     LIMIT $2`,
+     WHERE level_id = ?
+     ORDER BY RAND()
+     LIMIT ?`,
     [levelId, questionCount]
   );
 
-  if (questionsResult.rows.length === 0) {
+  const questionsRows = getRows(questionsResult);
+  if (questionsRows.length === 0) {
     throw new Error('No questions available for this level');
   }
 
@@ -60,14 +63,14 @@ export const startSession = async (
   const sessionId = randomUUID();
   await pool.query(
     `INSERT INTO practice_sessions (id, user_id, course_id, level_id, session_type, status, total_questions, time_limit)
-     VALUES ($1, $2, $3, $4, $5, 'in_progress', $6, 3600)`,
+     VALUES (?, ?, ?, ?, ?, 'in_progress', ?, 3600)`,
     [sessionId, userId, courseId, levelId, sessionType, questionCount]
   );
 
   // Add questions to session and fetch options for MCQ
   const sessionQuestions = [];
-  for (let index = 0; index < questionsResult.rows.length; index++) {
-    const q = questionsResult.rows[index];
+  for (let index = 0; index < questionsRows.length; index++) {
+    const q = questionsRows[index];
     const questionData: any = {
       question_id: q.id,
       question_order: index + 1,
@@ -82,18 +85,19 @@ export const startSession = async (
     // Fetch options for MCQ questions
     if (q.question_type === 'mcq') {
       const optionsResult = await pool.query(
-        'SELECT id, option_text, is_correct, option_letter FROM mcq_options WHERE question_id = $1 ORDER BY option_letter',
+        'SELECT id, option_text, is_correct, option_letter FROM mcq_options WHERE question_id = ? ORDER BY option_letter',
         [q.id]
       );
-      questionData.options = optionsResult.rows;
+      questionData.options = getRows(optionsResult);
     }
 
     sessionQuestions.push(questionData);
 
+    const sessionQuestionId = randomUUID();
     await pool.query(
-      `INSERT INTO session_questions (session_id, question_id, question_order, status)
-       VALUES ($1, $2, $3, 'not_attempted')`,
-      [sessionId, q.id, index + 1]
+      `INSERT INTO session_questions (id, session_id, question_id, question_order, status)
+       VALUES (?, ?, ?, ?, 'not_attempted')`,
+      [sessionQuestionId, sessionId, q.id, index + 1]
     );
   }
 
@@ -124,30 +128,33 @@ export const submitSolution = async (
      FROM practice_sessions s
      JOIN session_questions sq ON s.id = sq.session_id
      JOIN questions q ON sq.question_id = q.id
-     WHERE s.id = $1 AND q.id = $2`,
+     WHERE s.id = ? AND q.id = ?`,
     [sessionId, questionId]
   );
 
-  if (sessionResult.rows.length === 0) {
+  const sessionRows = getRows(sessionResult);
+  if (sessionRows.length === 0) {
     throw new Error('Session or question not found');
   }
 
-  const { session_type, question_type } = sessionResult.rows[0];
+  const { session_type, question_type } = sessionRows[0];
 
   if (question_type === 'mcq') {
     // Handle MCQ submission
     const optionResult = await pool.query(
-      'SELECT is_correct FROM mcq_options WHERE id = $1',
+      'SELECT is_correct FROM mcq_options WHERE id = ?',
       [submission.selected_option_id]
     );
 
-    const isCorrect = optionResult.rows[0]?.is_correct || false;
+    const optionRows = getRows(optionResult);
+    const isCorrect = optionRows[0]?.is_correct || false;
 
+    const mcqSubmissionId = randomUUID();
     await pool.query(
-      `INSERT INTO user_submissions (session_id, question_id, user_id, submission_type, selected_option_id, is_correct)
-       VALUES ($1, $2, $3, 'mcq', $4, $5)
-       ON CONFLICT DO NOTHING`,
-      [sessionId, questionId, userId, submission.selected_option_id, isCorrect]
+      `INSERT INTO user_submissions (id, session_id, question_id, user_id, submission_type, selected_option_id, is_correct)
+       VALUES (?, ?, ?, ?, 'mcq', ?, ?)
+       ON DUPLICATE KEY UPDATE id=id`,
+      [mcqSubmissionId, sessionId, questionId, userId, submission.selected_option_id, isCorrect]
     );
 
     return { is_correct: isCorrect };
@@ -157,10 +164,11 @@ export const submitSolution = async (
     const courseResult = await pool.query(
       `SELECT c.title FROM courses c
        JOIN practice_sessions s ON c.id = s.course_id
-       WHERE s.id = $1`,
+       WHERE s.id = ?`,
       [sessionId]
     );
-    const courseName = courseResult.rows[0]?.title || '';
+    const courseRows = getRows(courseResult);
+    const courseName = courseRows[0]?.title || '';
 
     if (submission.language && !validateLanguage(courseName, submission.language)) {
       throw new Error(`Invalid language for ${courseName} course`);
@@ -168,11 +176,12 @@ export const submitSolution = async (
 
     // Get test cases
     const testCasesResult = await pool.query(
-      'SELECT id, input_data, expected_output FROM test_cases WHERE question_id = $1 ORDER BY test_case_number',
+      'SELECT id, input_data, expected_output FROM test_cases WHERE question_id = ? ORDER BY test_case_number',
       [questionId]
     );
 
-    if (testCasesResult.rows.length === 0) {
+    const testCasesRows = getRows(testCasesResult);
+    if (testCasesRows.length === 0) {
       throw new Error('No test cases found for this question');
     }
 
@@ -181,18 +190,18 @@ export const submitSolution = async (
     const testResults = await evaluateCode(
       submission.code || '',
       submission.language || 'python',
-      testCasesResult.rows,
+      testCasesRows,
       courseName
     );
 
     const passedCount = testResults.filter((r) => r.passed).length;
-    const allPassed = passedCount === testCasesResult.rows.length;
+    const allPassed = passedCount === testCasesRows.length;
 
     // Save submission
     const submissionId = randomUUID();
     await pool.query(
       `INSERT INTO user_submissions (id, session_id, question_id, user_id, submission_type, submitted_code, language, test_cases_passed, total_test_cases, is_correct)
-       VALUES ($1, $2, $3, $4, 'coding', $5, $6, $7, $8, $9)`,
+       VALUES (?, ?, ?, ?, 'coding', ?, ?, ?, ?, ?)`,
       [
         submissionId,
         sessionId,
@@ -201,17 +210,19 @@ export const submitSolution = async (
         submission.code,
         submission.language,
         passedCount,
-        testCasesResult.rows.length,
+        testCasesRows.length,
         allPassed,
       ]
     );
 
     // Save test case results
     for (const tr of testResults) {
+      const testResultId = randomUUID();
       await pool.query(
-        `INSERT INTO test_case_results (submission_id, test_case_id, passed, actual_output, error_message, execution_time)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
+        `INSERT INTO test_case_results (id, submission_id, test_case_id, passed, actual_output, error_message, execution_time)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [
+          testResultId,
           submissionId,
           tr.test_case_id,
           tr.passed,
@@ -224,14 +235,14 @@ export const submitSolution = async (
 
     // Update session question status
     await pool.query(
-      `UPDATE session_questions SET status = $1 WHERE session_id = $2 AND question_id = $3`,
+      `UPDATE session_questions SET status = ? WHERE session_id = ? AND question_id = ?`,
       [allPassed ? 'completed' : 'attempted', sessionId, questionId]
     );
 
     return {
       is_correct: allPassed,
       test_cases_passed: passedCount,
-      total_test_cases: testCasesResult.rows.length,
+      total_test_cases: testCasesRows.length,
       test_results: testResults,
     };
   }
@@ -241,7 +252,7 @@ export const completeSession = async (sessionId: string, userId: string) => {
   // Update session status
   await pool.query(
     `UPDATE practice_sessions SET status = 'completed', completed_at = CURRENT_TIMESTAMP
-     WHERE id = $1 AND user_id = $2`,
+     WHERE id = ? AND user_id = ?`,
     [sessionId, userId]
   );
 
@@ -250,24 +261,24 @@ export const completeSession = async (sessionId: string, userId: string) => {
     `SELECT s.level_id, s.course_id, COUNT(*) as total, SUM(CASE WHEN sq.status = 'completed' THEN 1 ELSE 0 END) as completed
      FROM practice_sessions s
      JOIN session_questions sq ON s.id = sq.session_id
-     WHERE s.id = $1
+     WHERE s.id = ?
      GROUP BY s.level_id, s.course_id`,
     [sessionId]
   );
 
-  if (sessionResult.rows.length > 0) {
-    const { level_id, course_id, total, completed } = sessionResult.rows[0];
+  const sessionRows = getRows(sessionResult);
+  if (sessionRows.length > 0) {
+    const { level_id, course_id, total, completed } = sessionRows[0];
     
     // If all questions completed, mark level as completed
     if (parseInt(completed) === parseInt(total)) {
+      const completedProgressId = randomUUID();
       await pool.query(
-        `INSERT INTO user_progress (user_id, course_id, level_id, status, completed_at)
-         VALUES ($1, $2, $3, 'completed', CURRENT_TIMESTAMP)
-         ON CONFLICT (user_id, level_id) 
-         DO UPDATE SET status = 'completed', completed_at = CURRENT_TIMESTAMP`,
-        [userId, course_id, level_id]
+        `INSERT INTO user_progress (id, user_id, course_id, level_id, status, completed_at)
+         VALUES (?, ?, ?, ?, 'completed', CURRENT_TIMESTAMP)
+         ON DUPLICATE KEY UPDATE status = 'completed', completed_at = CURRENT_TIMESTAMP`,
+        [completedProgressId, userId, course_id, level_id]
       );
     }
   }
 };
-

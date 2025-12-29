@@ -1,5 +1,6 @@
 import pool from '../config/database';
 import { randomUUID } from 'crypto';
+import { getRows } from '../utils/mysqlHelper';
 
 export const getAllUsers = async (searchTerm?: string) => {
   let query = `
@@ -22,15 +23,16 @@ export const getAllUsers = async (searchTerm?: string) => {
   const params: any[] = [];
 
   if (searchTerm) {
-    query += ' AND (u.username ILIKE $1 OR u.name ILIKE $1 OR u.roll_number ILIKE $1)';
-    params.push(`%${searchTerm}%`);
+    query += ' AND (LOWER(u.username) LIKE LOWER(?) OR LOWER(u.name) LIKE LOWER(?) OR LOWER(u.roll_number) LIKE LOWER(?))';
+    const searchPattern = `%${searchTerm}%`;
+    params.push(searchPattern, searchPattern, searchPattern);
   }
 
   query += ' GROUP BY u.id, u.username, u.email, u.role, u.name, u.roll_number, u.created_at';
   query += ' ORDER BY u.created_at DESC';
 
   const result = await pool.query(query, params);
-  return result.rows.map((row) => ({
+  return getRows(result).map((row: any) => ({
     ...row,
     levels_practiced: parseInt(row.levels_practiced) || 0,
   }));
@@ -57,38 +59,44 @@ export const getRecentActivity = async (searchTerm?: string) => {
 
   const params: any[] = [];
   if (searchTerm) {
-    query += ' WHERE u.name ILIKE $1 OR u.roll_number ILIKE $1';
-    params.push(`%${searchTerm}%`);
+    query += ' WHERE LOWER(u.name) LIKE LOWER(?) OR LOWER(u.roll_number) LIKE LOWER(?)';
+    const searchPattern = `%${searchTerm}%`;
+    params.push(searchPattern, searchPattern);
   }
 
   query += ' ORDER BY ps.started_at DESC LIMIT 50';
 
   const result = await pool.query(query, params);
-  return result.rows;
+  return getRows(result);
 };
 
 export const getDashboardStats = async () => {
-  const totalUsers = await pool.query('SELECT COUNT(*) as count FROM users WHERE role = $1', ['student']);
+  const totalUsers = await pool.query('SELECT COUNT(*) as count FROM users WHERE role = ?', ['student']);
   const activeUsers = await pool.query(
-    "SELECT COUNT(DISTINCT user_id) as count FROM practice_sessions WHERE started_at > NOW() - INTERVAL '24 hours'"
+    "SELECT COUNT(DISTINCT user_id) as count FROM practice_sessions WHERE started_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)"
   );
   const questionsAttempted = await pool.query('SELECT COUNT(*) as count FROM user_submissions');
   const pendingApprovals = await pool.query(
-    "SELECT COUNT(*) as count FROM practice_sessions WHERE status = 'in_progress' AND started_at < NOW() - INTERVAL '2 hours'"
+    "SELECT COUNT(*) as count FROM practice_sessions WHERE status = 'in_progress' AND started_at < DATE_SUB(NOW(), INTERVAL 2 HOUR)"
   );
 
+  const totalUsersRows = getRows(totalUsers);
+  const activeUsersRows = getRows(activeUsers);
+  const questionsAttemptedRows = getRows(questionsAttempted);
+  const pendingApprovalsRows = getRows(pendingApprovals);
+
   return {
-    total_users: parseInt(totalUsers.rows[0].count),
-    active_learners: parseInt(activeUsers.rows[0].count),
-    questions_attempted: parseInt(questionsAttempted.rows[0].count),
-    pending_approvals: parseInt(pendingApprovals.rows[0].count),
+    total_users: parseInt(totalUsersRows[0].count),
+    active_learners: parseInt(activeUsersRows[0].count),
+    questions_attempted: parseInt(questionsAttemptedRows[0].count),
+    pending_approvals: parseInt(pendingApprovalsRows[0].count),
   };
 };
 
 export const createCourse = async (data: { title: string; description?: string; total_levels: number }) => {
   const courseId = randomUUID();
   await pool.query(
-    'INSERT INTO courses (id, title, description, total_levels) VALUES ($1, $2, $3, $4)',
+    'INSERT INTO courses (id, title, description, total_levels) VALUES (?, ?, ?, ?)',
     [courseId, data.title, data.description || null, data.total_levels]
   );
   return courseId;
@@ -102,7 +110,7 @@ export const createLevel = async (data: {
 }) => {
   const levelId = randomUUID();
   await pool.query(
-    'INSERT INTO levels (id, course_id, level_number, title, description) VALUES ($1, $2, $3, $4, $5)',
+    'INSERT INTO levels (id, course_id, level_number, title, description) VALUES (?, ?, ?, ?, ?)',
     [levelId, data.course_id, data.level_number, data.title, data.description || null]
   );
   return levelId;
@@ -114,13 +122,14 @@ export const getCoursesWithLevels = async () => {
   );
 
   const courses = [];
-  for (const course of coursesResult.rows) {
+  const coursesRows = getRows(coursesResult);
+  for (const course of coursesRows) {
     const levelsResult = await pool.query(
       `SELECT l.id, l.level_number, l.title, l.description, l.time_limit,
               COUNT(q.id) as question_count
        FROM levels l
        LEFT JOIN questions q ON l.id = q.level_id
-       WHERE l.course_id = $1
+       WHERE l.course_id = ?
        GROUP BY l.id, l.level_number, l.title, l.description, l.time_limit
        ORDER BY l.level_number`,
       [course.id]
@@ -128,7 +137,7 @@ export const getCoursesWithLevels = async () => {
 
     courses.push({
       ...course,
-      levels: levelsResult.rows,
+      levels: getRows(levelsResult),
     });
   }
 
@@ -136,7 +145,7 @@ export const getCoursesWithLevels = async () => {
 };
 
 export const updateLevelTimeLimit = async (levelId: string, timeLimit: number | null) => {
-  await pool.query('UPDATE levels SET time_limit = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [
+  await pool.query('UPDATE levels SET time_limit = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [
     timeLimit,
     levelId,
   ]);
@@ -144,8 +153,7 @@ export const updateLevelTimeLimit = async (levelId: string, timeLimit: number | 
   // Update course updated_at
   await pool.query(
     `UPDATE courses SET updated_at = CURRENT_TIMESTAMP 
-     WHERE id = (SELECT course_id FROM levels WHERE id = $1)`,
+     WHERE id = (SELECT course_id FROM levels WHERE id = ?)`,
     [levelId]
   );
 };
-

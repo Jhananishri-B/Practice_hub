@@ -1,4 +1,5 @@
 import pool from '../config/database';
+import { getRows, getFirstRow } from '../utils/mysqlHelper';
 
 export const getSessionResults = async (sessionId: string, userId: string) => {
   // Get session info
@@ -8,15 +9,16 @@ export const getSessionResults = async (sessionId: string, userId: string) => {
      FROM practice_sessions s
      JOIN courses c ON s.course_id = c.id
      JOIN levels l ON s.level_id = l.id
-     WHERE s.id = $1 AND s.user_id = $2`,
+     WHERE s.id = ? AND s.user_id = ?`,
     [sessionId, userId]
   );
 
-  if (sessionResult.rows.length === 0) {
+  const sessionRows = getRows(sessionResult);
+  if (sessionRows.length === 0) {
     throw new Error('Session not found');
   }
 
-  const session = sessionResult.rows[0];
+  const session = sessionRows[0];
 
   // Get all questions in session
   const questionsResult = await pool.query(
@@ -24,24 +26,27 @@ export const getSessionResults = async (sessionId: string, userId: string) => {
             sq.question_order, sq.status
      FROM session_questions sq
      JOIN questions q ON sq.question_id = q.id
-     WHERE sq.session_id = $1
+     WHERE sq.session_id = ?
      ORDER BY sq.question_order`,
     [sessionId]
   );
 
+  const questionsRows = getRows(questionsResult);
+
   // Get submissions for each question
   const questions = [];
-  for (const question of questionsResult.rows) {
+  for (const question of questionsRows) {
     const submissionResult = await pool.query(
       `SELECT id, submitted_code, language, selected_option_id, is_correct, test_cases_passed, total_test_cases, submitted_at
        FROM user_submissions
-       WHERE session_id = $1 AND question_id = $2
+       WHERE session_id = ? AND question_id = ?
        ORDER BY submitted_at DESC
        LIMIT 1`,
       [sessionId, question.id]
     );
 
-    const submission = submissionResult.rows[0] || null;
+    const submissionRows = getRows(submissionResult);
+    const submission = submissionRows[0] || null;
 
     // Get test case results if coding question
     let testResults = [];
@@ -51,11 +56,11 @@ export const getSessionResults = async (sessionId: string, userId: string) => {
                 tc.input_data, tc.expected_output, tc.is_hidden, tc.test_case_number
          FROM test_case_results tcr
          JOIN test_cases tc ON tcr.test_case_id = tc.id
-         WHERE tcr.submission_id = $1
+         WHERE tcr.submission_id = ?
          ORDER BY tc.test_case_number`,
         [submission.id]
       );
-      testResults = testResultsQuery.rows;
+      testResults = getRows(testResultsQuery);
     }
 
     // Get MCQ options if MCQ
@@ -64,11 +69,11 @@ export const getSessionResults = async (sessionId: string, userId: string) => {
       const optionsQuery = await pool.query(
         `SELECT id, option_text, is_correct, option_letter
          FROM mcq_options
-         WHERE question_id = $1
+         WHERE question_id = ?
          ORDER BY option_letter`,
         [question.id]
       );
-      options = optionsQuery.rows;
+      options = getRows(optionsQuery);
     }
 
     questions.push({
@@ -84,4 +89,3 @@ export const getSessionResults = async (sessionId: string, userId: string) => {
     questions,
   };
 };
-

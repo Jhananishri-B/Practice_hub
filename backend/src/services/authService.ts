@@ -2,6 +2,8 @@ import pool from '../config/database';
 import { hashPassword, comparePassword } from '../utils/password';
 import { generateToken } from '../utils/jwt';
 import logger from '../config/logger';
+import { getRows, getFirstRow } from '../utils/mysqlHelper';
+import { randomUUID } from 'crypto';
 
 export interface LoginCredentials {
   username: string;
@@ -20,15 +22,16 @@ export const login = async (credentials: LoginCredentials) => {
   const { username, password } = credentials;
 
   const result = await pool.query(
-    'SELECT id, username, password_hash, role, name, email FROM users WHERE username = $1',
+    'SELECT id, username, password_hash, role, name, email FROM users WHERE username = ?',
     [username]
   );
 
-  if (result.rows.length === 0) {
+  const rows = getRows(result);
+  if (rows.length === 0) {
     throw new Error('Invalid credentials');
   }
 
-  const user = result.rows[0];
+  const user = rows[0];
   const isValid = await comparePassword(password, user.password_hash);
 
   if (!isValid) {
@@ -56,22 +59,26 @@ export const login = async (credentials: LoginCredentials) => {
 export const createDefaultUsers = async () => {
   try {
     // Check if users already exist
-    const userCheck = await pool.query('SELECT id FROM users WHERE username IN ($1, $2)', ['USER', 'ADMIN']);
+    const userCheck = await pool.query('SELECT id FROM users WHERE username IN (?, ?)', ['USER', 'ADMIN']);
     
-    if (userCheck.rows.length === 0) {
+    const userCheckRows = getRows(userCheck);
+    if (userCheckRows.length === 0) {
       const { hashPassword } = await import('../utils/password');
       
       const userPassword = await hashPassword('123');
       const adminPassword = await hashPassword('123');
 
+      const userId = randomUUID();
+      const adminId = randomUUID();
+      
       await pool.query(
-        'INSERT INTO users (username, password_hash, role, name) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING',
-        ['USER', userPassword, 'student', 'Student User']
+        'INSERT INTO users (id, username, password_hash, role, name) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE id=id',
+        [userId, 'USER', userPassword, 'student', 'Student User']
       );
 
       await pool.query(
-        'INSERT INTO users (username, password_hash, role, name) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING',
-        ['ADMIN', adminPassword, 'admin', 'Admin User']
+        'INSERT INTO users (id, username, password_hash, role, name) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE id=id',
+        [adminId, 'ADMIN', adminPassword, 'admin', 'Admin User']
       );
 
       logger.info('Default users created');

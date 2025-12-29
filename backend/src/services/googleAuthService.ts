@@ -4,6 +4,7 @@ import { generateToken } from '../utils/jwt';
 import { hashPassword } from '../utils/password';
 import logger from '../config/logger';
 import { randomUUID } from 'crypto';
+import { getRows, getFirstRow } from '../utils/mysqlHelper';
 
 const client = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
@@ -77,15 +78,16 @@ export const findOrCreateGoogleUser = async (googleUser: GoogleUserInfo) => {
   try {
     // Check if user exists by email
     let result = await pool.query(
-      'SELECT id, username, role, name, email FROM users WHERE email = $1',
+      'SELECT id, username, role, name, email FROM users WHERE email = ?',
       [googleUser.email]
     );
 
+    const rows = getRows(result);
     let user;
 
-    if (result.rows.length > 0) {
+    if (rows.length > 0) {
       // User exists, return existing user
-      user = result.rows[0];
+      user = rows[0];
       logger.info(`Existing user logged in via Google: ${user.email}`);
     } else {
       // Create new user
@@ -96,7 +98,7 @@ export const findOrCreateGoogleUser = async (googleUser: GoogleUserInfo) => {
 
       await pool.query(
         `INSERT INTO users (id, username, password_hash, role, name, email) 
-         VALUES ($1, $2, $3, $4, $5, $6)`,
+         VALUES (?, ?, ?, ?, ?, ?)`,
         [userId, username, randomPassword, 'student', googleUser.name, googleUser.email]
       );
 

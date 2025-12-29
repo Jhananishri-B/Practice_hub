@@ -1,5 +1,6 @@
 import pool from '../config/database';
 import { randomUUID } from 'crypto';
+import { getRows, getFirstRow } from '../utils/mysqlHelper';
 
 export interface Question {
   id: string;
@@ -34,32 +35,33 @@ export interface MCQOption {
 export const getQuestionById = async (questionId: string) => {
   const result = await pool.query(
     `SELECT id, level_id, question_type, title, description, input_format, output_format, constraints, reference_solution, difficulty
-     FROM questions WHERE id = $1`,
+     FROM questions WHERE id = ?`,
     [questionId]
   );
 
-  if (result.rows.length === 0) {
+  const rows = getRows(result);
+  if (rows.length === 0) {
     throw new Error('Question not found');
   }
 
-  const question = result.rows[0];
+  const question = rows[0];
 
   // Get test cases if coding question
   if (question.question_type === 'coding') {
     const testCasesResult = await pool.query(
-      'SELECT id, input_data, expected_output, is_hidden, test_case_number FROM test_cases WHERE question_id = $1 ORDER BY test_case_number',
+      'SELECT id, input_data, expected_output, is_hidden, test_case_number FROM test_cases WHERE question_id = ? ORDER BY test_case_number',
       [questionId]
     );
-    question.test_cases = testCasesResult.rows;
+    question.test_cases = getRows(testCasesResult);
   }
 
   // Get options if MCQ
   if (question.question_type === 'mcq') {
     const optionsResult = await pool.query(
-      'SELECT id, option_text, is_correct, option_letter FROM mcq_options WHERE question_id = $1 ORDER BY option_letter',
+      'SELECT id, option_text, is_correct, option_letter FROM mcq_options WHERE question_id = ? ORDER BY option_letter',
       [questionId]
     );
-    question.options = optionsResult.rows;
+    question.options = getRows(optionsResult);
   }
 
   return question;
@@ -84,7 +86,7 @@ export const createCodingQuestion = async (data: {
 
   await pool.query(
     `INSERT INTO questions (id, level_id, question_type, title, description, input_format, output_format, constraints, reference_solution, difficulty)
-     VALUES ($1, $2, 'coding', $3, $4, $5, $6, $7, $8, $9)`,
+     VALUES (?, ?, 'coding', ?, ?, ?, ?, ?, ?, ?)`,
     [
       questionId,
       data.level_id,
@@ -101,17 +103,18 @@ export const createCodingQuestion = async (data: {
   // Insert test cases
   for (let i = 0; i < data.test_cases.length; i++) {
     const testCase = data.test_cases[i];
+    const testCaseId = randomUUID();
     await pool.query(
-      `INSERT INTO test_cases (question_id, input_data, expected_output, is_hidden, test_case_number)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [questionId, testCase.input_data, testCase.expected_output, testCase.is_hidden, i + 1]
+      `INSERT INTO test_cases (id, question_id, input_data, expected_output, is_hidden, test_case_number)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [testCaseId, questionId, testCase.input_data, testCase.expected_output, testCase.is_hidden, i + 1]
     );
   }
 
   // Update course updated_at
   await pool.query(
     `UPDATE courses SET updated_at = CURRENT_TIMESTAMP 
-     WHERE id = (SELECT course_id FROM levels WHERE id = $1)`,
+     WHERE id = (SELECT course_id FROM levels WHERE id = ?)`,
     [data.level_id]
   );
 
@@ -132,7 +135,7 @@ export const createMCQQuestion = async (data: {
 
   await pool.query(
     `INSERT INTO questions (id, level_id, question_type, title, description, difficulty)
-     VALUES ($1, $2, 'mcq', $3, $4, $5)`,
+     VALUES (?, ?, 'mcq', ?, ?, ?)`,
     [
       questionId,
       data.level_id,
@@ -146,17 +149,18 @@ export const createMCQQuestion = async (data: {
   const letters = ['A', 'B', 'C', 'D'];
   for (let i = 0; i < data.options.length; i++) {
     const option = data.options[i];
+    const optionId = randomUUID();
     await pool.query(
-      `INSERT INTO mcq_options (question_id, option_text, is_correct, option_letter)
-       VALUES ($1, $2, $3, $4)`,
-      [questionId, option.option_text, option.is_correct, letters[i]]
+      `INSERT INTO mcq_options (id, question_id, option_text, is_correct, option_letter)
+       VALUES (?, ?, ?, ?, ?)`,
+      [optionId, questionId, option.option_text, option.is_correct, letters[i]]
     );
   }
 
   // Update course updated_at
   await pool.query(
     `UPDATE courses SET updated_at = CURRENT_TIMESTAMP 
-     WHERE id = (SELECT course_id FROM levels WHERE id = $1)`,
+     WHERE id = (SELECT course_id FROM levels WHERE id = ?)`,
     [data.level_id]
   );
 
@@ -166,10 +170,10 @@ export const createMCQQuestion = async (data: {
 export const getLevelQuestions = async (levelId: string) => {
   const result = await pool.query(
     `SELECT id, question_type, title, description, difficulty, created_at
-     FROM questions WHERE level_id = $1 ORDER BY created_at ASC`,
+     FROM questions WHERE level_id = ? ORDER BY created_at ASC`,
     [levelId]
   );
-  return result.rows;
+  return getRows(result);
 };
 
 export const updateCodingQuestion = async (
@@ -193,9 +197,9 @@ export const updateCodingQuestion = async (
   // Update question
   await pool.query(
     `UPDATE questions 
-     SET title = $1, description = $2, input_format = $3, output_format = $4, 
-         constraints = $5, reference_solution = $6, difficulty = $7, updated_at = CURRENT_TIMESTAMP
-     WHERE id = $8`,
+     SET title = ?, description = ?, input_format = ?, output_format = ?, 
+         constraints = ?, reference_solution = ?, difficulty = ?, updated_at = CURRENT_TIMESTAMP
+     WHERE id = ?`,
     [
       data.title,
       data.description,
@@ -209,22 +213,23 @@ export const updateCodingQuestion = async (
   );
 
   // Delete existing test cases
-  await pool.query('DELETE FROM test_cases WHERE question_id = $1', [questionId]);
+  await pool.query('DELETE FROM test_cases WHERE question_id = ?', [questionId]);
 
   // Insert new test cases
   for (let i = 0; i < data.test_cases.length; i++) {
     const testCase = data.test_cases[i];
+    const testCaseId = randomUUID();
     await pool.query(
-      `INSERT INTO test_cases (question_id, input_data, expected_output, is_hidden, test_case_number)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [questionId, testCase.input_data, testCase.expected_output, testCase.is_hidden, i + 1]
+      `INSERT INTO test_cases (id, question_id, input_data, expected_output, is_hidden, test_case_number)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [testCaseId, questionId, testCase.input_data, testCase.expected_output, testCase.is_hidden, i + 1]
     );
   }
 
   // Update course updated_at
   await pool.query(
     `UPDATE courses SET updated_at = CURRENT_TIMESTAMP 
-     WHERE id = (SELECT course_id FROM levels WHERE id = (SELECT level_id FROM questions WHERE id = $1))`,
+     WHERE id = (SELECT course_id FROM levels WHERE id = (SELECT level_id FROM questions WHERE id = ?))`,
     [questionId]
   );
 };
@@ -245,48 +250,49 @@ export const updateMCQQuestion = async (
   // Update question
   await pool.query(
     `UPDATE questions 
-     SET title = $1, description = $2, difficulty = $3, updated_at = CURRENT_TIMESTAMP
-     WHERE id = $4`,
+     SET title = ?, description = ?, difficulty = ?, updated_at = CURRENT_TIMESTAMP
+     WHERE id = ?`,
     [data.title, data.description, data.difficulty || 'medium', questionId]
   );
 
   // Delete existing options
-  await pool.query('DELETE FROM mcq_options WHERE question_id = $1', [questionId]);
+  await pool.query('DELETE FROM mcq_options WHERE question_id = ?', [questionId]);
 
   // Insert new options
   const letters = ['A', 'B', 'C', 'D'];
   for (let i = 0; i < data.options.length; i++) {
     const option = data.options[i];
+    const optionId = randomUUID();
     await pool.query(
-      `INSERT INTO mcq_options (question_id, option_text, is_correct, option_letter)
-       VALUES ($1, $2, $3, $4)`,
-      [questionId, option.option_text, option.is_correct, letters[i]]
+      `INSERT INTO mcq_options (id, question_id, option_text, is_correct, option_letter)
+       VALUES (?, ?, ?, ?, ?)`,
+      [optionId, questionId, option.option_text, option.is_correct, letters[i]]
     );
   }
 
   // Update course updated_at
   await pool.query(
     `UPDATE courses SET updated_at = CURRENT_TIMESTAMP 
-     WHERE id = (SELECT course_id FROM levels WHERE id = (SELECT level_id FROM questions WHERE id = $1))`,
+     WHERE id = (SELECT course_id FROM levels WHERE id = (SELECT level_id FROM questions WHERE id = ?))`,
     [questionId]
   );
 };
 
 export const deleteQuestion = async (questionId: string) => {
   // Get level_id before deleting
-  const questionResult = await pool.query('SELECT level_id FROM questions WHERE id = $1', [questionId]);
-  if (questionResult.rows.length === 0) {
+  const questionResult = await pool.query('SELECT level_id FROM questions WHERE id = ?', [questionId]);
+  const questionRows = getRows(questionResult);
+  if (questionRows.length === 0) {
     throw new Error('Question not found');
   }
 
   // Delete question (cascade will delete test_cases and mcq_options)
-  await pool.query('DELETE FROM questions WHERE id = $1', [questionId]);
+  await pool.query('DELETE FROM questions WHERE id = ?', [questionId]);
 
   // Update course updated_at
   await pool.query(
     `UPDATE courses SET updated_at = CURRENT_TIMESTAMP 
-     WHERE id = (SELECT course_id FROM levels WHERE id = $1)`,
-    [questionResult.rows[0].level_id]
+     WHERE id = (SELECT course_id FROM levels WHERE id = ?)`,
+    [questionRows[0].level_id]
   );
 };
-

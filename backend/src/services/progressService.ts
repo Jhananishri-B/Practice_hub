@@ -1,17 +1,19 @@
 import pool from '../config/database';
+import { getRows, getFirstRow } from '../utils/mysqlHelper';
 
 export const getUserProgress = async (userId: string) => {
   const statsResult = await pool.query(
     `SELECT 
       COUNT(DISTINCT us.question_id) as total_attempted,
       COUNT(DISTINCT CASE WHEN us.is_correct = true THEN us.question_id END) as total_solved,
-      AVG(CASE WHEN us.total_test_cases > 0 THEN us.test_cases_passed::float / us.total_test_cases ELSE 0 END) * 100 as success_rate
+      AVG(CASE WHEN us.total_test_cases > 0 THEN CAST(us.test_cases_passed AS FLOAT) / us.total_test_cases ELSE 0 END) * 100 as success_rate
      FROM user_submissions us
-     WHERE us.user_id = $1`,
+     WHERE us.user_id = ?`,
     [userId]
   );
 
-  const stats = statsResult.rows[0] || {
+  const statsRows = getRows(statsResult);
+  const stats = statsRows[0] || {
     total_attempted: 0,
     total_solved: 0,
     success_rate: 0,
@@ -21,11 +23,12 @@ export const getUserProgress = async (userId: string) => {
   const streakResult = await pool.query(
     `SELECT current_streak, longest_streak
      FROM user_statistics
-     WHERE user_id = $1`,
+     WHERE user_id = ?`,
     [userId]
   );
 
-  const streak = streakResult.rows[0] || {
+  const streakRows = getRows(streakResult);
+  const streak = streakRows[0] || {
     current_streak: 0,
     longest_streak: 0,
   };
@@ -40,13 +43,14 @@ export const getUserProgress = async (userId: string) => {
      JOIN courses c ON s.course_id = c.id
      JOIN levels l ON s.level_id = l.id
      JOIN session_questions sq ON s.id = sq.session_id
-     WHERE s.user_id = $1
+     WHERE s.user_id = ?
      ORDER BY s.started_at DESC
      LIMIT 1`,
     [userId]
   );
 
-  const recentSession = recentSessionResult.rows[0] || null;
+  const recentSessionRows = getRows(recentSessionResult);
+  const recentSession = recentSessionRows[0] || null;
 
   return {
     ...stats,
@@ -64,7 +68,7 @@ export const getLeaderboard = async (limit: number = 10) => {
       u.roll_number,
       COUNT(DISTINCT CASE WHEN us.is_correct = true THEN us.question_id END) as problems_solved,
       COUNT(DISTINCT CASE WHEN up.status = 'completed' THEN up.level_id END) as levels_cleared,
-      AVG(CASE WHEN us.total_test_cases > 0 THEN us.test_cases_passed::float / us.total_test_cases ELSE 0 END) * 100 as efficiency
+      AVG(CASE WHEN us.total_test_cases > 0 THEN CAST(us.test_cases_passed AS FLOAT) / us.total_test_cases ELSE 0 END) * 100 as efficiency
      FROM users u
      LEFT JOIN user_submissions us ON u.id = us.user_id
      LEFT JOIN user_progress up ON u.id = up.user_id
@@ -73,13 +77,14 @@ export const getLeaderboard = async (limit: number = 10) => {
      HAVING COUNT(DISTINCT CASE WHEN us.is_correct = true THEN us.question_id END) > 0
         OR COUNT(DISTINCT CASE WHEN up.status = 'completed' THEN up.level_id END) > 0
      ORDER BY problems_solved DESC, levels_cleared DESC, efficiency DESC
-     LIMIT $1`,
+     LIMIT ?`,
     [limit]
   );
 
+  const rows = getRows(result);
   // If we have data, return it
-  if (result.rows.length > 0) {
-    return result.rows.map((row, index) => ({
+  if (rows.length > 0) {
+    return rows.map((row: any, index: number) => ({
       rank: index + 1,
       ...row,
       levels_cleared: parseInt(row.levels_cleared) || 0,
@@ -105,4 +110,3 @@ export const getLeaderboard = async (limit: number = 10) => {
     ...row,
   }));
 };
-
