@@ -17,8 +17,12 @@ import {
   getQuestionById,
 } from '../services/questionService';
 import { updateLevelTimeLimit } from '../services/adminService';
+import { parseAndCreateQuestionsFromCSV, CSVRow } from '../services/csvUploadService';
 import { AuthRequest } from '../middlewares/auth';
 import logger from '../config/logger';
+import multer from 'multer';
+import { parse } from 'csv-parse/sync';
+import { Request } from 'express';
 
 export const getDashboardStatsController = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -170,4 +174,56 @@ export const updateLevelTimeLimitController = async (req: AuthRequest, res: Resp
     res.status(500).json({ error: 'Failed to update time limit' });
   }
 };
+
+// Configure multer for file upload
+const upload = multer({ storage: multer.memoryStorage() });
+
+interface MulterRequest extends AuthRequest {
+  file?: Express.Multer.File;
+}
+
+export const uploadCSVQuestionsController = async (req: MulterRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.file) {
+      res.status(400).json({ error: 'No file uploaded' });
+      return;
+    }
+
+    const { level_id } = req.body;
+    if (!level_id) {
+      res.status(400).json({ error: 'level_id is required' });
+      return;
+    }
+
+    // Parse CSV file
+    const csvContent = req.file.buffer.toString('utf-8');
+    const parseResult = parse(csvContent, {
+      columns: true,
+      skip_empty_lines: true,
+      trim: true,
+      cast: (value: any, context: any) => {
+        // Transform header names to lowercase with underscores
+        if (context.header) {
+          return value.trim().toLowerCase().replace(/\s+/g, '_');
+        }
+        return value;
+      },
+    }) as CSVRow[];
+
+    // Process and create questions
+    const result = await parseAndCreateQuestionsFromCSV(parseResult, level_id);
+
+    res.json({
+      message: `Successfully created ${result.success} questions`,
+      count: result.success,
+      errors: result.errors,
+    });
+  } catch (error: any) {
+    logger.error('CSV upload error:', error);
+    res.status(500).json({ error: error.message || 'Failed to upload CSV file' });
+  }
+};
+
+// Export multer middleware for use in routes
+export const uploadCSVMiddleware = upload.single('file');
 

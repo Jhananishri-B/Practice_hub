@@ -14,6 +14,8 @@ import {
   updateMCQQuestionController,
   deleteQuestionController,
   updateLevelTimeLimitController,
+  uploadCSVQuestionsController,
+  uploadCSVMiddleware,
 } from '../controllers/adminController';
 import { authenticate, requireAdmin } from '../middlewares/auth';
 
@@ -37,6 +39,7 @@ router.put('/questions/coding/:questionId', updateCodingQuestionController);
 router.put('/questions/mcq/:questionId', updateMCQQuestionController);
 router.delete('/questions/:questionId', deleteQuestionController);
 router.put('/levels/:levelId/time-limit', updateLevelTimeLimitController);
+router.post('/questions/upload-csv', uploadCSVMiddleware, uploadCSVQuestionsController);
 
 export default router;
 

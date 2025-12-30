@@ -20,3 +20,4 @@ export const getFirstRow = (result: any) => {
   return rows && rows.length > 0 ? rows[0] : null;
 };
 
+

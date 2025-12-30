@@ -43,6 +43,24 @@ const Dashboard = () => {
     return 'BEGINNER';
   };
 
+  const getCourseImage = (courseTitle) => {
+    const title = courseTitle?.toLowerCase() || '';
+    
+    // Use external image URLs for each course
+    if (title.includes('c programming') || title === 'c') {
+      return 'https://miro.medium.com/v2/resize:fit:1100/format:webp/1*2p6xGs1MCtjM7Giw5gmkpQ.jpeg';
+    }
+    if (title.includes('machine learning')) {
+      return 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSB9ktsMFQBpwgQEp6lzgBkqNoBzZJ5UK5WoQ&s';
+    }
+    if (title.includes('python')) {
+      return 'https://webandcrafts.com/_next/image?url=https%3A%2F%2Fadmin.wac.co%2Fuploads%2FFeatures_Of_Python_1_f4ccd6d9f7.jpg&w=4500&q=90';
+    }
+    
+    // Fallback gradient
+    return null;
+  };
+
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
@@ -71,20 +89,36 @@ const Dashboard = () => {
             <div className="text-center py-12">Loading courses...</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {filteredCourses.map((course) => (
-                <div
-                  key={course.id}
-                  className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
-                >
-                  <div className="h-32 bg-gradient-to-br from-gray-800 to-gray-900 relative">
-                    <span
-                      className={`absolute bottom-2 left-2 px-2 py-1 text-xs font-semibold text-white rounded ${getDifficultyColor(
-                        course.title
-                      )}`}
-                    >
-                      {getDifficultyLabel(course.title)}
-                    </span>
-                  </div>
+              {filteredCourses.map((course) => {
+                const courseImage = getCourseImage(course.title);
+                return (
+                  <div
+                    key={course.id}
+                    className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
+                  >
+                    <div className="h-32 w-full overflow-hidden bg-gray-200 relative">
+                      {courseImage ? (
+                        <img
+                          src={courseImage}
+                          alt={course.title || 'Course banner'}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.style.display = 'none';
+                            e.target.parentElement.style.background = 'linear-gradient(to bottom right, #667eea, #764ba2)';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900"></div>
+                      )}
+                      <span
+                        className={`absolute bottom-2 left-2 px-2 py-1 text-xs font-semibold text-white rounded ${getDifficultyColor(
+                          course.title
+                        )}`}
+                      >
+                        {getDifficultyLabel(course.title)}
+                      </span>
+                    </div>
                   <div className="p-6">
                     <h3 className="text-xl font-bold text-gray-800 mb-2">{course.title}</h3>
                     <p className="text-gray-600 text-sm mb-4">{course.description}</p>
@@ -96,7 +130,8 @@ const Dashboard = () => {
                     </button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
