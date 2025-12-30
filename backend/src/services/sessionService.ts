@@ -165,13 +165,23 @@ export const submitSolution = async (
 
   if (question_type === 'mcq') {
     // Handle MCQ submission
+    if (!submission.selected_option_id) {
+      throw new Error('No option selected');
+    }
+
     const optionResult = await pool.query(
       'SELECT is_correct FROM mcq_options WHERE id = ?',
       [submission.selected_option_id]
     );
 
     const optionRows = getRows(optionResult);
-    const isCorrect = optionRows[0]?.is_correct || false;
+    if (optionRows.length === 0) {
+      throw new Error('Selected option not found');
+    }
+
+    // Handle MySQL boolean (0/1) and JavaScript boolean (true/false)
+    const isCorrectValue = optionRows[0].is_correct;
+    const isCorrect = isCorrectValue === true || isCorrectValue === 1 || isCorrectValue === '1';
 
     const mcqSubmissionId = randomUUID();
     await pool.query(

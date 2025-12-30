@@ -32,6 +32,8 @@ const CreateQuestion = () => {
       { option_text: '', is_correct: false },
       { option_text: '', is_correct: false },
     ],
+    // For MCQ: correct answer as full text (should match one of the option texts)
+    correct_answer: '',
   });
 
   useEffect(() => {
@@ -66,17 +68,37 @@ const CreateQuestion = () => {
                   is_hidden: tc.is_hidden || false,
                 }))
               : [{ input_data: '', expected_output: '', is_hidden: false }],
-            options: question.options && question.options.length > 0
-              ? question.options.map((opt) => ({
-                  option_text: opt.option_text || '',
-                  is_correct: opt.is_correct || false,
-                }))
-              : [
-                  { option_text: '', is_correct: false },
-                  { option_text: '', is_correct: false },
-                  { option_text: '', is_correct: false },
-                  { option_text: '', is_correct: false },
-                ],
+            options:
+              question.options && question.options.length > 0
+                ? question.options.map((opt) => ({
+                    option_text: opt.option_text || '',
+                    is_correct: opt.is_correct || false,
+                  }))
+                : [
+                    { option_text: '', is_correct: false },
+                    { option_text: '', is_correct: false },
+                    { option_text: '', is_correct: false },
+                    { option_text: '', is_correct: false },
+                  ],
+            // Pre-fill correct_answer with the text of the correct option (if any)
+            // Handle both boolean true and numeric 1 (MySQL returns 1 for true)
+            correct_answer:
+              question.options && question.options.length > 0
+                ? (() => {
+                    // Check for correct option - handle MySQL boolean (0/1) and JavaScript boolean
+                    // Also handle Buffer type that MySQL2 might return
+                    const correctOpt = question.options.find((opt) => {
+                      const isCorrect = opt.is_correct;
+                      // Handle various formats: true, 1, '1', 'true', Buffer(1)
+                      if (isCorrect === true) return true;
+                      if (isCorrect === 1 || isCorrect === '1') return true;
+                      if (isCorrect === 'true') return true;
+                      if (Buffer.isBuffer(isCorrect) && isCorrect[0] === 1) return true;
+                      return false;
+                    });
+                    return correctOpt?.option_text || '';
+                  })()
+                : '',
           });
         })
         .catch((error) => {
@@ -102,33 +124,93 @@ const CreateQuestion = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Validate required fields
+    if (!formData.title || !formData.title.trim()) {
+      alert('Please enter a question title');
+      return;
+    }
+
+    if (!formData.description || !formData.description.trim()) {
+      alert('Please enter a question description');
+      return;
+    }
+
     try {
-      if (isEditMode) {
-        // Update existing question
-        if (questionType === 'coding') {
-          await api.put(`/admin/questions/coding/${questionId}`, formData);
-        } else {
-          await api.put(`/admin/questions/mcq/${questionId}`, {
-            title: formData.title,
-            description: formData.description,
-            options: formData.options,
-            difficulty: formData.difficulty,
-          });
+      if (questionType === 'mcq') {
+        // Basic validation for MCQ: ensure correct answer matches one of the options
+        if (!formData.correct_answer || !formData.correct_answer.trim()) {
+          alert('Please enter the correct answer text that matches one of the options');
+          return;
         }
-      } else {
-        // Create new question
-        if (questionType === 'coding') {
-          await api.post('/admin/questions/coding', {
-            level_id: levelId,
-            ...formData,
+
+        const trimmedCorrect = formData.correct_answer.trim().toLowerCase();
+        const optionsWithText = formData.options.map((opt) => ({
+          ...opt,
+          option_text: (opt.option_text || '').trim(),
+        }));
+
+        // Check if all options have text
+        const emptyOptions = optionsWithText.filter((opt) => !opt.option_text);
+        if (emptyOptions.length > 0) {
+          alert('Please fill in all option fields');
+          return;
+        }
+
+        const matchingOptionIndex = optionsWithText.findIndex(
+          (opt) => opt.option_text.toLowerCase() === trimmedCorrect
+        );
+
+        if (matchingOptionIndex === -1) {
+          alert(
+            'The Correct Answer must exactly match one of the option texts (case-insensitive).\n\n' +
+            'Current options:\n' +
+            optionsWithText.map((opt, idx) => `${String.fromCharCode(65 + idx)}. ${opt.option_text}`).join('\n')
+          );
+          return;
+        }
+
+        // Mark only the matching option as correct
+        const optionsWithCorrect = optionsWithText.map((opt, index) => ({
+          ...opt,
+          is_correct: index === matchingOptionIndex,
+        }));
+
+        if (isEditMode) {
+          await api.put(`/admin/questions/mcq/${questionId}`, {
+            title: formData.title.trim(),
+            description: formData.description.trim(),
+            options: optionsWithCorrect,
+            difficulty: formData.difficulty,
           });
         } else {
           await api.post('/admin/questions/mcq', {
             level_id: levelId,
-            title: formData.title,
-            description: formData.description,
-            options: formData.options,
+            title: formData.title.trim(),
+            description: formData.description.trim(),
+            options: optionsWithCorrect,
             difficulty: formData.difficulty,
+          });
+        }
+      } else {
+        // Coding question validation
+        if (!formData.reference_solution || !formData.reference_solution.trim()) {
+          alert('Please enter a reference solution');
+          return;
+        }
+
+        if (!formData.test_cases || formData.test_cases.length === 0) {
+          alert('Please add at least one test case');
+          return;
+        }
+
+        // Coding question (unchanged)
+        if (isEditMode) {
+          await api.put(`/admin/questions/coding/${questionId}`, formData);
+        } else {
+          await api.post('/admin/questions/coding', {
+            level_id: levelId,
+            ...formData,
           });
         }
       }
@@ -383,23 +465,9 @@ const CreateQuestion = () => {
           {questionType === 'mcq' && (
             <div className="bg-white rounded-lg shadow-md p-6">
               <h3 className="text-lg font-bold text-gray-800 mb-4">Answer Options</h3>
-              <p className="text-sm text-gray-600 mb-4">Select the radio button for the correct answer.</p>
-              <div className="space-y-3">
+              <div className="space-y-3 mb-6">
                 {formData.options.map((option, index) => (
                   <div key={index} className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg">
-                    <input
-                      type="radio"
-                      name="correct-answer"
-                      checked={option.is_correct}
-                      onChange={() => {
-                        const newOptions = formData.options.map((opt, i) => ({
-                          ...opt,
-                          is_correct: i === index,
-                        }));
-                        setFormData({ ...formData, options: newOptions });
-                      }}
-                      className="mr-2"
-                    />
                     <span className="font-medium">{String.fromCharCode(65 + index)}.</span>
                     <input
                       type="text"
@@ -415,6 +483,26 @@ const CreateQuestion = () => {
                     />
                   </div>
                 ))}
+              </div>
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Correct Answer (Text) *
+                </label>
+                <input
+                  type="text"
+                  value={formData.correct_answer}
+                  onChange={(e) => {
+                    setFormData({ ...formData, correct_answer: e.target.value });
+                  }}
+                  placeholder="Enter the correct answer text (must match one of the options)"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  This should exactly match the text of the correct option (for example: "
+                  <span className="italic">0</span>" or "
+                  <span className="italic">Depends on language</span>").
+                </p>
               </div>
             </div>
           )}

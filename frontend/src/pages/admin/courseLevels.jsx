@@ -12,7 +12,13 @@ const AdminCourseLevels = () => {
   const [questions, setQuestions] = useState({});
   const [loading, setLoading] = useState(true);
   const [timeLimitModal, setTimeLimitModal] = useState({ show: false, levelId: null, timeLimit: null });
-  const [csvUploadModal, setCsvUploadModal] = useState({ show: false, levelId: null, uploading: false });
+  const [csvUploadModal, setCsvUploadModal] = useState({
+    show: false,
+    levelId: null,
+    uploading: false,
+    questionType: null, // 'coding' | 'mcq'
+  });
+  const [visibleQuestions, setVisibleQuestions] = useState({}); // { [levelId]: 'coding' | 'mcq' | null }
 
   useEffect(() => {
     fetchData();
@@ -52,6 +58,7 @@ const AdminCourseLevels = () => {
 
     try {
       await api.delete(`/admin/questions/${questionId}`);
+      alert('Question deleted successfully');
       // Refresh questions for this level
       const questionsResponse = await api.get(`/admin/levels/${levelId}/questions`);
       setQuestions({ ...questions, [levelId]: questionsResponse.data });
@@ -61,7 +68,8 @@ const AdminCourseLevels = () => {
       setCourse(courseData);
     } catch (error) {
       console.error('Failed to delete question:', error);
-      alert('Failed to delete question');
+      const errorMessage = error?.response?.data?.error || error?.message || 'Failed to delete question';
+      alert(`Failed to delete question: ${errorMessage}`);
     }
   };
 
@@ -105,7 +113,15 @@ const AdminCourseLevels = () => {
   };
 
   const handleCsvUpload = (levelId) => {
-    setCsvUploadModal({ show: true, levelId, uploading: false });
+    // First ask whether this CSV is for coding or MCQ questions
+    setCsvUploadModal({ show: true, levelId, uploading: false, questionType: null });
+  };
+
+  const handleSelectCsvType = (type) => {
+    setCsvUploadModal((prev) => ({
+      ...prev,
+      questionType: type, // 'coding' or 'mcq'
+    }));
   };
 
   const handleFileSelect = async (event) => {
@@ -123,6 +139,9 @@ const AdminCourseLevels = () => {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('level_id', csvUploadModal.levelId);
+      if (csvUploadModal.questionType) {
+        formData.append('question_type', csvUploadModal.questionType);
+      }
 
       const response = await api.post('/admin/questions/upload-csv', formData, {
         headers: {
@@ -143,6 +162,15 @@ const AdminCourseLevels = () => {
       alert(error.response?.data?.error || 'Failed to upload CSV file');
       setCsvUploadModal({ ...csvUploadModal, uploading: false });
     }
+  };
+
+  const handleToggleQuestionTypeVisibility = (levelId, type) => {
+    setVisibleQuestions((prev) => {
+      const current = prev[levelId] || null;
+      // Toggle off if same type is clicked again
+      const next = current === type ? null : type;
+      return { ...prev, [levelId]: next };
+    });
   };
 
   if (loading) {
@@ -216,12 +244,52 @@ const AdminCourseLevels = () => {
 
               {/* Questions List */}
               <div className="mt-4 pt-4 border-t border-gray-200">
-                <h4 className="text-sm font-semibold text-gray-700 mb-3">
-                  Questions ({questions[level.id]?.length || 0})
-                </h4>
-                {questions[level.id] && questions[level.id].length > 0 ? (
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-semibold text-gray-700">
+                    Questions ({questions[level.id]?.length || 0})
+                  </h4>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleQuestionTypeVisibility(level.id, 'coding')}
+                      className={`px-3 py-1 text-xs rounded-lg border ${
+                        visibleQuestions[level.id] === 'coding'
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      Coding Questions
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleQuestionTypeVisibility(level.id, 'mcq')}
+                      className={`px-3 py-1 text-xs rounded-lg border ${
+                        visibleQuestions[level.id] === 'mcq'
+                          ? 'bg-green-600 text-white border-green-600'
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      MCQ Questions
+                    </button>
+                  </div>
+                </div>
+
+                {/* Info text when nothing selected */}
+                {!visibleQuestions[level.id] && (
+                  <p className="text-xs text-gray-500 mb-3">
+                    Click <span className="font-semibold">Coding Questions</span> or{' '}
+                    <span className="font-semibold">MCQ Questions</span> to view questions for this
+                    level.
+                  </p>
+                )}
+
+                {questions[level.id] &&
+                questions[level.id].length > 0 &&
+                visibleQuestions[level.id] ? (
                   <div className="space-y-3">
-                    {questions[level.id].map((question) => (
+                    {questions[level.id]
+                      .filter((question) => question.question_type === visibleQuestions[level.id])
+                      .map((question) => (
                       <div
                         key={question.id}
                         className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
@@ -264,7 +332,11 @@ const AdminCourseLevels = () => {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-500 italic">No questions added yet</p>
+                  <p className="text-sm text-gray-500 italic">
+                    {questions[level.id] && questions[level.id].length > 0
+                      ? 'No questions to show for this type yet.'
+                      : 'No questions added yet'}
+                  </p>
                 )}
               </div>
             </div>
@@ -317,36 +389,91 @@ const AdminCourseLevels = () => {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 w-full max-w-md">
               <h3 className="text-lg font-bold text-gray-800 mb-4">Upload Questions from CSV</h3>
-              <div className="mb-4">
-                <p className="text-sm text-gray-600 mb-4">
-                  Upload a CSV file with questions. Required columns:
-                </p>
-                <div className="bg-gray-50 p-3 rounded-lg mb-4">
-                  <p className="text-xs font-mono text-gray-700">
-                    For Coding Questions:<br />
-                    title, description, input_format, output_format, constraints, reference_solution, difficulty, test_cases<br />
-                    <br />
-                    For MCQ Questions:<br />
-                    title, description, option1, option2, option3, option4, correct_option, difficulty
+
+              {/* Step 1: Choose question type */}
+              {!csvUploadModal.questionType && (
+                <div className="mb-6">
+                  <p className="text-sm text-gray-600 mb-3">
+                    What type of questions are you uploading for this level?
                   </p>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => handleSelectCsvType('coding')}
+                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
+                      Upload CSV for Coding Questions
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectCsvType('mcq')}
+                      className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                    >
+                      Upload CSV for MCQ Questions
+                    </button>
+                  </div>
                 </div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Select CSV File
-                </label>
-                <input
-                  type="file"
-                  accept=".csv"
-                  onChange={handleFileSelect}
-                  disabled={csvUploadModal.uploading}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                />
-                {csvUploadModal.uploading && (
-                  <p className="text-sm text-blue-600 mt-2">Uploading and processing questions...</p>
-                )}
-              </div>
+              )}
+
+              {/* Step 2: File selection and instructions */}
+              {csvUploadModal.questionType && (
+                <div className="mb-4">
+                  <p className="text-sm text-gray-600 mb-4">
+                    Upload a CSV file with{' '}
+                    {csvUploadModal.questionType === 'coding' ? 'coding' : 'MCQ'} questions. Required
+                    columns:
+                  </p>
+                  <div className="bg-gray-50 p-3 rounded-lg mb-4">
+                    {csvUploadModal.questionType === 'coding' ? (
+                      <p className="text-xs font-mono text-gray-700">
+                        Coding Questions:
+                        <br />
+                        title, description, input_format, output_format, constraints,
+                        reference_solution, difficulty, test_cases
+                      </p>
+                    ) : (
+                      <p className="text-xs font-mono text-gray-700">
+                        MCQ Questions:
+                        <br />
+                        title, description, option1, option2, option3, option4, correct_answer,
+                        difficulty
+                        <br />
+                        <br />
+                        <span className="font-semibold">
+                          correct_answer can be either the full correct option text
+                        </span>{' '}
+                        (recommended) or a letter (A/B/C/D).
+                      </p>
+                    )}
+                  </div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Select CSV File
+                  </label>
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={handleFileSelect}
+                    disabled={csvUploadModal.uploading}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  />
+                  {csvUploadModal.uploading && (
+                    <p className="text-sm text-blue-600 mt-2">
+                      Uploading and processing questions...
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="flex gap-3 justify-end">
                 <button
-                  onClick={() => setCsvUploadModal({ show: false, levelId: null, uploading: false })}
+                  onClick={() =>
+                    setCsvUploadModal({
+                      show: false,
+                      levelId: null,
+                      uploading: false,
+                      questionType: null,
+                    })
+                  }
                   disabled={csvUploadModal.uploading}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
                 >

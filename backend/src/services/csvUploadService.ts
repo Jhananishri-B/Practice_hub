@@ -105,16 +105,50 @@ export const parseAndCreateQuestionsFromCSV = async (
         }
 
         const options: Array<{ option_text: string; is_correct: boolean }> = [];
-        const correctOption = row.correct_option?.toUpperCase() || row.correct_answer?.toUpperCase() || 'A';
+
+        const rawCorrectOption = row.correct_option?.toString().trim();
+        const rawCorrectAnswer = row.correct_answer?.toString().trim();
+
+        // Decide whether to treat correct_answer as a letter (A/B/C/D) or full text
+        let correctLetter: string | null = null;
+        let correctTextLower: string | null = null;
+
+        if (rawCorrectOption) {
+          correctLetter = rawCorrectOption.toUpperCase();
+        }
+
+        if (rawCorrectAnswer) {
+          const upper = rawCorrectAnswer.toUpperCase();
+          if (['A', 'B', 'C', 'D'].includes(upper)) {
+            // Legacy style: letter
+            correctLetter = correctLetter || upper;
+          } else {
+            // Preferred style: full text match
+            correctTextLower = rawCorrectAnswer.toLowerCase();
+          }
+        }
+
+        // Default to 'A' if nothing specified
+        if (!correctLetter && !correctTextLower) {
+          correctLetter = 'A';
+        }
 
         // Parse options (option1, option2, option3, option4 or option_1, option_2, etc.)
         for (let optNum = 1; optNum <= 4; optNum++) {
-          const optionText = row[`option${optNum}`] || row[`option_${optNum}`] || row[`option ${optNum}`];
+          const optionText =
+            row[`option${optNum}`] || row[`option_${optNum}`] || row[`option ${optNum}`];
           if (optionText) {
+            const trimmed = optionText.trim();
             const letter = String.fromCharCode(64 + optNum); // A, B, C, D
+
+            const isCorrect =
+              correctTextLower != null
+                ? trimmed.toLowerCase() === correctTextLower
+                : letter === (correctLetter || 'A');
+
             options.push({
-              option_text: optionText.trim(),
-              is_correct: letter === correctOption,
+              option_text: trimmed,
+              is_correct: isCorrect,
             });
           }
         }

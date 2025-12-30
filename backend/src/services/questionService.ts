@@ -61,7 +61,25 @@ export const getQuestionById = async (questionId: string) => {
       'SELECT id, option_text, is_correct, option_letter FROM mcq_options WHERE question_id = ? ORDER BY option_letter',
       [questionId]
     );
-    question.options = getRows(optionsResult);
+    const optionsRows = getRows(optionsResult);
+    // Convert MySQL boolean (0/1/Buffer) to JavaScript boolean for frontend compatibility
+    question.options = optionsRows.map((opt: any) => {
+      let isCorrect = opt.is_correct;
+      // Handle various MySQL boolean formats
+      if (isCorrect === true || isCorrect === 1) {
+        isCorrect = true;
+      } else if (Buffer.isBuffer(isCorrect)) {
+        isCorrect = isCorrect[0] === 1;
+      } else if (isCorrect === '1' || isCorrect === 'true') {
+        isCorrect = true;
+      } else {
+        isCorrect = false;
+      }
+      return {
+        ...opt,
+        is_correct: isCorrect,
+      };
+    });
   }
 
   return question;
@@ -255,6 +273,24 @@ export const updateMCQQuestion = async (
     [data.title, data.description, data.difficulty || 'medium', questionId]
   );
 
+  // Get existing option IDs before deleting
+  const existingOptionsResult = await pool.query(
+    'SELECT id FROM mcq_options WHERE question_id = ?',
+    [questionId]
+  );
+  const existingOptionIds = getRows(existingOptionsResult).map((row: any) => row.id);
+
+  // Clear selected_option_id references before deleting options
+  if (existingOptionIds.length > 0) {
+    const placeholders = existingOptionIds.map(() => '?').join(',');
+    await pool.query(
+      `UPDATE user_submissions 
+       SET selected_option_id = NULL 
+       WHERE selected_option_id IN (${placeholders})`,
+      existingOptionIds
+    );
+  }
+
   // Delete existing options
   await pool.query('DELETE FROM mcq_options WHERE question_id = ?', [questionId]);
 
@@ -286,13 +322,55 @@ export const deleteQuestion = async (questionId: string) => {
     throw new Error('Question not found');
   }
 
-  // Delete question (cascade will delete test_cases and mcq_options)
+  const levelId = questionRows[0].level_id;
+
+  // Get all mcq_option IDs for this question first
+  const mcqOptionsResult = await pool.query(
+    'SELECT id FROM mcq_options WHERE question_id = ?',
+    [questionId]
+  );
+  const mcqOptionIds = getRows(mcqOptionsResult).map((row: any) => row.id);
+
+  // Delete in order to handle foreign key constraints:
+  // 1. Set selected_option_id to NULL in user_submissions for all mcq_options of this question
+  // This must be done BEFORE deleting mcq_options to avoid foreign key constraint violation
+  if (mcqOptionIds.length > 0) {
+    const placeholders = mcqOptionIds.map(() => '?').join(',');
+    await pool.query(
+      `UPDATE user_submissions 
+       SET selected_option_id = NULL 
+       WHERE selected_option_id IN (${placeholders})`,
+      mcqOptionIds
+    );
+  }
+
+  // 2. Delete test_case_results that reference test_cases of this question
+  await pool.query(
+    `DELETE tcr FROM test_case_results tcr
+     INNER JOIN test_cases tc ON tcr.test_case_id = tc.id
+     WHERE tc.question_id = ?`,
+    [questionId]
+  );
+
+  // 3. Delete user_submissions for this question
+  await pool.query('DELETE FROM user_submissions WHERE question_id = ?', [questionId]);
+
+  // 4. Delete session_questions for this question
+  await pool.query('DELETE FROM session_questions WHERE question_id = ?', [questionId]);
+
+  // 5. Delete test_cases
+  await pool.query('DELETE FROM test_cases WHERE question_id = ?', [questionId]);
+
+  // 6. Now safe to delete mcq_options (after clearing selected_option_id references)
+  await pool.query('DELETE FROM mcq_options WHERE question_id = ?', [questionId]);
+
+  // 7. Finally delete the question itself
   await pool.query('DELETE FROM questions WHERE id = ?', [questionId]);
 
   // Update course updated_at
   await pool.query(
     `UPDATE courses SET updated_at = CURRENT_TIMESTAMP 
      WHERE id = (SELECT course_id FROM levels WHERE id = ?)`,
-    [questionRows[0].level_id]
+    [levelId]
   );
 };
