@@ -281,6 +281,15 @@ export const updateMCQQuestion = async (
   const existingOptionIds = getRows(existingOptionsResult).map((row: any) => row.id);
 
   // Clear selected_option_id references before deleting options
+  // Clear by question_id first (most comprehensive), then by specific option IDs
+  await pool.query(
+    `UPDATE user_submissions 
+     SET selected_option_id = NULL 
+     WHERE question_id = ? AND selected_option_id IS NOT NULL`,
+    [questionId]
+  );
+  
+  // Also clear by specific option IDs as an additional safety measure
   if (existingOptionIds.length > 0) {
     const placeholders = existingOptionIds.map(() => '?').join(',');
     await pool.query(
@@ -331,46 +340,83 @@ export const deleteQuestion = async (questionId: string) => {
   );
   const mcqOptionIds = getRows(mcqOptionsResult).map((row: any) => row.id);
 
-  // Delete in order to handle foreign key constraints:
-  // 1. Set selected_option_id to NULL in user_submissions for all mcq_options of this question
-  // This must be done BEFORE deleting mcq_options to avoid foreign key constraint violation
-  if (mcqOptionIds.length > 0) {
-    const placeholders = mcqOptionIds.map(() => '?').join(',');
-    await pool.query(
+  // Get a connection for transaction
+  const connection = await pool.getConnection();
+  
+  try {
+    await connection.beginTransaction();
+
+    // Delete in order to handle foreign key constraints:
+    // 1. Set selected_option_id to NULL in user_submissions for all mcq_options of this question
+    // This must be done BEFORE deleting mcq_options to avoid foreign key constraint violation
+    // Clear by question_id first (most comprehensive), then by specific option IDs
+    
+    // First, clear ALL selected_option_id for this question (most important)
+    const [updateResult1] = await connection.query(
       `UPDATE user_submissions 
        SET selected_option_id = NULL 
-       WHERE selected_option_id IN (${placeholders})`,
-      mcqOptionIds
+       WHERE question_id = ? AND selected_option_id IS NOT NULL`,
+      [questionId]
     );
+    
+    // Also clear by specific option IDs as an additional safety measure
+    if (mcqOptionIds.length > 0) {
+      const placeholders = mcqOptionIds.map(() => '?').join(',');
+      await connection.query(
+        `UPDATE user_submissions 
+         SET selected_option_id = NULL 
+         WHERE selected_option_id IN (${placeholders})`,
+        mcqOptionIds
+      );
+    }
+    
+    // Double-check: Delete any remaining user_submissions that might still reference these options
+    // This is a safety net in case the UPDATE didn't catch everything
+    // Delete ANY user_submissions referencing these options, regardless of question_id
+    if (mcqOptionIds.length > 0) {
+      const placeholders = mcqOptionIds.map(() => '?').join(',');
+      await connection.query(
+        `DELETE FROM user_submissions 
+         WHERE selected_option_id IN (${placeholders})`,
+        mcqOptionIds
+      );
+    }
+
+    // 2. Delete test_case_results that reference test_cases of this question
+    await connection.query(
+      `DELETE tcr FROM test_case_results tcr
+       INNER JOIN test_cases tc ON tcr.test_case_id = tc.id
+       WHERE tc.question_id = ?`,
+      [questionId]
+    );
+
+    // 3. Delete user_submissions for this question (this removes all remaining references)
+    await connection.query('DELETE FROM user_submissions WHERE question_id = ?', [questionId]);
+
+    // 4. Delete session_questions for this question
+    await connection.query('DELETE FROM session_questions WHERE question_id = ?', [questionId]);
+
+    // 5. Delete test_cases
+    await connection.query('DELETE FROM test_cases WHERE question_id = ?', [questionId]);
+
+    // 6. Now safe to delete mcq_options (after clearing selected_option_id references and deleting user_submissions)
+    await connection.query('DELETE FROM mcq_options WHERE question_id = ?', [questionId]);
+
+    // 7. Finally delete the question itself
+    await connection.query('DELETE FROM questions WHERE id = ?', [questionId]);
+
+    // Update course updated_at
+    await connection.query(
+      `UPDATE courses SET updated_at = CURRENT_TIMESTAMP 
+       WHERE id = (SELECT course_id FROM levels WHERE id = ?)`,
+      [levelId]
+    );
+
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
   }
-
-  // 2. Delete test_case_results that reference test_cases of this question
-  await pool.query(
-    `DELETE tcr FROM test_case_results tcr
-     INNER JOIN test_cases tc ON tcr.test_case_id = tc.id
-     WHERE tc.question_id = ?`,
-    [questionId]
-  );
-
-  // 3. Delete user_submissions for this question
-  await pool.query('DELETE FROM user_submissions WHERE question_id = ?', [questionId]);
-
-  // 4. Delete session_questions for this question
-  await pool.query('DELETE FROM session_questions WHERE question_id = ?', [questionId]);
-
-  // 5. Delete test_cases
-  await pool.query('DELETE FROM test_cases WHERE question_id = ?', [questionId]);
-
-  // 6. Now safe to delete mcq_options (after clearing selected_option_id references)
-  await pool.query('DELETE FROM mcq_options WHERE question_id = ?', [questionId]);
-
-  // 7. Finally delete the question itself
-  await pool.query('DELETE FROM questions WHERE id = ?', [questionId]);
-
-  // Update course updated_at
-  await pool.query(
-    `UPDATE courses SET updated_at = CURRENT_TIMESTAMP 
-     WHERE id = (SELECT course_id FROM levels WHERE id = ?)`,
-    [levelId]
-  );
 };

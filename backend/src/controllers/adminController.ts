@@ -122,11 +122,22 @@ export const getLevelQuestionsController = async (req: AuthRequest, res: Respons
 export const getQuestionByIdController = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { questionId } = req.params;
+    logger.info(`Fetching question with ID: ${questionId}`);
     const question = await getQuestionById(questionId);
+    if (!question) {
+      logger.warn(`Question not found: ${questionId}`);
+      res.status(404).json({ error: 'Question not found' });
+      return;
+    }
+    logger.info(`Successfully fetched question: ${questionId}, type: ${question.question_type}`);
     res.json(question);
   } catch (error: any) {
     logger.error('Get question by id error:', error);
-    res.status(500).json({ error: 'Failed to fetch question' });
+    logger.error('Error stack:', error.stack);
+    res.status(error.message === 'Question not found' ? 404 : 500).json({ 
+      error: error.message || 'Failed to fetch question',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 };
 
@@ -148,7 +159,10 @@ export const updateMCQQuestionController = async (req: AuthRequest, res: Respons
     res.json({ message: 'Question updated successfully' });
   } catch (error: any) {
     logger.error('Update MCQ question error:', error);
-    res.status(500).json({ error: 'Failed to update question' });
+    res.status(500).json({ 
+      error: error.message || 'Failed to update question',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 };
 
@@ -159,7 +173,10 @@ export const deleteQuestionController = async (req: AuthRequest, res: Response):
     res.json({ message: 'Question deleted successfully' });
   } catch (error: any) {
     logger.error('Delete question error:', error);
-    res.status(500).json({ error: 'Failed to delete question' });
+    res.status(500).json({ 
+      error: error.message || 'Failed to delete question',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 };
 

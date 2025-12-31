@@ -128,9 +128,10 @@ export const parseAndCreateQuestionsFromCSV = async (
           }
         }
 
-        // Default to 'A' if nothing specified
+        // Validate that a correct answer was provided
         if (!correctLetter && !correctTextLower) {
-          correctLetter = 'A';
+          errors.push(`Row ${rowNumber}: No correct answer specified (provide correct_option as A/B/C/D or correct_answer as full text)`);
+          continue;
         }
 
         // Parse options (option1, option2, option3, option4 or option_1, option_2, etc.)
@@ -155,6 +156,13 @@ export const parseAndCreateQuestionsFromCSV = async (
 
         if (options.length < 2) {
           errors.push(`Row ${rowNumber}: MCQ questions must have at least 2 options`);
+          continue;
+        }
+
+        // Ensure at least one option is marked as correct
+        const hasCorrectOption = options.some(opt => opt.is_correct === true);
+        if (!hasCorrectOption) {
+          errors.push(`Row ${rowNumber}: No correct option found. Please check your correct_answer or correct_option field.`);
           continue;
         }
 

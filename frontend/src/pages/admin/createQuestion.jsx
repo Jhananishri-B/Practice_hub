@@ -86,15 +86,11 @@ const CreateQuestion = () => {
               question.options && question.options.length > 0
                 ? (() => {
                     // Check for correct option - handle MySQL boolean (0/1) and JavaScript boolean
-                    // Also handle Buffer type that MySQL2 might return
+                    // Backend already converts MySQL boolean to JavaScript boolean
                     const correctOpt = question.options.find((opt) => {
                       const isCorrect = opt.is_correct;
-                      // Handle various formats: true, 1, '1', 'true', Buffer(1)
-                      if (isCorrect === true) return true;
-                      if (isCorrect === 1 || isCorrect === '1') return true;
-                      if (isCorrect === 'true') return true;
-                      if (Buffer.isBuffer(isCorrect) && isCorrect[0] === 1) return true;
-                      return false;
+                      // Handle various formats: true, 1, '1', 'true'
+                      return isCorrect === true || isCorrect === 1 || isCorrect === '1' || isCorrect === 'true';
                     });
                     return correctOpt?.option_text || '';
                   })()
@@ -103,7 +99,9 @@ const CreateQuestion = () => {
         })
         .catch((error) => {
           console.error('Failed to load question:', error);
-          alert('Failed to load question');
+          const errorMessage = error?.response?.data?.error || error?.message || 'Failed to load question';
+          console.error('Error details:', error?.response?.data);
+          alert(`Failed to load question: ${errorMessage}`);
         });
     }
   }, [questionId, isEditMode, courseId]);
