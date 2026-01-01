@@ -1,5 +1,4 @@
 // AI Tutor Service
-// In production, integrate with TinyLlama or similar AI model
 
 export interface TutorMessage {
   role: 'user' | 'assistant';
@@ -20,59 +19,111 @@ export interface TutorContext {
   questionType: 'coding' | 'mcq';
   selectedAnswer?: string;
   correctAnswer?: string;
+  explanation?: string;
+  concepts?: any;
 }
+
+const LLM_API_URL = process.env.LLM_API_URL || 'https://api.groq.com/openai/v1/chat/completions';
+const LLM_API_KEY = process.env.LLM_API_KEY;
+const LLM_MODEL = process.env.LLM_MODEL || 'llama3-70b-8192';
 
 export const getTutorResponse = async (
   userMessage: string,
   context: TutorContext
 ): Promise<string> => {
-  // This is a placeholder - in production, integrate with AI model
-  // For now, return contextual hints based on the question and errors
+  try {
+    const systemPrompt = buildSystemPrompt(context);
 
-  const { questionType, failedTestCases, userCode } = context;
-
-  if (questionType === 'coding' && failedTestCases && failedTestCases.length > 0) {
-    // Provide hints for coding questions with failed test cases
-    const firstFailure = failedTestCases[0];
-    
-    if (firstFailure.error) {
-      return `I see you're encountering an error: "${firstFailure.error}". This usually happens when ${getErrorHint(firstFailure.error)}. Try checking your code logic around the input handling.`;
+    if (!LLM_API_KEY && !process.env.LLM_API_URL?.includes('localhost')) {
+      // Fallback if no key is configured
+      return fallbackResponse(userMessage, context);
     }
 
-    if (firstFailure.expected !== firstFailure.actual) {
-      return `Your code is producing "${firstFailure.actual}" but expected "${firstFailure.expected}". This suggests the logic might need adjustment. Consider reviewing the problem constraints and your approach.`;
+    const response = await fetch(LLM_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${LLM_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: LLM_MODEL,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage }
+        ],
+        temperature: 0.7,
+        max_tokens: 1024
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('LLM API Error:', errorText);
+      throw new Error(`LLM API request failed: ${response.statusText}`);
     }
-  }
 
-  if (questionType === 'mcq') {
-    return `For this MCQ question, think about the key concepts involved. Review the question description carefully and consider what each option represents.`;
-  }
+    const data: any = await response.json();
+    return data.choices?.[0]?.message?.content || "I'm having trouble thinking right now. Please try again.";
 
-  // Generic helpful response
-  return `I'm here to help! Based on your question about "${context.questionTitle}", I'd suggest reviewing the problem constraints and breaking it down into smaller steps. Would you like me to explain any specific concept?`;
+  } catch (error) {
+    console.error('AI Tutor Service Error:', error);
+    return fallbackResponse(userMessage, context);
+  }
 };
 
-const getErrorHint = (error: string): string => {
-  if (error.includes('NoneType') || error.includes('null')) {
-    return 'you might be accessing a property on a null/None value';
+const buildSystemPrompt = (ctx: TutorContext): string => {
+  let prompt = `You are an expert AI Tutor and Coding Coach named "PracticeHub Coach".
+Your goal is to help students learn programming (C, Python, ML) by guiding them, NOT just giving answers.
+Use the Socratic method when appropriate. Be encouraging but precise.`;
+
+  prompt += `\n\nContext Question: "${ctx.questionTitle}"`;
+  prompt += `\nDescription: ${ctx.questionDescription}`;
+
+  if (ctx.explanation) {
+    prompt += `\nCorrect Explanation: ${ctx.explanation}`;
   }
-  if (error.includes('IndexError') || error.includes('out of range')) {
-    return 'you might be accessing an index that doesn\'t exist';
+  if (ctx.concepts) {
+    prompt += `\nRelated Concepts: ${JSON.stringify(ctx.concepts)}`;
   }
-  if (error.includes('TypeError') || error.includes('type')) {
-    return 'there might be a type mismatch in your variables';
+
+  if (ctx.questionType === 'coding') {
+    if (ctx.userCode) {
+      prompt += `\n\nUser's Submitted Code:\n\`\`\`\n${ctx.userCode}\n\`\`\``;
+    }
+    if (ctx.correctCode) {
+      prompt += `\n\nReference Solution (for your eyes only - guide user towards this):\n\`\`\`\n${ctx.correctCode}\n\`\`\``;
+    }
+    if (ctx.failedTestCases && ctx.failedTestCases.length > 0) {
+      prompt += `\n\nThe user's code failed the following test cases:`;
+      ctx.failedTestCases.forEach((tc, i) => {
+        prompt += `\nCase ${i + 1}: Input="${tc.input}", Expected="${tc.expected}", Got="${tc.actual}" ${tc.error ? `Error: ${tc.error}` : ''}`;
+      });
+      prompt += `\n\nAnalyze why the code failed these specific cases. Explain the logical error without writing the full code for them immediately.`;
+    }
+  } else if (ctx.questionType === 'mcq') {
+    prompt += `\nThe user selected: "${ctx.selectedAnswer}".`;
+    prompt += `\nThe correct answer contains: "${ctx.correctAnswer}".`;
+    if (ctx.selectedAnswer !== ctx.correctAnswer) {
+      prompt += `\nExplain why the user's answer might be wrong and hint towards the correct concept.`;
+    }
   }
-  if (error.includes('SyntaxError')) {
-    return 'there might be a syntax error in your code';
+
+  return prompt;
+};
+
+const fallbackResponse = (userMessage: string, context: TutorContext): string => {
+  // Basic heuristic response if LLM is offline
+  if (context.questionType === 'coding' && context.failedTestCases && context.failedTestCases.length > 0) {
+    return `I noticed your code failed some test cases. Check the input "${context.failedTestCases[0].input}". You returned "${context.failedTestCases[0].actual}" but expected "${context.failedTestCases[0].expected}". \n\n(AI Service is currently offline, please configure LLM_API_KEY for smart help)`;
   }
-  return 'there might be a logical error in your implementation';
+  return `I'm here to help with "${context.questionTitle}". What specific part are you stuck on? \n\n(AI Service is currently offline, please configure LLM_API_KEY)`;
 };
 
 export const getInitialHint = (context: TutorContext): string => {
   if (context.questionType === 'coding') {
-    return `I noticed you might need some guidance on "${context.questionTitle}". Would you like me to explain the approach or help debug any specific errors?`;
+    return `I see you're working on "${context.questionTitle}". I can analyze your code and test case failures. How can I help?`;
   } else {
-    return `For this MCQ question, I can help explain the concepts involved. What would you like to know?`;
+    return `I can explain the concepts behind this question ("${context.questionTitle}"). Ask me anything!`;
   }
 };
 

@@ -100,13 +100,12 @@ const Results = () => {
               <button
                 key={index}
                 onClick={() => setSelectedQuestionIndex(index)}
-                className={`px-4 py-2 rounded-lg font-medium ${
-                  index === selectedQuestionIndex
+                className={`px-4 py-2 rounded-lg font-medium ${index === selectedQuestionIndex
                     ? 'bg-blue-600 text-white'
                     : q.submission?.is_correct
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-red-100 text-red-700'
-                }`}
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-red-100 text-red-700'
+                  }`}
               >
                 {index + 1}
                 {q.submission?.is_correct ? (
@@ -120,35 +119,58 @@ const Results = () => {
 
           <div className="bg-white rounded-lg shadow-md p-6 mb-4">
             <h2 className="text-xl font-bold text-gray-800 mb-4">{selectedQuestion.title}</h2>
-            <p className="text-gray-700 mb-4 whitespace-pre-wrap">{selectedQuestion.description}</p>
+            <p className="text-gray-700 mb-6 whitespace-pre-wrap">{selectedQuestion.description}</p>
+
+            {/* Explanation Section */}
+            {selectedQuestion.explanation && (
+              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <h3 className="font-semibold text-blue-800 mb-2">Explanation</h3>
+                <p className="text-blue-700">{selectedQuestion.explanation}</p>
+              </div>
+            )}
+
+            {/* Concepts Section */}
+            {selectedQuestion.concepts && (
+              <div className="mb-6">
+                <h3 className="font-semibold text-gray-800 mb-2">Recommended Topics</h3>
+                <div className="flex flex-wrap gap-2">
+                  {(typeof selectedQuestion.concepts === 'string'
+                    ? JSON.parse(selectedQuestion.concepts)
+                    : selectedQuestion.concepts
+                  ).map((concept, idx) => (
+                    <span key={idx} className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
+                      {concept}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {isCoding && (
               <div className="mb-4">
                 <div className="flex gap-2 border-b border-gray-200 mb-4">
                   <button
                     onClick={() => setActiveTab('user')}
-                    className={`px-4 py-2 font-medium ${
-                      activeTab === 'user'
+                    className={`px-4 py-2 font-medium ${activeTab === 'user'
                         ? 'border-b-2 border-blue-600 text-blue-600'
                         : 'text-gray-600'
-                    }`}
+                      }`}
                   >
                     Your Code
                   </button>
                   <button
                     onClick={() => setActiveTab('solution')}
-                    className={`px-4 py-2 font-medium ${
-                      activeTab === 'solution'
+                    className={`px-4 py-2 font-medium ${activeTab === 'solution'
                         ? 'border-b-2 border-blue-600 text-blue-600'
                         : 'text-gray-600'
-                    }`}
+                      }`}
                   >
-                    Solution Code
+                    Correct Solution
                   </button>
                 </div>
 
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <pre className="text-sm text-gray-800 whitespace-pre-wrap">
+                <div className="bg-gray-50 p-4 rounded-lg overflow-x-auto">
+                  <pre className="text-sm font-mono text-gray-800 whitespace-pre">
                     {activeTab === 'user'
                       ? selectedQuestion.submission?.submitted_code || 'No code submitted'
                       : selectedQuestion.reference_solution || 'No solution available'}
@@ -167,9 +189,8 @@ const Results = () => {
               {selectedQuestion.test_results.map((testResult, index) => (
                 <div
                   key={index}
-                  className={`p-4 rounded-lg ${
-                    testResult.passed ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
-                  }`}
+                  className={`p-4 rounded-lg ${testResult.passed ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+                    }`}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-medium">
@@ -209,13 +230,12 @@ const Results = () => {
                 {selectedQuestion.options.map((option) => (
                   <div
                     key={option.id}
-                    className={`p-3 rounded-lg ${
-                      option.is_correct
+                    className={`p-3 rounded-lg ${option.is_correct
                         ? 'bg-green-50 border border-green-200'
                         : selectedQuestion.submission?.selected_option_id === option.id
-                        ? 'bg-red-50 border border-red-200'
-                        : 'bg-gray-50 border border-gray-200'
-                    }`}
+                          ? 'bg-red-50 border border-red-200'
+                          : 'bg-gray-50 border border-gray-200'
+                      }`}
                   >
                     <div className="flex items-center justify-between">
                       <span>{option.option_letter}. {option.option_text}</span>
@@ -272,11 +292,10 @@ const Results = () => {
                   className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[80%] rounded-lg p-3 ${
-                      msg.role === 'user'
+                    className={`max-w-[80%] rounded-lg p-3 ${msg.role === 'user'
                         ? 'bg-blue-600 text-white'
                         : 'bg-gray-100 text-gray-800'
-                    }`}
+                      }`}
                   >
                     <p className="whitespace-pre-wrap">{msg.content}</p>
                   </div>

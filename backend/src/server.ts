@@ -6,7 +6,10 @@ const PORT = process.env.PORT || 5000;
 
 // Initialize default users on startup
 initializeUsers().catch((error) => {
-  logger.error('Failed to initialize default users:', error);
+  console.error('Failed to initialize default users:', error);
+  if (error instanceof Error) {
+    console.error('Stack trace:', error.stack);
+  }
 });
 
 app.listen(PORT, () => {

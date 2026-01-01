@@ -1,0 +1,60 @@
+SSL/TLS enabled for database connection with CA certificate
+[32minfo[39m: Server running on port 5001  {"service":"practice-hub-backend","timestamp":"2025-12-30 15:44:16"}
+[32minfo[39m: Environment: development {"service":"practice-hub-backend","timestamp":"2025-12-30 15:44:16"}
+New MySQL connection established
+Error creating default users: Error: Table 'test.users' doesn't exist
+    at PromisePool.query (C:\Users\varun\Practice_hub\backend\node_modules\mysql2\lib\promise\pool.js:36:22)
+    at createDefaultUsers (C:\Users\varun\Practice_hub\backend\src\services\authService.ts:62:34)
+    at initializeUsers (C:\Users\varun\Practice_hub\backend\src\controllers\authController.ts:51:9)
+    at logger (C:\Users\varun\Practice_hub\backend\src\server.ts:8:1)
+    at Object.<anonymous> (C:\Users\varun\Practice_hub\backend\src\server.ts:18:2)
+    at Module._compile (node:internal/modules/cjs/loader:1706:14)
+    at Object.transformer (C:\Users\varun\Practice_hub\backend\node_modules\tsx\dist\register-D46fvsV_.cjs:3:1104)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14) {
+  code: 'ER_NO_SUCH_TABLE',
+  errno: 1146,
+  sql: "SELECT id FROM users WHERE username IN ('USER', 'ADMIN')",
+  sqlState: '42S02',
+  sqlMessage: "Table 'test.users' doesn't exist"
+}
+Stack trace: Error: Table 'test.users' doesn't exist
+    at PromisePool.query (C:\Users\varun\Practice_hub\backend\node_modules\mysql2\lib\promise\pool.js:36:22)
+    at createDefaultUsers (C:\Users\varun\Practice_hub\backend\src\services\authService.ts:62:34)
+    at initializeUsers (C:\Users\varun\Practice_hub\backend\src\controllers\authController.ts:51:9)
+    at logger (C:\Users\varun\Practice_hub\backend\src\server.ts:8:1)
+    at Object.<anonymous> (C:\Users\varun\Practice_hub\backend\src\server.ts:18:2)
+    at Module._compile (node:internal/modules/cjs/loader:1706:14)
+    at Object.transformer (C:\Users\varun\Practice_hub\backend\node_modules\tsx\dist\register-D46fvsV_.cjs:3:1104)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+Failed to initialize default users: Error: Table 'test.users' doesn't exist
+    at PromisePool.query (C:\Users\varun\Practice_hub\backend\node_modules\mysql2\lib\promise\pool.js:36:22)
+    at createDefaultUsers (C:\Users\varun\Practice_hub\backend\src\services\authService.ts:62:34)
+    at initializeUsers (C:\Users\varun\Practice_hub\backend\src\controllers\authController.ts:51:9)
+    at logger (C:\Users\varun\Practice_hub\backend\src\server.ts:8:1)
+    at Object.<anonymous> (C:\Users\varun\Practice_hub\backend\src\server.ts:18:2)
+    at Module._compile (node:internal/modules/cjs/loader:1706:14)
+    at Object.transformer (C:\Users\varun\Practice_hub\backend\node_modules\tsx\dist\register-D46fvsV_.cjs:3:1104)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14) {
+  code: 'ER_NO_SUCH_TABLE',
+  errno: 1146,
+  sql: "SELECT id FROM users WHERE username IN ('USER', 'ADMIN')",
+  sqlState: '42S02',
+  sqlMessage: "Table 'test.users' doesn't exist"
+}
+Stack trace: Error: Table 'test.users' doesn't exist
+    at PromisePool.query (C:\Users\varun\Practice_hub\backend\node_modules\mysql2\lib\promise\pool.js:36:22)
+    at createDefaultUsers (C:\Users\varun\Practice_hub\backend\src\services\authService.ts:62:34)
+    at initializeUsers (C:\Users\varun\Practice_hub\backend\src\controllers\authController.ts:51:9)
+    at logger (C:\Users\varun\Practice_hub\backend\src\server.ts:8:1)
+    at Object.<anonymous> (C:\Users\varun\Practice_hub\backend\src\server.ts:18:2)
+    at Module._compile (node:internal/modules/cjs/loader:1706:14)
+    at Object.transformer (C:\Users\varun\Practice_hub\backend\node_modules\tsx\dist\register-D46fvsV_.cjs:3:1104)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)

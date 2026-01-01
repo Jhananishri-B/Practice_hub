@@ -23,6 +23,7 @@ export const getSessionResults = async (sessionId: string, userId: string) => {
   // Get all questions in session
   const questionsResult = await pool.query(
     `SELECT q.id, q.title, q.description, q.question_type, q.input_format, q.output_format, q.constraints, q.reference_solution,
+            q.explanation, q.concepts,
             sq.question_order, sq.status
      FROM session_questions sq
      JOIN questions q ON sq.question_id = q.id

@@ -60,17 +60,17 @@ export const createDefaultUsers = async () => {
   try {
     // Check if users already exist
     const userCheck = await pool.query('SELECT id FROM users WHERE username IN (?, ?)', ['USER', 'ADMIN']);
-    
+
     const userCheckRows = getRows(userCheck);
     if (userCheckRows.length === 0) {
       const { hashPassword } = await import('../utils/password');
-      
+
       const userPassword = await hashPassword('123');
       const adminPassword = await hashPassword('123');
 
       const userId = randomUUID();
       const adminId = randomUUID();
-      
+
       await pool.query(
         'INSERT INTO users (id, username, password_hash, role, name) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE id=id',
         [userId, 'USER', userPassword, 'student', 'Student User']
@@ -84,7 +84,11 @@ export const createDefaultUsers = async () => {
       logger.info('Default users created');
     }
   } catch (error) {
-    logger.error('Error creating default users:', error);
+    console.error('Error creating default users:', error);
+    if (error instanceof Error) {
+      console.error('Stack trace:', error.stack);
+    }
+    throw error;
   }
 };
 

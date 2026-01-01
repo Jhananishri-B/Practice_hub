@@ -8,6 +8,9 @@ COPY package*.json ./
 # Install dependencies
 RUN npm install
 
+# Copy TiDB CA certificate (if exists)
+COPY tidb-ca.pem* ./
+
 # Copy source code
 COPY . .
 

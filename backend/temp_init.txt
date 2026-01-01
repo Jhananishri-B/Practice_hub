@@ -1,0 +1,31 @@
+
+> practice-hub-backend@1.0.0 init-db
+> tsx src/scripts/initDb.ts
+
+SSL/TLS enabled for database connection with CA certificate
+Initializing database...
+Found 24 statements to execute.
+Connecting to: {
+  host: 'gateway01.ap-southeast-1.prod.aws.tidbcloud.com',
+  port: '4000',
+  user: 'h5q6pohuKN2GBRF.root',
+  database: '/test',
+  ssl: '{"rejectUnauthorized":true}'
+}
+New MySQL connection established
+Connected successfully!
+Error executing statement: Table 'test.users' doesn't exist
+Statement: CREATE INDEX idx_users_role ON users(role)...
+Error executing statement: Table 'test.questions' doesn't exist
+Statement: CREATE INDEX idx_questions_level_id ON questions(level_id)...
+Error executing statement: Table 'test.test_cases' doesn't exist
+Statement: CREATE INDEX idx_test_cases_question_id ON test_cases(question_id)...
+Error executing statement: Table 'test.practice_sessions' doesn't exist
+Statement: CREATE INDEX idx_practice_sessions_user_id ON practice_sessions(user_id)...
+Error executing statement: Table 'test.user_progress' doesn't exist
+Statement: CREATE INDEX idx_user_progress_user_id ON user_progress(user_id)...
+Error executing statement: Table 'test.user_progress' doesn't exist
+Statement: CREATE INDEX idx_user_progress_course_id ON user_progress(course_id)...
+Error executing statement: Table 'test.user_submissions' doesn't exist
+Statement: CREATE INDEX idx_user_submissions_session_id ON user_submissions(session_id)...
+Database initialization completed successfully.
