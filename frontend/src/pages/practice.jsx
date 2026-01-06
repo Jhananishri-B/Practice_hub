@@ -18,9 +18,10 @@ const Practice = () => {
   const [timeLeft, setTimeLeft] = useState(3600);
   const [loading, setLoading] = useState(true);
   const [autoSubmitted, setAutoSubmitted] = useState(false);
-  const [selectionPhase, setSelectionPhase] = useState(true);
-  const [selectedQuestionIndices, setSelectedQuestionIndices] = useState([]);
   const [testResultsByQuestion, setTestResultsByQuestion] = useState({});
+  const [output, setOutput] = useState('');
+  const [lastRunError, setLastRunError] = useState(null);
+  const [isRunning, setIsRunning] = useState(false);
 
   useEffect(() => {
     startSession();
@@ -75,13 +76,26 @@ const Practice = () => {
     }
 
     const input = useCustomInput ? customInput : '';
-    
+    setIsRunning(true);
+    setOutput('');
+    setLastRunError(null);
+
     try {
-      // For now, show a message - in production, this would execute the code
-      alert('Code execution is running... (This is a placeholder - implement actual execution)');
+      const response = await api.post(`/sessions/${session.id}/run`, {
+        code,
+        language,
+        customInput: input
+      });
+
+      const { output, error, execution_time } = response.data;
+      setOutput(output || '');
+      setLastRunError(error || null);
+
     } catch (error) {
       console.error('Failed to run code:', error);
-      alert('Failed to execute code');
+      setLastRunError('Failed to execute code. Connection error or server issue.');
+    } finally {
+      setIsRunning(false);
     }
   };
 
@@ -115,8 +129,7 @@ const Practice = () => {
         alert('✅ All test cases passed!');
       } else {
         alert(
-          `❌ ${response.data.test_cases_passed || 0}/${
-            response.data.total_test_cases || 0
+          `❌ ${response.data.test_cases_passed || 0}/${response.data.total_test_cases || 0
           } test cases passed`
         );
       }
@@ -134,7 +147,7 @@ const Practice = () => {
       console.error('Failed to submit:', error);
       const errorMessage = error?.response?.data?.error || 'Failed to submit solution';
       alert(errorMessage);
-      
+
       // If language error, show specific message
       if (errorMessage.includes('Invalid language')) {
         alert('Please use the correct programming language for this course!');
@@ -170,42 +183,8 @@ const Practice = () => {
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
-  const toggleQuestionSelection = (index) => {
-    if (!selectionPhase) return;
-
-    if (selectedQuestionIndices.includes(index)) {
-      setSelectedQuestionIndices(selectedQuestionIndices.filter((i) => i !== index));
-    } else {
-      if (selectedQuestionIndices.length >= 2) {
-        alert('You can select only 2 questions for the coding test.');
-        return;
-      }
-      setSelectedQuestionIndices([...selectedQuestionIndices, index]);
-    }
-  };
-
-  const startCodingTestWithSelectedQuestions = () => {
-    if (selectedQuestionIndices.length !== 2) {
-      alert('Please select exactly 2 questions to start the test.');
-      return;
-    }
-    setSelectionPhase(false);
-    // Reset to the first selected question
-    setCurrentQuestionIndex(0);
-    const questionsForTest = getActiveQuestions([
-      ...selectedQuestionIndices,
-    ]);
-    setCode(questionsForTest[0]?.reference_solution || '');
-  };
-
-  const getActiveQuestions = (overrideSelection) => {
-    if (!session) return [];
-    const indices =
-      !selectionPhase && (overrideSelection || selectedQuestionIndices).length > 0
-        ? overrideSelection || selectedQuestionIndices
-        : session.questions.map((_, idx) => idx);
-
-    return indices.map((i) => session.questions[i]);
+  const getActiveQuestions = () => {
+    return session?.questions || [];
   };
 
 
@@ -233,47 +212,36 @@ const Practice = () => {
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
-      <div className="flex-1 flex">
-        <div className="flex-1 p-6">
+      <div className="flex-1 flex flex-col md:flex-row pb-20 md:pb-0">
+        <div className="w-full md:flex-1 p-6 overflow-y-auto">
           {/* Question selection row */}
           <div className="mb-4 flex gap-2 flex-wrap">
             {session.questions.map((q, index) => {
-              const isSelected = selectedQuestionIndices.includes(index);
               return (
                 <button
                   key={index}
                   onClick={() => {
-                    if (selectionPhase) {
-                      toggleQuestionSelection(index);
-                    } else {
-                      setCurrentQuestionIndex(index);
+                    setCurrentQuestionIndex(index);
+                    // Preserve code if moving back? For now, load ref
+                    // Ideally we should store user code per question in state
+                    // But for now, let's just warn or simple switch
+                    // Assuming user code is shared or wiped? 
+                    // actually existing logic wiped it: setCode(q.reference || '')
+                    // We should allow navigation.
+                    const confirmSwitch = code !== (q.reference_solution || '') ? window.confirm("Switching questions will discard unsaved code (unless we save it). Continue?") : true;
+                    if (confirmSwitch) {
                       setCode(q.reference_solution || '');
                     }
                   }}
-                  className={`px-4 py-2 rounded-lg font-medium border ${
-                    index === currentQuestionIndex && !selectionPhase
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : isSelected
-                      ? 'bg-green-100 text-green-700 border-green-400'
-                      : 'bg-gray-100 text-gray-700 border-gray-300'
-                  }`}
+                  className={`px-4 py-2 rounded-lg font-medium border ${index === currentQuestionIndex
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-gray-100 text-gray-700 border-gray-300'
+                    }`}
                 >
                   Q{index + 1}
-                  {selectionPhase && isSelected && (
-                    <Check className="inline ml-1" size={16} />
-                  )}
                 </button>
               );
             })}
-
-            {selectionPhase && (
-              <button
-                onClick={startCodingTestWithSelectedQuestions}
-                className="ml-auto px-4 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700"
-              >
-                Start Coding Test (Select 2)
-              </button>
-            )}
           </div>
 
           <div className="bg-white rounded-lg shadow-md p-6 mb-4">
@@ -319,13 +287,12 @@ const Practice = () => {
                   return (
                     <div
                       key={tc.id}
-                      className={`p-3 rounded border text-sm ${
-                        status === 'passed'
-                          ? 'border-green-500 bg-green-50'
-                          : status === 'failed'
+                      className={`p-3 rounded border text-sm ${status === 'passed'
+                        ? 'border-green-500 bg-green-50'
+                        : status === 'failed'
                           ? 'border-red-500 bg-red-50'
                           : 'border-gray-200 bg-gray-50'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-medium">
@@ -375,7 +342,7 @@ const Practice = () => {
           </div>
         </div>
 
-        <div className="w-1/2 bg-white border-l border-gray-200 flex flex-col">
+        <div className="w-full md:w-1/2 bg-white border-t md:border-t-0 md:border-l border-gray-200 flex flex-col h-[500px] md:h-auto">
           <div className="p-4 border-b border-gray-200">
             <select
               value={language}
@@ -430,13 +397,15 @@ const Practice = () => {
             <div className="flex gap-3">
               <button
                 onClick={handleRun}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                disabled={isRunning}
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors ${isRunning ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <Play size={18} />
-                Run
+                {isRunning ? 'Running...' : 'Run'}
               </button>
               <button
                 onClick={handleSubmit}
+                disabled={isRunning}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 <Send size={18} />
@@ -450,6 +419,19 @@ const Practice = () => {
                 Finish Test
               </button>
             </div>
+
+            {(output || lastRunError) && (
+              <div className="mt-4 p-3 bg-gray-900 text-white rounded-lg font-mono text-sm max-h-40 overflow-y-auto">
+                <div className="flex justify-between items-center mb-1 border-b border-gray-700 pb-1">
+                  <span className="text-gray-400 text-xs">Console Output</span>
+                  {lastRunError && <span className="text-red-400 text-xs text-right">Execution Error</span>}
+                </div>
+                <pre className="whitespace-pre-wrap">
+                  {lastRunError && <div className="text-red-400 mb-2">{lastRunError}</div>}
+                  {output}
+                </pre>
+              </div>
+            )}
           </div>
         </div>
       </div>

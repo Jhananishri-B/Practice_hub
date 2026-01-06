@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import Sidebar from '../../components/Sidebar';
 import Editor from '@monaco-editor/react';
 import api from '../../services/api';
-import { Plus, Trash2, Save, CheckCircle } from 'lucide-react';
+import { Plus, Trash2, Save, CheckCircle, Upload } from 'lucide-react';
 
 const CreateQuestion = () => {
   const [searchParams] = useSearchParams();
@@ -12,7 +12,8 @@ const CreateQuestion = () => {
   const courseId = searchParams.get('courseId') || searchParams.get('course_id');
   const questionTypeParam = searchParams.get('type');
   const navigate = useNavigate();
-  
+  const fileInputRef = useRef(null);
+
   const isEditMode = !!questionId;
   const [questionType, setQuestionType] = useState(questionTypeParam || 'coding');
   const [course, setCourse] = useState(null);
@@ -63,37 +64,37 @@ const CreateQuestion = () => {
             difficulty: question.difficulty || 'medium',
             test_cases: question.test_cases && question.test_cases.length > 0
               ? question.test_cases.map((tc) => ({
-                  input_data: tc.input_data || '',
-                  expected_output: tc.expected_output || '',
-                  is_hidden: tc.is_hidden || false,
-                }))
+                input_data: tc.input_data || '',
+                expected_output: tc.expected_output || '',
+                is_hidden: tc.is_hidden || false,
+              }))
               : [{ input_data: '', expected_output: '', is_hidden: false }],
             options:
               question.options && question.options.length > 0
                 ? question.options.map((opt) => ({
-                    option_text: opt.option_text || '',
-                    is_correct: opt.is_correct || false,
-                  }))
+                  option_text: opt.option_text || '',
+                  is_correct: opt.is_correct || false,
+                }))
                 : [
-                    { option_text: '', is_correct: false },
-                    { option_text: '', is_correct: false },
-                    { option_text: '', is_correct: false },
-                    { option_text: '', is_correct: false },
-                  ],
+                  { option_text: '', is_correct: false },
+                  { option_text: '', is_correct: false },
+                  { option_text: '', is_correct: false },
+                  { option_text: '', is_correct: false },
+                ],
             // Pre-fill correct_answer with the text of the correct option (if any)
             // Handle both boolean true and numeric 1 (MySQL returns 1 for true)
             correct_answer:
               question.options && question.options.length > 0
                 ? (() => {
-                    // Check for correct option - handle MySQL boolean (0/1) and JavaScript boolean
-                    // Backend already converts MySQL boolean to JavaScript boolean
-                    const correctOpt = question.options.find((opt) => {
-                      const isCorrect = opt.is_correct;
-                      // Handle various formats: true, 1, '1', 'true'
-                      return isCorrect === true || isCorrect === 1 || isCorrect === '1' || isCorrect === 'true';
-                    });
-                    return correctOpt?.option_text || '';
-                  })()
+                  // Check for correct option - handle MySQL boolean (0/1) and JavaScript boolean
+                  // Backend already converts MySQL boolean to JavaScript boolean
+                  const correctOpt = question.options.find((opt) => {
+                    const isCorrect = opt.is_correct;
+                    // Handle various formats: true, 1, '1', 'true'
+                    return isCorrect === true || isCorrect === 1 || isCorrect === '1' || isCorrect === 'true';
+                  });
+                  return correctOpt?.option_text || '';
+                })()
                 : '',
           });
         })
@@ -245,6 +246,62 @@ const CreateQuestion = () => {
     setFormData({ ...formData, test_cases: newTestCases });
   };
 
+  const handleJsonUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const jsonData = JSON.parse(event.target.result);
+
+        // Basic validation
+        if (!jsonData.title || !jsonData.description) {
+          alert('Invalid JSON format. Required fields: title, description');
+          return;
+        }
+
+        // Detect type from JSON or default to current
+        if (jsonData.type) {
+          if (jsonData.type === 'coding' || jsonData.type === 'mcq') {
+            setQuestionType(jsonData.type);
+          }
+        } else if (jsonData.options) {
+          setQuestionType('mcq');
+        } else if (jsonData.test_cases) {
+          setQuestionType('coding');
+        }
+
+        // Update form data (merging with defaults for missing fields)
+        setFormData(prev => ({
+          ...prev,
+          title: jsonData.title || '',
+          description: jsonData.description || '',
+          input_format: jsonData.input_format || '',
+          output_format: jsonData.output_format || '',
+          constraints: jsonData.constraints || '',
+          reference_solution: jsonData.reference_solution || '',
+          difficulty: jsonData.difficulty || 'medium',
+          // Ensure test cases are arrays
+          test_cases: Array.isArray(jsonData.test_cases) ? jsonData.test_cases : prev.test_cases,
+          // Ensure options are arrays
+          options: Array.isArray(jsonData.options) ? jsonData.options : prev.options,
+          correct_answer: jsonData.correct_answer || ''
+        }));
+
+        alert('Question data imported successfully!');
+      } catch (error) {
+        console.error('Error importing JSON:', error);
+        alert('Failed to parse JSON.');
+      } finally {
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      }
+    };
+    reader.readAsText(file);
+  };
+
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
@@ -273,6 +330,23 @@ const CreateQuestion = () => {
               </button>
             </div>
           </div>
+
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleJsonUpload}
+            accept=".json"
+            className="hidden"
+          />
+          <div className="flex justify-end mb-4">
+            <button
+              onClick={() => fileInputRef.current.click()}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            >
+              <Upload size={18} />
+              Import JSON
+            </button>
+          </div>
         </div>
 
         {/* Success Popup */}
@@ -291,21 +365,19 @@ const CreateQuestion = () => {
           <div className="flex gap-4">
             <button
               onClick={() => setQuestionType('coding')}
-              className={`px-6 py-3 rounded-lg font-medium ${
-                questionType === 'coding'
+              className={`px-6 py-3 rounded-lg font-medium ${questionType === 'coding'
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-100 text-gray-700'
-              }`}
+                }`}
             >
               Coding Question
             </button>
             <button
               onClick={() => setQuestionType('mcq')}
-              className={`px-6 py-3 rounded-lg font-medium ${
-                questionType === 'mcq'
+              className={`px-6 py-3 rounded-lg font-medium ${questionType === 'mcq'
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-100 text-gray-700'
-              }`}
+                }`}
             >
               MCQ Question
             </button>

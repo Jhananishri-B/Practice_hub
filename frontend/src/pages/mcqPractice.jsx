@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import api from '../services/api';
-import { ArrowRight, CheckCircle } from 'lucide-react';
+import { ArrowRight, CheckCircle, MessageSquare, X, Sparkles } from 'lucide-react';
 
 const MCQPractice = () => {
   const { courseId, levelId } = useParams();
@@ -15,6 +15,9 @@ const MCQPractice = () => {
   const [loading, setLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState(3600);
   const [autoSubmitted, setAutoSubmitted] = useState(false);
+  const [hint, setHint] = useState(null);
+  const [loadingHint, setLoadingHint] = useState(false);
+  const [showHint, setShowHint] = useState(false);
 
   useEffect(() => {
     startSession();
@@ -64,6 +67,32 @@ const MCQPractice = () => {
     if (currentQuestionIndex < session.questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
       setSubmitted(false);
+      setHint(null);
+      setShowHint(false);
+    }
+  };
+
+  const handleGetHint = async () => {
+    if (hint) {
+      setShowHint(true);
+      return;
+    }
+
+    setLoadingHint(true);
+    setShowHint(true);
+    try {
+      // In a real app we would have a specific endpoint for hints per question
+      // reusing chat endpoint with a prompt
+      const response = await api.post('/ai-tutor/chat', {
+        sessionId: session.id,
+        message: "Can you give me a hint for this question without telling me the answer?",
+      });
+      setHint(response.data.message);
+    } catch (error) {
+      console.error('Failed to get hint:', error);
+      setHint("Sorry, I couldn't generate a hint right now. Try reviewing the concepts!");
+    } finally {
+      setLoadingHint(false);
     }
   };
 
@@ -149,13 +178,12 @@ const MCQPractice = () => {
                   setCurrentQuestionIndex(index);
                   setSubmitted(false);
                 }}
-                className={`w-10 h-10 rounded-lg font-medium ${
-                  index === currentQuestionIndex
-                    ? 'bg-blue-600 text-white'
-                    : selectedOptions[index]
+                className={`w-10 h-10 rounded-lg font-medium ${index === currentQuestionIndex
+                  ? 'bg-blue-600 text-white'
+                  : selectedOptions[index]
                     ? 'bg-green-100 text-green-700'
                     : 'bg-gray-200 text-gray-700'
-                }`}
+                  }`}
               >
                 {index + 1}
               </button>
@@ -198,15 +226,53 @@ const MCQPractice = () => {
               <h2 className="text-2xl font-bold text-gray-800 mb-6">{currentQuestion.title}</h2>
               <p className="text-gray-700 mb-6 whitespace-pre-wrap">{currentQuestion.description}</p>
 
+              {/* AI Hint Section */}
+              <div className="mb-6">
+                {!showHint ? (
+                  <button
+                    onClick={handleGetHint}
+                    className="flex items-center gap-2 text-sm text-purple-600 font-medium hover:text-purple-800 transition-colors"
+                  >
+                    <Sparkles size={16} />
+                    Need a Hint? Ask AI
+                  </button>
+                ) : (
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 relative animate-fade-in">
+                    <div className="flex items-start gap-3">
+                      <div className="bg-white p-1.5 rounded-full shadow-sm mt-1">
+                        <Sparkles size={16} className="text-purple-600" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-sm font-bold text-purple-800 mb-1">AI Coach Hint</h4>
+                        {loadingHint ? (
+                          <div className="flex gap-1 items-center h-5">
+                            <div className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce"></div>
+                            <div className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce delay-75"></div>
+                            <div className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce delay-150"></div>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-purple-800 leading-relaxed">{hint}</p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => setShowHint(false)}
+                        className="text-purple-400 hover:text-purple-600"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="space-y-3">
                 {currentQuestion.options?.map((option) => (
                   <label
                     key={option.id}
-                    className={`flex items-start p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                      selectedOption === option.id
-                        ? 'border-blue-600 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
+                    className={`flex items-start p-4 border-2 rounded-lg cursor-pointer transition-colors ${selectedOption === option.id
+                      ? 'border-blue-600 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                      }`}
                   >
                     <input
                       type="radio"

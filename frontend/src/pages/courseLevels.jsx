@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import api from '../services/api';
-import { Check, Lock } from 'lucide-react';
+import { Check, Lock, BookOpen, ExternalLink } from 'lucide-react';
 
 const CourseLevels = () => {
   const { courseId } = useParams();
@@ -10,14 +10,11 @@ const CourseLevels = () => {
   const [course, setCourse] = useState(null);
   const [levels, setLevels] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [modeSelection, setModeSelection] = useState({
-    open: false,
-    level: null,
-  });
 
   useEffect(() => {
     fetchCourseData();
   }, [courseId]);
+
 
   const fetchCourseData = async () => {
     try {
@@ -41,8 +38,8 @@ const CourseLevels = () => {
       alert('Complete previous levels to unlock this level');
       return;
     }
-    // Ask user whether they want Coding Test or MCQ Practice
-    setModeSelection({ open: true, level });
+    // Navigate to Learning Phase (AI Lesson Plan)
+    navigate(`/courses/${courseId}/level/${level.id}/learn`);
   };
 
   const getCourseImage = () => {
@@ -88,9 +85,8 @@ const CourseLevels = () => {
           {levels.map((level) => (
             <div
               key={level.id}
-              className={`bg-white rounded-lg shadow-md overflow-hidden ${
-                level.status === 'locked' ? 'opacity-60' : ''
-              }`}
+              className={`bg-white rounded-lg shadow-md overflow-hidden ${level.status === 'locked' ? 'opacity-60' : ''
+                }`}
             >
               <div className="h-32 w-full overflow-hidden bg-gray-200">
                 <img
@@ -118,71 +114,67 @@ const CourseLevels = () => {
                 </div>
                 <h3 className="text-xl font-bold text-gray-800 mb-2">{level.title}</h3>
                 <p className="text-gray-600 text-sm mb-4">{level.description}</p>
+
+                {/* Topic Description & Materials */}
+                {(level.topic_description || level.learning_materials) && (
+                  <div className="mb-4 pt-3 border-t border-gray-100 space-y-3">
+                    {level.topic_description && (
+                      <p className="text-xs text-gray-600 leading-relaxed bg-gray-50 p-2 rounded">
+                        {level.topic_description}
+                      </p>
+                    )}
+
+                    {level.learning_materials && (
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                          <BookOpen size={12} /> Materials
+                        </div>
+                        <div className="space-y-1 pl-1">
+                          {(typeof level.learning_materials === 'string'
+                            ? JSON.parse(level.learning_materials)
+                            : level.learning_materials
+                          ).map((mat, idx) => (
+                            <a
+                              key={idx}
+                              href={mat.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 truncate block"
+                            >
+                              <ExternalLink size={10} className="flex-shrink-0" />
+                              {mat.title}
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <button
-                  onClick={() => handleLevelClick(level)}
+                  onClick={() => {
+                    // Start Level Clicked
+                    handleLevelClick(level);
+                  }}
                   disabled={level.status === 'locked'}
-                  className={`w-full py-2 rounded-lg font-medium transition-colors ${
-                    level.status === 'completed'
-                      ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                      : level.status === 'locked'
+                  className={`w-full py-2 rounded-lg font-medium transition-colors ${level.status === 'completed'
+                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                    : level.status === 'locked'
                       ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                       : 'bg-blue-600 text-white hover:bg-blue-700'
-                  }`}
+                    }`}
                 >
                   {level.status === 'completed'
-                    ? 'Review'
+                    ? 'Review Lesson'
                     : level.status === 'locked'
-                    ? 'Locked'
-                    : 'Start Level'}
+                      ? 'Locked'
+                      : 'Start Learning Phase'}
                 </button>
               </div>
             </div>
           ))}
         </div>
 
-        {/* Mode selection dialog */}
-        {modeSelection.open && modeSelection.level && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full">
-              <h2 className="text-xl font-bold text-gray-800 mb-4">
-                Choose Practice Type
-              </h2>
-              <p className="text-gray-600 mb-6">
-                Do you want to practice coding questions or MCQ questions for this level?
-              </p>
-              <div className="space-y-3">
-                <button
-                  onClick={() => {
-                    navigate(`/practice/${courseId}/${modeSelection.level.id}`, {
-                      state: { sessionType: 'coding' },
-                    });
-                    setModeSelection({ open: false, level: null });
-                  }}
-                  className="w-full px-4 py-3 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors"
-                >
-                  Coding Test
-                </button>
-                <button
-                  onClick={() => {
-                    navigate(`/mcq-practice/${courseId}/${modeSelection.level.id}`, {
-                      state: { sessionType: 'mcq' },
-                    });
-                    setModeSelection({ open: false, level: null });
-                  }}
-                  className="w-full px-4 py-3 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition-colors"
-                >
-                  MCQ Practice
-                </button>
-                <button
-                  onClick={() => setModeSelection({ open: false, level: null })}
-                  className="w-full px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

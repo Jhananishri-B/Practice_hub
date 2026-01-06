@@ -26,7 +26,7 @@ export const evaluateCode = async (
   for (const testCase of testCases) {
     try {
       const startTime = Date.now();
-      
+
       // Execute code with test case input
       const executionResult = await executeCode(code, language, testCase.input_data);
       const executionTime = Date.now() - startTime;
@@ -70,42 +70,5 @@ const normalizeOutput = (output: string): string => {
     .join('\n');
 };
 
-// Simple Python code execution (for development)
-export const executePythonCode = async (
-  code: string,
-  input: string
-): Promise<{ output: string; error?: string }> => {
-  // This is a placeholder - in production, use Docker or Judge0
-  // For now, return a mock result
-  logger.warn('Using mock code execution - implement proper execution in production');
-  
-  // Basic validation
-  if (!code || code.trim().length === 0) {
-    return { output: '', error: 'Empty code' };
-  }
 
-  // Mock execution - replace with actual Python execution
-  return {
-    output: 'Mock output - implement actual execution',
-    error: undefined,
-  };
-};
-
-// Simple C code execution (for development)
-export const executeCCode = async (
-  code: string,
-  input: string
-): Promise<{ output: string; error?: string }> => {
-  // This is a placeholder - in production, use Docker or Judge0
-  logger.warn('Using mock code execution - implement proper execution in production');
-  
-  if (!code || code.trim().length === 0) {
-    return { output: '', error: 'Empty code' };
-  }
-
-  return {
-    output: 'Mock output - implement actual execution',
-    error: undefined,
-  };
-};
 

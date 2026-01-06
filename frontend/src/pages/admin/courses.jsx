@@ -1,14 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../../components/Sidebar';
 import api from '../../services/api';
-import { Plus, Edit, Eye } from 'lucide-react';
+import { Plus, Edit, Upload } from 'lucide-react';
 
 const AdminCourses = () => {
   const [courses, setCourses] = useState([]);
   const [showAddCourse, setShowAddCourse] = useState(false);
   const [newCourse, setNewCourse] = useState({ title: '', description: '', total_levels: 1 });
   const [loading, setLoading] = useState(true);
+  const fileInputRef = useRef(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -37,6 +38,39 @@ const AdminCourses = () => {
       console.error('Failed to create course:', error);
       alert('Failed to create course');
     }
+  };
+
+  const handleJsonUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const jsonData = JSON.parse(event.target.result);
+
+        // Basic validation
+        if (!jsonData.title || !jsonData.total_levels) {
+          alert('Invalid JSON format. Required fields: title, total_levels');
+          return;
+        }
+
+        // Ensure description is at least an empty string if missing
+        if (jsonData.description === undefined) jsonData.description = '';
+
+        await api.post('/admin/courses', jsonData);
+        alert('Course imported successfully!');
+        fetchCourses();
+      } catch (error) {
+        console.error('Error importing JSON:', error);
+        alert('Failed to parse JSON or create course. ' + (error.response?.data?.error || error.message));
+      } finally {
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      }
+    };
+    reader.readAsText(file);
   };
 
   if (loading) {
@@ -70,13 +104,29 @@ const AdminCourses = () => {
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-gray-800">All Courses</h2>
-            <button
-              onClick={() => setShowAddCourse(!showAddCourse)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              <Plus size={18} />
-              Add New Course
-            </button>
+            <div className="flex gap-2">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleJsonUpload}
+                accept=".json"
+                className="hidden"
+              />
+              <button
+                onClick={() => fileInputRef.current.click()}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+              >
+                <Upload size={18} />
+                Import JSON
+              </button>
+              <button
+                onClick={() => setShowAddCourse(!showAddCourse)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                <Plus size={18} />
+                Add New Course
+              </button>
+            </div>
           </div>
 
           {showAddCourse && (
@@ -162,7 +212,7 @@ const AdminCourses = () => {
                   </button>
                 </div>
               </div>
-              
+
               {course.levels && course.levels.length > 0 && (
                 <div className="mt-4 pt-4 border-t border-gray-200">
                   <h4 className="text-sm font-semibold text-gray-700 mb-2">Levels:</h4>

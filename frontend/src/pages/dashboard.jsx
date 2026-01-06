@@ -4,7 +4,10 @@ import Sidebar from '../components/Sidebar';
 import api from '../services/api';
 import { Search, Play } from 'lucide-react';
 
+import { useAuth } from '../context/AuthContext';
+
 const Dashboard = () => {
+  const { user } = useAuth();
   const [courses, setCourses] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
@@ -45,7 +48,7 @@ const Dashboard = () => {
 
   const getCourseImage = (courseTitle) => {
     const title = courseTitle?.toLowerCase() || '';
-    
+
     // Use external image URLs for each course
     if (title.includes('c programming') || title === 'c') {
       return 'https://miro.medium.com/v2/resize:fit:1100/format:webp/1*2p6xGs1MCtjM7Giw5gmkpQ.jpeg';
@@ -56,7 +59,7 @@ const Dashboard = () => {
     if (title.includes('python')) {
       return 'https://webandcrafts.com/_next/image?url=https%3A%2F%2Fadmin.wac.co%2Fuploads%2FFeatures_Of_Python_1_f4ccd6d9f7.jpg&w=4500&q=90';
     }
-    
+
     // Fallback gradient
     return null;
   };
@@ -64,9 +67,9 @@ const Dashboard = () => {
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
-      <div className="flex-1 p-8">
+      <div className="flex-1 p-8 pb-24 md:pb-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Hello, User!</h1>
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">Hello, {user?.name || user?.username || 'Student'}!</h1>
           <p className="text-gray-600">Ready to code today? Your streak is on fire! 🔥</p>
         </div>
 
@@ -119,17 +122,17 @@ const Dashboard = () => {
                         {getDifficultyLabel(course.title)}
                       </span>
                     </div>
-                  <div className="p-6">
-                    <h3 className="text-xl font-bold text-gray-800 mb-2">{course.title}</h3>
-                    <p className="text-gray-600 text-sm mb-4">{course.description}</p>
-                    <button
-                      onClick={() => navigate(`/courses/${course.id}/levels`)}
-                      className="w-full bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-                    >
-                      Start Course →
-                    </button>
+                    <div className="p-6">
+                      <h3 className="text-xl font-bold text-gray-800 mb-2">{course.title}</h3>
+                      <p className="text-gray-600 text-sm mb-4">{course.description}</p>
+                      <button
+                        onClick={() => navigate(`/courses/${course.id}/levels`)}
+                        className="w-full bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                      >
+                        Start Course →
+                      </button>
+                    </div>
                   </div>
-                </div>
                 );
               })}
             </div>

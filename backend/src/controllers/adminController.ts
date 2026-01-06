@@ -134,7 +134,7 @@ export const getQuestionByIdController = async (req: AuthRequest, res: Response)
   } catch (error: any) {
     logger.error('Get question by id error:', error);
     logger.error('Error stack:', error.stack);
-    res.status(error.message === 'Question not found' ? 404 : 500).json({ 
+    res.status(error.message === 'Question not found' ? 404 : 500).json({
       error: error.message || 'Failed to fetch question',
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
@@ -159,7 +159,7 @@ export const updateMCQQuestionController = async (req: AuthRequest, res: Respons
     res.json({ message: 'Question updated successfully' });
   } catch (error: any) {
     logger.error('Update MCQ question error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: error.message || 'Failed to update question',
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
@@ -173,7 +173,7 @@ export const deleteQuestionController = async (req: AuthRequest, res: Response):
     res.json({ message: 'Question deleted successfully' });
   } catch (error: any) {
     logger.error('Delete question error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: error.message || 'Failed to delete question',
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
@@ -244,3 +244,44 @@ export const uploadCSVQuestionsController = async (req: MulterRequest, res: Resp
 // Export multer middleware for use in routes
 export const uploadCSVMiddleware = upload.single('file');
 
+import { generateQuestionsWithAI } from '../services/aiTutorService';
+
+export const generateQuestionsWithAIController = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { topic, count, difficulty, type } = req.body;
+
+    if (!topic || !count || !difficulty || !type) {
+      res.status(400).json({ error: 'Missing required fields' });
+      return;
+    }
+
+    const questions = await generateQuestionsWithAI(topic, count, difficulty, type);
+    res.json({ questions });
+  } catch (error: any) {
+    logger.error('AI generate questions error:', error);
+    res.status(500).json({ error: 'Failed to generate questions' });
+  }
+};
+
+
+
+export const updateLevelDetailsController = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { levelId } = req.params;
+    const { description, learning_materials, code_snippet } = req.body;
+
+    // Import dynamically or move to top if no cycle
+    const { updateLevelDetails } = await import('../services/adminService');
+
+    await updateLevelDetails(levelId, {
+      description,
+      learning_materials,
+      code_snippet
+    });
+
+    res.json({ message: 'Level details updated successfully' });
+  } catch (error: any) {
+    logger.error('Update level details error:', error);
+    res.status(500).json({ error: 'Failed to update level details' });
+  }
+};

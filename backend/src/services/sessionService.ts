@@ -46,7 +46,7 @@ export const startSession = async (
     // Fallback: preserve original behaviour – ML Level 1 as MCQ, everything else coding
     sessionType =
       courseTitle === 'Machine Learning' &&
-      levelId.includes('660e8400-e29b-41d4-a716-446655440021')
+        levelId.includes('660e8400-e29b-41d4-a716-446655440021')
         ? 'mcq'
         : 'coding';
   }
@@ -60,14 +60,14 @@ export const startSession = async (
   const params: any[] = [levelId];
 
   if (sessionType === 'coding') {
-    query += ' AND question_type = ?';
+    query += ' AND question_type = ? ORDER BY RAND() LIMIT 2';
     params.push('coding');
   } else if (sessionType === 'mcq') {
-    query += ' AND question_type = ?';
+    query += ' AND question_type = ? ORDER BY created_at ASC';
     params.push('mcq');
+  } else {
+    query += ' ORDER BY created_at ASC';
   }
-
-  query += ' ORDER BY created_at ASC';
 
   const questionsResult = await pool.query(query, params);
   const questionsRows = getRows(questionsResult);
@@ -303,7 +303,7 @@ export const completeSession = async (sessionId: string, userId: string) => {
   const sessionRows = getRows(sessionResult);
   if (sessionRows.length > 0) {
     const { level_id, course_id, total, completed } = sessionRows[0];
-    
+
     // If all questions completed, mark level as completed
     if (parseInt(completed) === parseInt(total)) {
       const completedProgressId = randomUUID();
@@ -315,4 +315,41 @@ export const completeSession = async (sessionId: string, userId: string) => {
       );
     }
   }
+};
+export const runCode = async (
+  sessionId: string,
+  code: string,
+  language: string,
+  customInput?: string
+): Promise<{ output: string; error?: string; execution_time?: number }> => {
+  // Validate Session
+  const sessionResult = await pool.query(
+    `SELECT c.title 
+     FROM practice_sessions s 
+     JOIN courses c ON s.course_id = c.id
+     WHERE s.id = ?`,
+    [sessionId]
+  );
+
+  const rows = getRows(sessionResult);
+  if (rows.length === 0) {
+    throw new Error('Session not found');
+  }
+  const courseName = rows[0].title;
+
+  // Validate Language
+  if (!validateLanguage(courseName, language)) {
+    throw new Error(`Invalid language for ${courseName}`);
+  }
+
+  // Execute
+  // Dynamic import to avoid cycles if any (safe practice here)
+  const { executeCode } = await import('../utils/codeExecutor');
+  const result = await executeCode(code, language, customInput || '');
+
+  return {
+    output: result.output || '',
+    error: result.error,
+    execution_time: result.executionTime
+  };
 };

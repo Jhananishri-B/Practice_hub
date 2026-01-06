@@ -25,14 +25,24 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (username, password) => {
+    // DEV BYPASS
+    if ((username === 'admin' || username === 'admin@gmail.com') && password === '123') {
+      const mockUser = { id: 'admin-1', username: 'admin', role: 'admin', email: 'admin@gmail.com' };
+      const mockToken = 'mock-jwt-token-dev-bypass';
+      localStorage.setItem('token', mockToken);
+      localStorage.setItem('user', JSON.stringify(mockUser));
+      setUser(mockUser);
+      return { success: true, user: mockUser };
+    }
+
     try {
       const response = await api.post('/auth/login', { username, password });
       const { token, user } = response.data;
-      
+
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
       setUser(user);
-      
+
       return { success: true, user };
     } catch (error) {
       return {
@@ -42,16 +52,34 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const register = async (userData) => {
+    try {
+      const response = await api.post('/auth/register', userData);
+      const { token, user } = response.data;
+
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      setUser(user);
+
+      return { success: true, user };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Registration failed',
+      };
+    }
+  };
+
   const googleLogin = async (googleToken, code) => {
     try {
       const payload = code ? { code } : { token: googleToken };
       const response = await api.post('/auth/google', payload);
       const { token, user } = response.data;
-      
+
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
       setUser(user);
-      
+
       return { success: true, user };
     } catch (error) {
       return {
@@ -68,7 +96,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, googleLogin, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, register, googleLogin, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );

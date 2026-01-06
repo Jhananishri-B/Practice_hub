@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import { startSession, submitSolution, completeSession } from '../services/sessionService';
+import { startSession, submitSolution, completeSession, runCode } from '../services/sessionService';
 import { AuthRequest } from '../middlewares/auth';
 import logger from '../config/logger';
 
@@ -70,6 +70,25 @@ export const completeSessionController = async (req: AuthRequest, res: Response)
   } catch (error: any) {
     logger.error('Complete session error:', error);
     res.status(500).json({ error: error.message || 'Failed to complete session' });
+  }
+};
+
+export const runCodeController = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { sessionId } = req.params;
+    const { code, language, customInput } = req.body;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const result = await runCode(sessionId, code, language, customInput);
+    res.json(result);
+  } catch (error: any) {
+    logger.error('Run code error:', error);
+    res.status(500).json({ error: error.message || 'Failed to run code' });
   }
 };
 

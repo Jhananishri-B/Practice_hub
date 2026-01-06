@@ -1,7 +1,9 @@
-// AI Tutor Service
+// AI Tutor Service using Ollama (Llama 3)
+import pool from '../config/database';
+import { getRows } from '../utils/mysqlHelper';
 
 export interface TutorMessage {
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'system';
   content: string;
 }
 
@@ -23,9 +25,58 @@ export interface TutorContext {
   concepts?: any;
 }
 
-const LLM_API_URL = process.env.LLM_API_URL || 'https://api.groq.com/openai/v1/chat/completions';
-const LLM_API_KEY = process.env.LLM_API_KEY;
-const LLM_MODEL = process.env.LLM_MODEL || 'llama3-70b-8192';
+const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3:latest';
+
+interface OllamaRequest {
+  model: string;
+  messages: TutorMessage[];
+  stream?: boolean;
+  format?: 'json';
+  options?: {
+    temperature?: number;
+    num_predict?: number;
+  };
+}
+
+interface OllamaResponse {
+  model: string;
+  created_at: string;
+  message: {
+    role: string;
+    content: string;
+  };
+  done: boolean;
+}
+
+const callOllama = async (request: OllamaRequest): Promise<string> => {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
+    const response = await fetch(`${OLLAMA_BASE_URL}/api/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Ollama API Error:', errorText);
+      throw new Error(`Ollama API request failed: ${response.statusText}`);
+    }
+
+    const data: OllamaResponse = await response.json();
+    return data.message.content;
+  } catch (error) {
+    console.warn('Ollama Connection Failed (Using Mock):', error);
+    throw error; // Re-throw to trigger fallback in getTutorResponse
+  }
+};
 
 export const getTutorResponse = async (
   userMessage: string,
@@ -34,41 +85,53 @@ export const getTutorResponse = async (
   try {
     const systemPrompt = buildSystemPrompt(context);
 
-    if (!LLM_API_KEY && !process.env.LLM_API_URL?.includes('localhost')) {
-      // Fallback if no key is configured
-      return fallbackResponse(userMessage, context);
-    }
+    // Construct message history including system prompt
+    const messages: TutorMessage[] = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userMessage }
+    ];
 
-    const response = await fetch(LLM_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${LLM_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: LLM_MODEL,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userMessage }
-        ],
-        temperature: 0.7,
-        max_tokens: 1024
-      })
+    return await callOllama({
+      model: OLLAMA_MODEL,
+      messages: messages,
+      stream: false,
+      options: {
+        temperature: 0.7
+      }
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('LLM API Error:', errorText);
-      throw new Error(`LLM API request failed: ${response.statusText}`);
-    }
-
-    const data: any = await response.json();
-    return data.choices?.[0]?.message?.content || "I'm having trouble thinking right now. Please try again.";
-
   } catch (error) {
-    console.error('AI Tutor Service Error:', error);
-    return fallbackResponse(userMessage, context);
+    // Graceful Fallback to Mock AI
+    console.log("Switching to Mock AI response provider");
+    return getMockTutorResponse(userMessage, context);
   }
+};
+
+// --- MOCK AI IMPLEMENTATION ---
+const getMockTutorResponse = (userMessage: string, context: TutorContext): string => {
+  const msg = userMessage.toLowerCase();
+
+  if (context.questionType === 'mcq') {
+    if (msg.includes('answer') || msg.includes('correct')) {
+      return `I can't give you the answer directly, but think about the key concepts in "${context.questionTitle}". Review the definition of the terms in the options.`;
+    }
+    if (msg.includes('why')) {
+      return `That's a good question! In this context, consider what happens when the code executes linearly. What does the specific syntax imply?`;
+    }
+    return `I'm currently running in 'Offline Mode' (AI Backend unavailable). Based on "${context.questionTitle}", I suggest reviewing the related course material. Keep trying!`;
+  }
+
+  if (context.questionType === 'coding') {
+    if (context.failedTestCases && context.failedTestCases.length > 0) {
+      const firstFail = context.failedTestCases[0];
+      return `I noticed your code failed specifically on Input: ${firstFail.input}. It expected ${firstFail.expected} but got ${firstFail.actual}. Check your logic handling this specific edge case.`;
+    }
+    if (msg.includes('help') || msg.includes('stuck')) {
+      return `Don't worry! Break down the problem "${context.questionTitle}" into smaller steps. Write pseudo-code first. What should happen at step 1?`;
+    }
+  }
+
+  return `I am here to help with "${context.questionTitle}". As the AI service is currently offline, I can only offer general encouragement. debugging is 90% of programming!`;
 };
 
 const buildSystemPrompt = (ctx: TutorContext): string => {
@@ -114,9 +177,9 @@ Use the Socratic method when appropriate. Be encouraging but precise.`;
 const fallbackResponse = (userMessage: string, context: TutorContext): string => {
   // Basic heuristic response if LLM is offline
   if (context.questionType === 'coding' && context.failedTestCases && context.failedTestCases.length > 0) {
-    return `I noticed your code failed some test cases. Check the input "${context.failedTestCases[0].input}". You returned "${context.failedTestCases[0].actual}" but expected "${context.failedTestCases[0].expected}". \n\n(AI Service is currently offline, please configure LLM_API_KEY for smart help)`;
+    return `I noticed your code failed some test cases. Check the input "${context.failedTestCases[0].input}". You returned "${context.failedTestCases[0].actual}" but expected "${context.failedTestCases[0].expected}". \n\n(AI Service is currently offline or Ollama is not running on port 11434)`;
   }
-  return `I'm here to help with "${context.questionTitle}". What specific part are you stuck on? \n\n(AI Service is currently offline, please configure LLM_API_KEY)`;
+  return `I'm here to help with "${context.questionTitle}". What specific part are you stuck on? \n\n(AI Service is currently offline or Ollama is not running on port 11434)`;
 };
 
 export const getInitialHint = (context: TutorContext): string => {
@@ -127,3 +190,183 @@ export const getInitialHint = (context: TutorContext): string => {
   }
 };
 
+export const generateQuestionsWithAI = async (
+  topic: string,
+  count: number,
+  difficulty: string,
+  type: 'coding' | 'mcq'
+): Promise<any[]> => {
+  try {
+    const prompt = `Generate ${count} ${difficulty} ${type} questions about "${topic}".
+    
+    CRITICAL: Return ONLY a valid JSON array of objects. Do not include any text before or after the JSON.
+    
+    If type is 'coding', each object must have:
+    - title (string)
+    - description (string)
+    - input_format (string)
+    - output_format (string)
+    - constraints (string)
+    - difficulty (string: 'easy', 'medium', 'hard')
+    - reference_solution (string: code)
+    - test_cases (array of {input_data: string, expected_output: string, is_hidden: boolean}) Note: keys are input_data/expected_output
+
+    If type is 'mcq', each object must have:
+    - title (string)
+    - description (string)
+    - options (array of {option_text: string, is_correct: boolean})
+    - correct_answer (string: text of correct option)
+    - difficulty (string: 'easy', 'medium', 'hard')
+    `;
+
+    const response = await callOllama({
+      model: OLLAMA_MODEL,
+      messages: [{ role: 'user', content: prompt }],
+      stream: false,
+      format: 'json', // Force JSON mode if supported by newer Ollama/Models
+      options: {
+        temperature: 0.7,
+        num_predict: 4096,
+      },
+    });
+
+    let text = response;
+    // Clean up markdown if present (Ollama might still wrap in ```json)
+    text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+
+    return JSON.parse(text);
+  } catch (error) {
+    console.error('AI Question Generation Error (Mocking):', error);
+    // Return Mock Questions if generation fails
+    return getMockQuestions(topic, count, type);
+  }
+};
+
+const getMockQuestions = (topic: string, count: number, type: 'coding' | 'mcq'): any[] => {
+  // Helper to generate basic mock data
+  const mockQuestions = [];
+  for (let i = 0; i < count; i++) {
+    if (type === 'mcq') {
+      mockQuestions.push({
+        title: `Mock Question ${i + 1} on ${topic}`,
+        description: `This is a simulated question because AI generation failed. What is a key feature of ${topic}?`,
+        options: [
+          { option_text: "It is fast", is_correct: true },
+          { option_text: "It is slow", is_correct: false },
+          { option_text: "Neither", is_correct: false },
+          { option_text: "Both", is_correct: false }
+        ],
+        correct_answer: "It is fast",
+        difficulty: "easy"
+      });
+    } else {
+      mockQuestions.push({
+        title: `Mock Coding ${i + 1}: ${topic}`,
+        description: `Write a function related to ${topic}. (AI Service Offline)`,
+        input_format: "String s",
+        output_format: "String",
+        constraints: "None",
+        reference_solution: "return s;",
+        test_cases: [
+          { input_data: "hello", expected_output: "hello", is_hidden: false }
+        ],
+        difficulty: "easy"
+      });
+    }
+  }
+  return mockQuestions;
+};
+
+export interface LessonPlan {
+  introduction: string;
+  concepts: Array<{ title: string; explanation: string }>;
+  key_terms: string[];
+  example_code: string;
+  resources: Array<{ title: string; url: string }>;
+}
+
+// Helper for Mock Data (Function declaration for hoisting)
+function getMockLessonPlan(course: string, level: string): LessonPlan {
+  return {
+    introduction: `Welcome to ${level}! In this lesson, we will dive into the core concepts of ${course}.`,
+    concepts: [
+      { title: "Core Concept 1", explanation: "This is a fundamental building block." },
+      { title: "Core Concept 2", explanation: "Understanding this is crucial for advanced topics." }
+    ],
+    key_terms: ["Syntax", "Logic", "Compilation"],
+    example_code: "// Example Code\nprint('Hello Learning Phase!');",
+    resources: [
+      { title: "Official Documentation", url: "https://docs.python.org/3/" },
+      { title: "W3Schools Tutorial", url: "https://www.w3schools.com/" }
+    ]
+  };
+}
+
+export const generateLessonPlan = async (
+  courseTitle: string,
+  levelTitle: string,
+  levelDescription: string,
+  levelId?: string
+): Promise<LessonPlan> => {
+
+  // 1. Check for Manual Content in DB (if levelId provided)
+  if (levelId) {
+    try {
+      const levelResult = await pool.query('SELECT learning_materials, code_snippet FROM levels WHERE id = ?', [levelId]);
+      const rows = getRows(levelResult);
+      if (rows.length > 0 && rows[0].learning_materials) {
+        const materials = JSON.parse(rows[0].learning_materials);
+        // Map to LessonPlan interface
+        return {
+          introduction: `Welcome to ${levelTitle}. This level covers key concepts.`,
+          concepts: materials.map((m: any) => ({
+            title: m.title,
+            explanation: `Read more at: ${m.url}`
+          })),
+          key_terms: [],
+          example_code: rows[0].code_snippet || '// Code examples available in the resources above',
+          resources: materials
+        };
+      }
+    } catch (dbError) {
+      console.error('Error fetching manual learning materials:', dbError);
+      // Proceed to AI fallback
+    }
+  }
+
+  // 2. AI Generation
+  try {
+    const prompt = `Generate a structured lesson plan for a coding course.
+    Course: ${courseTitle}
+    Level: ${levelTitle}
+    Description: ${levelDescription}
+
+    CRITICAL: Return ONLY a valid JSON object. No markdown, no text before/after.
+    Structure:
+    {
+      "introduction": "Brief engaging intro (2-3 sentences)",
+      "concepts": [{"title": "Concept Name", "explanation": "Clear explanation"}],
+      "key_terms": ["Term 1", "Term 2"],
+      "example_code": "Code snippet demonstrating the concept",
+      "resources": [{"title": "Resource Name", "url": "valid url"}]
+    }`;
+
+    const response = await callOllama({
+      model: OLLAMA_MODEL,
+      messages: [{ role: 'user', content: prompt }],
+      stream: false,
+      format: 'json',
+      options: {
+        temperature: 0.7,
+      },
+    });
+
+    let text = response;
+    text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    return JSON.parse(text);
+
+  } catch (error) {
+    console.error('AI Lesson Generation Error (Mocking):', error);
+    return getMockLessonPlan(courseTitle, levelTitle);
+  }
+};

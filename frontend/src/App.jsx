@@ -4,6 +4,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 
 // Pages
 import Login from './pages/login';
+import Register from './pages/register';
 import Dashboard from './pages/dashboard';
 import CourseLevels from './pages/courseLevels';
 import Practice from './pages/practice';
@@ -12,6 +13,7 @@ import Results from './pages/results';
 import Progress from './pages/progress';
 import Leaderboard from './pages/leaderboard';
 import AICoach from './pages/aiCoach';
+import LevelOverview from './pages/LevelOverview';
 
 // Admin Pages
 import AdminOverview from './pages/admin/overview';
@@ -26,7 +28,8 @@ const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-      
+      <Route path="/register" element={<Register />} />
+
       <Route
         path="/dashboard"
         element={
@@ -40,6 +43,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <CourseLevels />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/courses/:courseId/level/:levelId/learn"
+        element={
+          <ProtectedRoute>
+            <LevelOverview />
           </ProtectedRoute>
         }
       />

@@ -228,4 +228,3 @@ CREATE INDEX idx_practice_sessions_user_id ON practice_sessions(user_id);
 CREATE INDEX idx_user_progress_user_id ON user_progress(user_id);
 CREATE INDEX idx_user_progress_course_id ON user_progress(course_id);
 CREATE INDEX idx_user_submissions_session_id ON user_submissions(session_id);
-

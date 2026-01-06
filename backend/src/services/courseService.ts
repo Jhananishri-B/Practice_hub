@@ -32,7 +32,7 @@ export const getCourseLevels = async (
 ): Promise<Level[]> => {
   // Get all levels for the course
   const levelsResult = await pool.query(
-    `SELECT l.id, l.course_id, l.level_number, l.title, l.description
+    `SELECT l.id, l.course_id, l.level_number, l.title, l.description, l.topic_description, l.learning_materials
      FROM levels l
      WHERE l.course_id = ?
      ORDER BY l.level_number`,
@@ -163,7 +163,7 @@ export const getCourseLevels = async (
              VALUES (?, ?, ?, ?, 'unlocked')
              ON DUPLICATE KEY UPDATE id=id`,
             [autoProgressId, userId, courseId, level.id]
-          ).catch(() => {}); // Ignore errors
+          ).catch(() => { }); // Ignore errors
         }
       }
     }

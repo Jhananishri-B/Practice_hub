@@ -3,6 +3,7 @@ import {
   startSessionController,
   submitSolutionController,
   completeSessionController,
+  runCodeController,
 } from '../controllers/sessionController';
 import { authenticate } from '../middlewares/auth';
 
@@ -10,6 +11,7 @@ const router = Router();
 
 router.post('/start', authenticate, startSessionController);
 router.post('/:sessionId/submit', authenticate, submitSolutionController);
+router.post('/:sessionId/run', authenticate, runCodeController);
 router.post('/:sessionId/complete', authenticate, completeSessionController);
 
 export default router;

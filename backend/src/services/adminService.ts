@@ -107,11 +107,13 @@ export const createLevel = async (data: {
   level_number: number;
   title: string;
   description?: string;
+  topic_description?: string;
+  learning_materials?: string; // or JSON string
 }) => {
   const levelId = randomUUID();
   await pool.query(
-    'INSERT INTO levels (id, course_id, level_number, title, description) VALUES (?, ?, ?, ?, ?)',
-    [levelId, data.course_id, data.level_number, data.title, data.description || null]
+    'INSERT INTO levels (id, course_id, level_number, title, description, topic_description, learning_materials) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [levelId, data.course_id, data.level_number, data.title, data.description || null, data.topic_description || null, data.learning_materials || null]
   );
   return levelId;
 };
@@ -156,4 +158,40 @@ export const updateLevelTimeLimit = async (levelId: string, timeLimit: number | 
      WHERE id = (SELECT course_id FROM levels WHERE id = ?)`,
     [levelId]
   );
+};
+
+export const updateLevelDetails = async (
+  levelId: string,
+  data: {
+    description?: string;
+    learning_materials?: any;
+    code_snippet?: string;
+  }
+) => {
+  const updates: string[] = [];
+  const params: any[] = [];
+
+  if (data.description !== undefined) {
+    updates.push('description = ?');
+    params.push(data.description);
+  }
+
+  if (data.learning_materials !== undefined) {
+    updates.push('learning_materials = ?');
+    params.push(typeof data.learning_materials === 'string' ? data.learning_materials : JSON.stringify(data.learning_materials));
+  }
+
+  if (data.code_snippet !== undefined) {
+    updates.push('code_snippet = ?');
+    params.push(data.code_snippet);
+  }
+
+  if (updates.length === 0) return;
+
+  updates.push('updated_at = CURRENT_TIMESTAMP');
+
+  const query = `UPDATE levels SET ${updates.join(', ')} WHERE id = ?`;
+  params.push(levelId);
+
+  await pool.query(query, params);
 };
