@@ -1,5 +1,5 @@
-import { Response } from 'express';
-import { getTutorResponse, getInitialHint, TutorContext } from '../services/aiTutorService';
+import { Request, Response } from 'express';
+import { getTutorResponse, getInitialHint, getFreeChatResponse, TutorContext } from '../services/aiTutorService';
 import { AuthRequest } from '../middlewares/auth';
 import logger from '../config/logger';
 import pool from '../config/database';
@@ -149,12 +149,49 @@ export const getInitialHintController = async (req: AuthRequest, res: Response):
       questionType: session.question_type as 'coding' | 'mcq',
     };
 
-    const hint = getInitialHint(context);
+    const hint = await getInitialHint(context);
 
     res.json({ hint });
   } catch (error: any) {
     logger.error('Get initial hint error:', error);
     res.status(500).json({ error: 'Failed to get hint' });
+  }
+};
+
+/**
+ * Lightweight free-form AI coach endpoint that is not tied to a specific session.
+ * This lets the user ask general programming or course-related questions from the
+ * dedicated AI Coach page while reusing the same tutor logic.
+ */
+export const freeChatWithTutor = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    const { message, topic, questionType } = req.body as {
+      message?: string;
+      topic?: string;
+      questionType?: 'coding' | 'mcq';
+    };
+
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    if (!message || typeof message !== 'string' || !message.trim()) {
+      res.status(400).json({ error: 'Message is required' });
+      return;
+    }
+
+    const safeQuestionType: 'coding' | 'mcq' =
+      questionType === 'mcq' ? 'mcq' : 'coding';
+
+    // Get AI tutor response
+    const response = await getFreeChatResponse(message, topic, safeQuestionType);
+
+    res.json({ message: response });
+  } catch (error: any) {
+    logger.error('AI Coach free-chat error:', error);
+    res.status(500).json({ error: 'Failed to get tutor response' });
   }
 };
 

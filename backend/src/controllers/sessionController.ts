@@ -1,5 +1,5 @@
-import { Response } from 'express';
-import { startSession, submitSolution, completeSession } from '../services/sessionService';
+import { Request, Response } from 'express';
+import { startSession, submitSolution, completeSession, getAllSessions } from '../services/sessionService';
 import { AuthRequest } from '../middlewares/auth';
 import logger from '../config/logger';
 
@@ -70,6 +70,26 @@ export const completeSessionController = async (req: AuthRequest, res: Response)
   } catch (error: any) {
     logger.error('Complete session error:', error);
     res.status(500).json({ error: error.message || 'Failed to complete session' });
+  }
+};
+
+/**
+ * Get all sessions
+ * GET /api/sessions
+ */
+export const getAllSessionsController = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const sessions = await getAllSessions();
+    res.json({
+      success: true,
+      data: sessions,
+    });
+  } catch (error: any) {
+    logger.error('Get all sessions error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to fetch sessions',
+    });
   }
 };
 

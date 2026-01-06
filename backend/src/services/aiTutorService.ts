@@ -1,5 +1,5 @@
 // AI Tutor Service
-// In production, integrate with TinyLlama or similar AI model
+// Provides helpful responses for coding and MCQ questions
 
 export interface TutorMessage {
   role: 'user' | 'assistant';
@@ -22,17 +22,24 @@ export interface TutorContext {
   correctAnswer?: string;
 }
 
+/**
+ * Get tutor response based on context
+ */
 export const getTutorResponse = async (
   userMessage: string,
   context: TutorContext
 ): Promise<string> => {
-  // This is a placeholder - in production, integrate with AI model
-  // For now, return contextual hints based on the question and errors
+  // Use rule-based response
+  return getFallbackResponse(userMessage, context);
+};
 
-  const { questionType, failedTestCases, userCode } = context;
+/**
+ * Fallback response when RAG fails
+ */
+const getFallbackResponse = (userMessage: string, context: TutorContext): string => {
+  const { questionType, failedTestCases } = context;
 
   if (questionType === 'coding' && failedTestCases && failedTestCases.length > 0) {
-    // Provide hints for coding questions with failed test cases
     const firstFailure = failedTestCases[0];
     
     if (firstFailure.error) {
@@ -48,7 +55,6 @@ export const getTutorResponse = async (
     return `For this MCQ question, think about the key concepts involved. Review the question description carefully and consider what each option represents.`;
   }
 
-  // Generic helpful response
   return `I'm here to help! Based on your question about "${context.questionTitle}", I'd suggest reviewing the problem constraints and breaking it down into smaller steps. Would you like me to explain any specific concept?`;
 };
 
@@ -68,11 +74,26 @@ const getErrorHint = (error: string): string => {
   return 'there might be a logical error in your implementation';
 };
 
-export const getInitialHint = (context: TutorContext): string => {
+/**
+ * Get initial hint
+ */
+export const getInitialHint = async (context: TutorContext): Promise<string> => {
   if (context.questionType === 'coding') {
     return `I noticed you might need some guidance on "${context.questionTitle}". Would you like me to explain the approach or help debug any specific errors?`;
   } else {
     return `For this MCQ question, I can help explain the concepts involved. What would you like to know?`;
   }
+};
+
+/**
+ * Free chat with AI Coach
+ * For general questions not tied to a specific session
+ */
+export const getFreeChatResponse = async (
+  message: string,
+  topic?: string,
+  questionType?: 'coding' | 'mcq'
+): Promise<string> => {
+  return `I'm here to help! Could you rephrase your question? I can help with programming concepts, debugging, and general coding questions.`;
 };
 

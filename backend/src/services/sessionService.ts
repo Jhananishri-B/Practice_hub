@@ -69,8 +69,28 @@ export const startSession = async (
 
   query += ' ORDER BY created_at ASC';
 
-  const questionsResult = await pool.query(query, params);
-  const questionsRows = getRows(questionsResult);
+  let questionsResult = await pool.query(query, params);
+  let questionsRows = getRows(questionsResult);
+
+  // Fallback: if no questions for requested type, load any questions for the level
+  if (questionsRows.length === 0) {
+    const fallbackResult = await pool.query(
+      `SELECT id, question_type, title, description, input_format, output_format, constraints
+       FROM questions
+       WHERE level_id = ?
+       ORDER BY created_at ASC`,
+      [levelId]
+    );
+    questionsRows = getRows(fallbackResult);
+
+    // If we found questions in fallback, adjust sessionType to the first question's type
+    if (questionsRows.length > 0) {
+      const firstType = questionsRows[0].question_type;
+      if (firstType === 'coding' || firstType === 'mcq') {
+        sessionType = firstType;
+      }
+    }
+  }
 
   if (questionsRows.length === 0) {
     throw new Error('No questions available for this level');
@@ -315,4 +335,34 @@ export const completeSession = async (sessionId: string, userId: string) => {
       );
     }
   }
+};
+
+/**
+ * Get all practice sessions from the database
+ */
+export const getAllSessions = async () => {
+  const result = await pool.query(
+    `SELECT 
+      ps.id,
+      ps.user_id,
+      ps.course_id,
+      ps.level_id,
+      ps.session_type,
+      ps.status,
+      ps.started_at,
+      ps.completed_at,
+      ps.time_limit,
+      ps.total_questions,
+      ps.questions_answered,
+      u.username,
+      u.name as user_name,
+      c.title as course_title,
+      l.title as level_title
+     FROM practice_sessions ps
+     LEFT JOIN users u ON ps.user_id = u.id
+     LEFT JOIN courses c ON ps.course_id = c.id
+     LEFT JOIN levels l ON ps.level_id = l.id
+     ORDER BY ps.started_at DESC`
+  );
+  return getRows(result);
 };

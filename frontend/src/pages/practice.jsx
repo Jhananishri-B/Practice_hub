@@ -74,11 +74,36 @@ const Practice = () => {
       return;
     }
 
-    const input = useCustomInput ? customInput : '';
-    
     try {
-      // For now, show a message - in production, this would execute the code
-      alert('Code execution is running... (This is a placeholder - implement actual execution)');
+      if (!session) return;
+
+      const questionsForTest = getActiveQuestions();
+      const currentQuestion = questionsForTest[currentQuestionIndex];
+
+      // If user wants custom input, call a lightweight exec endpoint (backend submit will still evaluate all test cases)
+      // Currently we reuse the submit API so test cases are evaluated and UI updated
+      const response = await api.post(`/sessions/${session.id}/submit`, {
+        questionId: currentQuestion.question_id,
+        code,
+        language,
+      });
+
+      if (response.data.test_results) {
+        setTestResultsByQuestion((prev) => ({
+          ...prev,
+          [currentQuestionIndex]: response.data.test_results,
+        }));
+      }
+
+      if (response.data.is_correct) {
+        alert('✅ All test cases passed!');
+      } else {
+        alert(
+          `❌ ${response.data.test_cases_passed || 0}/${
+            response.data.total_test_cases || 0
+          } test cases passed`
+        );
+      }
     } catch (error) {
       console.error('Failed to run code:', error);
       alert('Failed to execute code');
@@ -313,17 +338,34 @@ const Practice = () => {
               )}
 
               <h3 className="font-semibold text-gray-800 mb-2">Test Cases:</h3>
+              <style>{`
+                @keyframes blink-green {
+                  0%, 100% { opacity: 1; }
+                  50% { opacity: 0.5; }
+                }
+                @keyframes blink-red {
+                  0%, 100% { opacity: 1; }
+                  50% { opacity: 0.5; }
+                }
+                .test-case-passed {
+                  animation: blink-green 1s ease-in-out 3;
+                }
+                .test-case-failed {
+                  animation: blink-red 1s ease-in-out 3;
+                }
+              `}</style>
               <div className="space-y-2">
                 {visibleTestCases.map((tc, index) => {
                   const status = getTestCaseStatus(tc.id);
+                  const result = currentTestResults.find((r) => r.test_case_id === tc.id);
                   return (
                     <div
                       key={tc.id}
                       className={`p-3 rounded border text-sm ${
                         status === 'passed'
-                          ? 'border-green-500 bg-green-50'
+                          ? 'border-green-500 bg-green-50 test-case-passed'
                           : status === 'failed'
-                          ? 'border-red-500 bg-red-50'
+                          ? 'border-red-500 bg-red-50 test-case-failed'
                           : 'border-gray-200 bg-gray-50'
                       }`}
                     >
@@ -351,6 +393,19 @@ const Practice = () => {
                             {tc.expected_output}
                           </pre>
                         </div>
+                        {result && !result.passed && (
+                          <div className="md:col-span-2">
+                            <span className="font-medium text-red-600">Actual Output:</span>
+                            <pre className="mt-1 text-red-700 whitespace-pre-wrap">
+                              {result.actual_output || 'No output'}
+                            </pre>
+                            {result.error_message && (
+                              <div className="mt-1 text-red-600 text-xs">
+                                Error: {result.error_message}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -393,10 +448,12 @@ const Practice = () => {
               language={language}
               value={code}
               onChange={(value) => setCode(value || '')}
-              theme="vs-light"
+              theme="vs-dark"
               options={{
                 minimap: { enabled: false },
                 fontSize: 14,
+                cursorBlinking: 'smooth',
+                scrollbar: { verticalScrollbarSize: 8, horizontalScrollbarSize: 8 },
               }}
             />
           </div>
