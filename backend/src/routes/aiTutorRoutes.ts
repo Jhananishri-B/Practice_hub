@@ -1,12 +1,21 @@
 import { Router } from 'express';
-import { chatWithTutor, getInitialHintController, generateLessonController } from '../controllers/aiTutorController';
+import {
+  chatWithTutor,
+  getInitialHintController,
+  generateLessonController,
+  freeChatWithTutor
+} from '../controllers/aiTutorController';
 import { authenticate } from '../middlewares/auth';
 
 const router = Router();
 
+// Session-aware tutor used from the Results page
 router.post('/chat', authenticate, chatWithTutor);
 router.get('/hint/:sessionId', authenticate, getInitialHintController);
 router.post('/generate-lesson', authenticate, generateLessonController);
+
+// General AI Coach chat (no session required)
+router.post('/free-chat', authenticate, freeChatWithTutor);
 
 export default router;
 

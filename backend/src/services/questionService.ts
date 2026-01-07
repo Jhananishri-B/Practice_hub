@@ -32,6 +32,18 @@ export interface MCQOption {
   option_letter: string;
 }
 
+/**
+ * Get all questions from the database
+ */
+export const getAllQuestions = async () => {
+  const result = await pool.query(
+    `SELECT id, level_id, question_type, title, description, input_format, output_format, constraints, reference_solution, difficulty, created_at, updated_at
+     FROM questions
+     ORDER BY created_at DESC`
+  );
+  return getRows(result);
+};
+
 export const getQuestionById = async (questionId: string) => {
   const result = await pool.query(
     `SELECT id, level_id, question_type, title, description, input_format, output_format, constraints, reference_solution, difficulty

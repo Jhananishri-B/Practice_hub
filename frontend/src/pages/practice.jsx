@@ -90,7 +90,6 @@ const Practice = () => {
       const { output, error, execution_time } = response.data;
       setOutput(output || '');
       setLastRunError(error || null);
-
     } catch (error) {
       console.error('Failed to run code:', error);
       setLastRunError('Failed to execute code. Connection error or server issue.');
@@ -281,17 +280,34 @@ const Practice = () => {
               )}
 
               <h3 className="font-semibold text-gray-800 mb-2">Test Cases:</h3>
+              <style>{`
+                @keyframes blink-green {
+                  0%, 100% { opacity: 1; }
+                  50% { opacity: 0.5; }
+                }
+                @keyframes blink-red {
+                  0%, 100% { opacity: 1; }
+                  50% { opacity: 0.5; }
+                }
+                .test-case-passed {
+                  animation: blink-green 1s ease-in-out 3;
+                }
+                .test-case-failed {
+                  animation: blink-red 1s ease-in-out 3;
+                }
+              `}</style>
               <div className="space-y-2">
                 {visibleTestCases.map((tc, index) => {
                   const status = getTestCaseStatus(tc.id);
+                  const result = currentTestResults.find((r) => r.test_case_id === tc.id);
                   return (
                     <div
                       key={tc.id}
                       className={`p-3 rounded border text-sm ${status === 'passed'
-                        ? 'border-green-500 bg-green-50'
-                        : status === 'failed'
-                          ? 'border-red-500 bg-red-50'
-                          : 'border-gray-200 bg-gray-50'
+                          ? 'border-green-500 bg-green-50 test-case-passed'
+                          : status === 'failed'
+                            ? 'border-red-500 bg-red-50 test-case-failed'
+                            : 'border-gray-200 bg-gray-50'
                         }`}
                     >
                       <div className="flex items-center justify-between mb-1">
@@ -318,6 +334,19 @@ const Practice = () => {
                             {tc.expected_output}
                           </pre>
                         </div>
+                        {result && !result.passed && (
+                          <div className="md:col-span-2">
+                            <span className="font-medium text-red-600">Actual Output:</span>
+                            <pre className="mt-1 text-red-700 whitespace-pre-wrap">
+                              {result.actual_output || 'No output'}
+                            </pre>
+                            {result.error_message && (
+                              <div className="mt-1 text-red-600 text-xs">
+                                Error: {result.error_message}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -360,10 +389,12 @@ const Practice = () => {
               language={language}
               value={code}
               onChange={(value) => setCode(value || '')}
-              theme="vs-light"
+              theme="vs-dark"
               options={{
                 minimap: { enabled: false },
                 fontSize: 14,
+                cursorBlinking: 'smooth',
+                scrollbar: { verticalScrollbarSize: 8, horizontalScrollbarSize: 8 },
               }}
             />
           </div>

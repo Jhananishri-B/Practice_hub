@@ -31,10 +31,24 @@ export const evaluateCode = async (
       const executionResult = await executeCode(code, language, testCase.input_data);
       const executionTime = Date.now() - startTime;
 
+      // If there's an error, test case fails
+      if (executionResult.error) {
+        results.push({
+          test_case_id: testCase.id,
+          passed: false,
+          expected_output: testCase.expected_output,
+          actual_output: executionResult.output || '',
+          error_message: executionResult.error,
+          execution_time: executionTime,
+        });
+        continue;
+      }
+
       // Normalize outputs for comparison
       const expectedOutput = normalizeOutput(testCase.expected_output);
       const actualOutput = normalizeOutput(executionResult.output || '');
 
+      // Strict comparison - must match exactly after normalization
       const passed = expectedOutput === actualOutput;
 
       results.push({
@@ -42,7 +56,7 @@ export const evaluateCode = async (
         passed,
         expected_output: testCase.expected_output,
         actual_output: executionResult.output || '',
-        error_message: executionResult.error,
+        error_message: undefined,
         execution_time: executionTime,
       });
     } catch (error: any) {
@@ -60,14 +74,15 @@ export const evaluateCode = async (
 };
 
 const normalizeOutput = (output: string): string => {
+  if (!output) return '';
+  // Normalize line endings and trim, but preserve structure
   return output
-    .trim()
     .replace(/\r\n/g, '\n')
     .replace(/\r/g, '\n')
     .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-    .join('\n');
+    .map((line) => line.trimEnd()) // Only trim trailing spaces, preserve leading
+    .join('\n')
+    .trim(); // Final trim of entire string
 };
 
 

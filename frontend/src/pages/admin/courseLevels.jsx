@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Sidebar from '../../components/Sidebar';
 import api from '../../services/api';
-import { Plus, Edit, Trash2, Clock, Upload, Sparkles, ArrowLeft, Loader } from 'lucide-react';
+import { Plus, Edit, Trash2, Clock, Upload, ArrowLeft, Loader } from 'lucide-react';
 
 const AdminCourseLevels = () => {
   const { courseId } = useParams();
@@ -16,81 +16,7 @@ const AdminCourseLevels = () => {
   // Modals
   const [timeLimitModal, setTimeLimitModal] = useState({ show: false, levelId: null, timeLimit: null });
   const [csvUploadModal, setCsvUploadModal] = useState({ show: false, levelId: null, uploading: false, questionType: null });
-  const [aiGenerateModal, setAiGenerateModal] = useState({ show: false, levelId: null, generating: false, topic: '', count: 3, difficulty: 'medium' });
 
-  useEffect(() => {
-    fetchData();
-  }, [courseId]);
-
-  const fetchData = async () => {
-    try {
-      const coursesResponse = await api.get('/admin/courses/with-levels');
-      const courseData = coursesResponse.data.find((c) => c.id === courseId);
-      setCourse(courseData);
-      setLevels(courseData?.levels || []);
-
-      const questionsMap = {};
-      for (const level of courseData?.levels || []) {
-        try {
-          const res = await api.get(`/admin/levels/${level.id}/questions`);
-          questionsMap[level.id] = res.data;
-        } catch (error) {
-          questionsMap[level.id] = [];
-        }
-      }
-      setQuestions(questionsMap);
-    } catch (error) {
-      console.error('Failed to fetch data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAddLevel = async () => {
-    const title = prompt("Enter Level Title (e.g., 'Basics of Python'):");
-    if (!title) return;
-    const description = prompt("Enter Description:");
-    if (!description) return;
-
-    try {
-      await api.post('/admin/levels', {
-        course_id: courseId,
-        level_number: (levels.length || 0) + 1,
-        title,
-        description
-      });
-      fetchData();
-    } catch (error) {
-      alert('Failed to create level');
-    }
-  };
-
-  const handleAiGenerate = async (e) => {
-    e.preventDefault();
-    setAiGenerateModal(prev => ({ ...prev, generating: true }));
-    try {
-      const { topic, count, difficulty, levelId } = aiGenerateModal;
-      // 1. Generate Questions
-      const res = await api.post('/admin/questions/generate-ai', {
-        topic, count, difficulty, type: activeTab
-      });
-      const generatedQuestions = res.data.questions;
-
-      // 2. Save each question to DB
-      for (const q of generatedQuestions) {
-        const endpoint = activeTab === 'coding' ? '/admin/questions/coding' : '/admin/questions/mcq';
-        await api.post(endpoint, { ...q, level_id: levelId });
-      }
-
-      alert(`Successfully generated and added ${generatedQuestions.length} questions!`);
-      setAiGenerateModal({ show: false, levelId: null, generating: false, topic: '', count: 3, difficulty: 'medium' });
-      fetchData();
-    } catch (error) {
-      console.error(error);
-      alert('AI Generation failed. Ensure API Key is configured.');
-      setAiGenerateModal(prev => ({ ...prev, generating: false }));
-    }
-  };
 
   const handleCsvFileSelect = async (e) => {
     const file = e.target.files[0];
@@ -169,10 +95,10 @@ const AdminCourseLevels = () => {
                 </div>
                 <div className="flex items-center gap-3">
                   <button
-                    onClick={() => setAiGenerateModal({ show: true, levelId: level.id, topic: level.title, count: 3, difficulty: 'medium', generating: false })}
+                    onClick={() => navigate(`/courses/${courseId}/level/${level.id}/learn`)}
                     className="flex items-center gap-2 px-4 py-2 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 transition-colors border border-purple-100 font-medium text-sm"
                   >
-                    <Sparkles size={16} /> AI Generate
+                    <Edit size={16} /> Edit Overview
                   </button>
                   <button
                     onClick={() => setCsvUploadModal({ show: true, levelId: level.id, uploading: false, questionType: null })}
@@ -215,8 +141,7 @@ const AdminCourseLevels = () => {
                 <div className="space-y-3">
                   {questions[level.id]?.filter(q => q.question_type === activeTab).length === 0 ? (
                     <div className="text-center py-8 text-gray-400 text-sm italic">
-                      No {activeTab.toUpperCase()} questions in this level yet. <br />
-                      Try "AI Generate" to fill it instantly!
+                      No {activeTab.toUpperCase()} questions in this level yet.
                     </div>
                   ) : (
                     questions[level.id]?.filter(q => q.question_type === activeTab).map(q => (
@@ -242,87 +167,7 @@ const AdminCourseLevels = () => {
           ))}
         </div>
 
-        {/* AI GENERATE MODAL */}
-        {aiGenerateModal.show && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
-              <div className="p-6 bg-gradient-to-br from-purple-600 to-indigo-600 text-white">
-                <div className="flex items-center gap-3 mb-1">
-                  <Sparkles className="text-yellow-300" />
-                  <h2 className="text-2xl font-bold">AI Content Generator</h2>
-                </div>
-                <p className="text-purple-100 text-sm">Instantly populate your course with relevant questions.</p>
-              </div>
 
-              <form onSubmit={handleAiGenerate} className="p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">Topic</label>
-                  <input
-                    type="text"
-                    value={aiGenerateModal.topic}
-                    onChange={e => setAiGenerateModal({ ...aiGenerateModal, topic: e.target.value })}
-                    className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-shadow"
-                    placeholder="e.g. Recursion in Python"
-                    required
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Count</label>
-                    <input
-                      type="number"
-                      min="1" max="10"
-                      value={aiGenerateModal.count}
-                      onChange={e => setAiGenerateModal({ ...aiGenerateModal, count: parseInt(e.target.value) })}
-                      className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500 outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Difficulty</label>
-                    <select
-                      value={aiGenerateModal.difficulty}
-                      onChange={e => setAiGenerateModal({ ...aiGenerateModal, difficulty: e.target.value })}
-                      className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-purple-500 outline-none"
-                    >
-                      <option value="easy">Easy</option>
-                      <option value="medium">Medium</option>
-                      <option value="hard">Hard</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="bg-blue-50 p-4 rounded-lg flex items-start gap-3">
-                  <div className="text-xl">💡</div>
-                  <p className="text-xs text-blue-800">
-                    The AI will generate <b>{activeTab.toUpperCase()}</b> questions.
-                    Make sure to review the generated questions after they are added.
-                  </p>
-                </div>
-
-                <div className="pt-4 flex gap-3 justify-end">
-                  <button
-                    type="button"
-                    onClick={() => setAiGenerateModal({ ...aiGenerateModal, show: false })}
-                    className="px-5 py-2.5 text-gray-600 font-medium hover:bg-gray-100 rounded-lg transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={aiGenerateModal.generating}
-                    className="px-6 py-2.5 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 transition-all shadow-lg shadow-purple-200 flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
-                  >
-                    {aiGenerateModal.generating ? (
-                      <><Loader size={18} className="animate-spin" /> Generating...</>
-                    ) : (
-                      <><Sparkles size={18} /> Generate</>
-                    )}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
 
         {/* CSV UPLOAD MODAL */}
         {csvUploadModal.show && (

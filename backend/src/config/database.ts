@@ -46,6 +46,7 @@ if (process.env.DATABASE_URL) {
     }
   }
 } else {
+  // Default to Docker MySQL service if DB_* env vars are not set
   connectionConfig = {
     host: process.env.DB_HOST || 'mysql',
     port: parseInt(process.env.DB_PORT || '3306'),
@@ -61,7 +62,7 @@ if (process.env.DATABASE_URL) {
 
 const pool = mysql.createPool(connectionConfig);
 
-pool.on('connection', (connection) => {
+pool.on('connection', () => {
   console.log('New MySQL connection established');
 });
 

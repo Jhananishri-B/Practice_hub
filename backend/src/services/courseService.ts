@@ -176,3 +176,12 @@ export const getCourseLevels = async (
 
   return levels;
 };
+
+export const getLevelDetails = async (levelId: string): Promise<any> => {
+  const result = await pool.query(
+    'SELECT title, description, learning_materials, code_snippet FROM levels WHERE id = ?',
+    [levelId]
+  );
+  const rows = getRows(result);
+  return rows.length > 0 ? rows[0] : null;
+};

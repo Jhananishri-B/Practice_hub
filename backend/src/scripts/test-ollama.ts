@@ -9,7 +9,7 @@ async function testOllama() {
         if (!response.ok) {
             throw new Error(`Failed to fetch tags: ${response.statusText}`);
         }
-        const data = await response.json();
+        const data = await response.json() as any;
         console.log('Ollama is running. Available models:');
         const models = data.models.map((m: any) => m.name);
         console.log(models);
@@ -29,7 +29,7 @@ async function testOllama() {
                     stream: false
                 })
             });
-            const chatData = await chatResp.json();
+            const chatData = await chatResp.json() as any;
             console.log('Response:', chatData.message.content);
         }
 

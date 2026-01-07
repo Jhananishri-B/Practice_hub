@@ -353,3 +353,33 @@ export const runCode = async (
     execution_time: result.executionTime
   };
 };
+
+/**
+ * Get all practice sessions from the database
+ */
+export const getAllSessions = async () => {
+  const result = await pool.query(
+    `SELECT
+      ps.id,
+      ps.user_id,
+      ps.course_id,
+      ps.level_id,
+      ps.session_type,
+      ps.status,
+      ps.started_at,
+      ps.completed_at,
+      ps.time_limit,
+      ps.total_questions,
+      ps.questions_answered,
+      u.username,
+      u.name as user_name,
+      c.title as course_title,
+      l.title as level_title
+     FROM practice_sessions ps
+     LEFT JOIN users u ON ps.user_id = u.id
+     LEFT JOIN courses c ON ps.course_id = c.id
+     LEFT JOIN levels l ON ps.level_id = l.id
+     ORDER BY ps.started_at DESC`
+  );
+  return getRows(result);
+};

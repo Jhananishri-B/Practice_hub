@@ -28,11 +28,11 @@ const LevelOverview = () => {
     }, [courseId, levelId]);
 
     const fetchLessonPlan = async () => {
+        console.log('Fetching lesson plan for:', courseId, levelId);
         try {
-            const response = await api.post('/ai-tutor/generate-lesson', {
-                courseId,
-                levelId
-            });
+            // Fetch persistent user-curated/admin-curated content
+            const response = await api.get(`/courses/${courseId}/levels/${levelId}`);
+            console.log('Lesson plan fetched:', response.data);
             setLessonPlan(response.data);
             setEditData({
                 introduction: response.data.introduction || '',
@@ -44,6 +44,15 @@ const LevelOverview = () => {
         } catch (error) {
             console.error('Failed to fetch lesson plan:', error);
             setLoading(false);
+            // Fallback content if empty or error
+            if (!lessonPlan) {
+                setLessonPlan({
+                    introduction: "Content is being prepared for this level.",
+                    concepts: [],
+                    resources: [],
+                    example_code: "// No example code available"
+                });
+            }
         }
     };
 

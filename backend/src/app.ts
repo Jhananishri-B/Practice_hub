@@ -12,6 +12,8 @@ import resultRoutes from './routes/resultRoutes';
 import progressRoutes from './routes/progressRoutes';
 import adminRoutes from './routes/adminRoutes';
 import aiTutorRoutes from './routes/aiTutorRoutes';
+import userRoutes from './routes/userRoutes';
+import questionRoutes from './routes/questionRoutes';
 
 dotenv.config();
 
@@ -33,6 +35,8 @@ app.get('/', (req, res) => {
     endpoints: {
       health: '/health',
       auth: '/api/auth',
+      users: '/api/users',
+      questions: '/api/questions',
       courses: '/api/courses',
       sessions: '/api/sessions',
       results: '/api/results',
@@ -50,6 +54,8 @@ app.get('/health', (req, res) => {
 
 // API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/questions', questionRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/results', resultRoutes);
