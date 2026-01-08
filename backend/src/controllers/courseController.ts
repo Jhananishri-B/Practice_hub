@@ -58,6 +58,7 @@ export const getLevelDetailsController = async (req: AuthRequest, res: Response)
       introduction: lessonPlan.introduction || level.description || '',
       concepts: lessonPlan.concepts || [],
       resources: lessonPlan.resources || [],
+      key_terms: lessonPlan.key_terms || [],
       example_code: level.code_snippet || lessonPlan.example_code || ''
     };
 

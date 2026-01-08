@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Sidebar from '../../components/Sidebar';
 import api from '../../services/api';
-import { Plus, Edit, Trash2, Clock, Upload, ArrowLeft, Loader } from 'lucide-react';
+import { Plus, Edit, Trash2, Clock, Upload, ArrowLeft, Loader, Sparkles } from 'lucide-react';
 
 const AdminCourseLevels = () => {
   const { courseId } = useParams();
@@ -16,6 +16,40 @@ const AdminCourseLevels = () => {
   // Modals
   const [timeLimitModal, setTimeLimitModal] = useState({ show: false, levelId: null, timeLimit: null });
   const [csvUploadModal, setCsvUploadModal] = useState({ show: false, levelId: null, uploading: false, questionType: null });
+
+  useEffect(() => {
+    fetchData();
+  }, [courseId]);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+
+      const [coursesRes, levelsRes, questionsRes] = await Promise.all([
+        api.get('/courses'), // Fetch all courses to find current one
+        api.get(`/courses/${courseId}/levels`),
+        api.get('/questions') // Fetch all questions to filter by level
+      ]);
+
+      const currentCourse = coursesRes.data.find(c => c.id === courseId);
+      setCourse(currentCourse);
+      setLevels(levelsRes.data);
+
+      // Group questions by level
+      const questionsByLevel = {};
+      const allQuestions = questionsRes.data.data || [];
+      allQuestions.forEach(q => {
+        if (!questionsByLevel[q.level_id]) questionsByLevel[q.level_id] = [];
+        questionsByLevel[q.level_id].push(q);
+      });
+      setQuestions(questionsByLevel);
+
+    } catch (err) {
+      console.error('Failed to load course data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
   const handleCsvFileSelect = async (e) => {
@@ -38,6 +72,25 @@ const AdminCourseLevels = () => {
     } catch (err) {
       alert('Upload failed');
       setCsvUploadModal(prev => ({ ...prev, uploading: false }));
+    }
+  };
+
+  const handleAddLevel = async () => {
+    const title = prompt('Enter new level title:');
+    if (!title || !title.trim()) return;
+
+    try {
+      const nextLevelNumber = levels.length + 1;
+      await api.post('/admin/levels', {
+        course_id: courseId,
+        level_number: nextLevelNumber,
+        title: title.trim(),
+        description: ''
+      });
+      fetchData();
+    } catch (err) {
+      console.error('Failed to add level:', err);
+      alert('Failed to add level');
     }
   };
 

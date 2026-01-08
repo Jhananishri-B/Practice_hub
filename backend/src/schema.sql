@@ -46,6 +46,9 @@ CREATE TABLE IF NOT EXISTS levels (
     title VARCHAR(255) NOT NULL,
     description TEXT,
     time_limit INTEGER,
+    topic_description TEXT,
+    learning_materials JSON,
+    code_snippet TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY unique_course_level (course_id, level_number),
@@ -205,24 +208,54 @@ INSERT INTO courses (id, title, description, total_levels) VALUES
     ('550e8400-e29b-41d4-a716-446655440003', 'Machine Learning', 'Introduction to neural networks, algorithms, and predictive modeling', 10)
 ON DUPLICATE KEY UPDATE id=id;
 
--- Insert default levels for Python
-INSERT INTO levels (id, course_id, level_number, title, description) VALUES
-    ('660e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440001', 1, 'Introduction to Python', 'Master the basics of Python syntax, variables, and primitive data types'),
-    ('660e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440001', 2, 'Control Flow & Functions', 'Learn to control the flow of execution with loops and conditionals'),
-    ('660e8400-e29b-41d4-a716-446655440003', '550e8400-e29b-41d4-a716-446655440001', 3, 'Data Structures', 'Deep dive into Python core data structures'),
-    ('660e8400-e29b-41d4-a716-446655440004', '550e8400-e29b-41d4-a716-446655440001', 4, 'Object-Oriented Programming', 'Learn classes, objects, and inheritance'),
-    ('660e8400-e29b-41d4-a716-446655440005', '550e8400-e29b-41d4-a716-446655440001', 5, 'Advanced Topics', 'Advanced Python concepts and patterns')
-ON DUPLICATE KEY UPDATE id=id;
+-- Insert default levels for Python with learning materials
+INSERT INTO levels (id, course_id, level_number, title, description, learning_materials, code_snippet) VALUES
+    ('660e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440001', 1, 'Introduction to Python', 'Basic syntax, variables, and data types',
+     '{"introduction": "Welcome to Python! Learn the fundamentals of this powerful programming language.", "concepts": [{"title": "Variables", "explanation": "Store and manipulate data."}, {"title": "Data Types", "explanation": "Understand integers, strings, floats, and booleans."}], "key_terms": ["Variable", "String", "Integer", "Float"], "resources": [{"title": "Python Introduction", "url": "https://www.w3schools.com/python/python_intro.asp"}, {"title": "Python Syntax", "url": "https://www.w3schools.com/python/python_syntax.asp"}, {"title": "Python Variables", "url": "https://www.w3schools.com/python/python_variables.asp"}, {"title": "GeeksForGeeks: Python Basics", "url": "https://www.geeksforgeeks.org/python-programming-language/"}]}',
+     '# Example Code\nprint("Hello, Python!")'),
+    ('660e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440001', 2, 'Conditionals', 'If, Elif, Else statements',
+     '{"introduction": "Make decisions in your Python programs with conditionals.", "concepts": [{"title": "If Statement", "explanation": "Execute code based on conditions."}, {"title": "Elif and Else", "explanation": "Handle multiple conditions."}], "key_terms": ["If", "Elif", "Else", "Boolean"], "resources": [{"title": "Python If...Else", "url": "https://www.w3schools.com/python/python_conditions.asp"}, {"title": "GeeksForGeeks: Python Conditionals", "url": "https://www.geeksforgeeks.org/conditional-statements-in-python/"}]}',
+     'x = 10\nif x > 5:\n    print("x is greater than 5")\nelse:\n    print("x is 5 or less")'),
+    ('660e8400-e29b-41d4-a716-446655440003', '550e8400-e29b-41d4-a716-446655440001', 3, 'Loops', 'For and While loops',
+     '{"introduction": "Repeat actions efficiently using loops.", "concepts": [{"title": "For Loop", "explanation": "Iterate over sequences."}, {"title": "While Loop", "explanation": "Repeat while a condition is true."}], "key_terms": ["For", "While", "Range", "Break", "Continue"], "resources": [{"title": "Python For Loops", "url": "https://www.w3schools.com/python/python_for_loops.asp"}, {"title": "Python While Loops", "url": "https://www.w3schools.com/python/python_while_loops.asp"}, {"title": "GeeksForGeeks: Python Loops", "url": "https://www.geeksforgeeks.org/loops-in-python/"}]}',
+     'for i in range(5):\n    print(i)'),
+    ('660e8400-e29b-41d4-a716-446655440004', '550e8400-e29b-41d4-a716-446655440001', 4, 'Lists & Arrays', 'Working with lists and collections',
+     '{"introduction": "Store and manipulate collections of data.", "concepts": [{"title": "List Creation", "explanation": "Create and modify lists."}, {"title": "List Methods", "explanation": "Use append, remove, sort, and more."}], "key_terms": ["List", "Append", "Index", "Slice"], "resources": [{"title": "Python Lists", "url": "https://www.w3schools.com/python/python_lists.asp"}, {"title": "Python List Methods", "url": "https://www.w3schools.com/python/python_lists_methods.asp"}, {"title": "GeeksForGeeks: Python Lists", "url": "https://www.geeksforgeeks.org/python-lists/"}]}',
+     'fruits = ["apple", "banana", "cherry"]\nfruits.append("orange")\nprint(fruits)'),
+    ('660e8400-e29b-41d4-a716-446655440005', '550e8400-e29b-41d4-a716-446655440001', 5, 'Functions', 'Defining and calling functions',
+     '{"introduction": "Create reusable code blocks with functions.", "concepts": [{"title": "Function Definition", "explanation": "Create your own functions with def."}, {"title": "Parameters", "explanation": "Pass data into functions."}], "key_terms": ["def", "return", "parameter", "argument"], "resources": [{"title": "Python Functions", "url": "https://www.w3schools.com/python/python_functions.asp"}, {"title": "GeeksForGeeks: Python Functions", "url": "https://www.geeksforgeeks.org/python-functions/"}]}',
+     'def greet(name):\n    return f"Hello, {name}!"\n\nprint(greet("World"))')
+ON DUPLICATE KEY UPDATE 
+    title=VALUES(title), 
+    description=VALUES(description), 
+    learning_materials=VALUES(learning_materials),
+    code_snippet=VALUES(code_snippet);
 
--- Insert default levels for C
-INSERT INTO levels (id, course_id, level_number, title, description) VALUES
-    ('660e8400-e29b-41d4-a716-446655440011', '550e8400-e29b-41d4-a716-446655440002', 1, 'Pointers & Memory', 'Understand manual memory management essentials'),
-    ('660e8400-e29b-41d4-a716-446655440012', '550e8400-e29b-41d4-a716-446655440002', 2, 'Structs & Unions', 'Deep dive into custom data types'),
-    ('660e8400-e29b-41d4-a716-446655440013', '550e8400-e29b-41d4-a716-446655440002', 3, 'Dynamic Memory Mgmt', 'Master malloc, calloc, realloc and free'),
-    ('660e8400-e29b-41d4-a716-446655440014', '550e8400-e29b-41d4-a716-446655440002', 4, 'File I/O & Preprocessing', 'File operations and preprocessor directives'),
-    ('660e8400-e29b-41d4-a716-446655440015', '550e8400-e29b-41d4-a716-446655440002', 5, 'Multi-threading', 'Concurrent programming concepts'),
-    ('660e8400-e29b-41d4-a716-446655440016', '550e8400-e29b-41d4-a716-446655440002', 6, 'SIMD & Vectorization', 'Optimization techniques')
-ON DUPLICATE KEY UPDATE id=id;
+-- Insert default levels for C with learning materials
+INSERT INTO levels (id, course_id, level_number, title, description, learning_materials, code_snippet) VALUES
+    ('660e8400-e29b-41d4-a716-446655440011', '550e8400-e29b-41d4-a716-446655440002', 1, 'Introduction to C', 'Basic syntax, variables, and data types', 
+     '{"introduction": "Welcome to Introduction to C! In this lesson, we will dive into the core concepts of C Programming.", "concepts": [{"title": "Core Concept 1", "explanation": "This is a fundamental building block."}, {"title": "Core Concept 2", "explanation": "Understanding this is crucial for advanced topics."}], "key_terms": ["Syntax", "Logic", "Compilation"], "resources": [{"title": "C Introduction", "url": "https://www.w3schools.com/c/c_intro.php"}, {"title": "C Syntax", "url": "https://www.w3schools.com/c/c_syntax.php"}, {"title": "C Output", "url": "https://www.w3schools.com/c/c_output.php"}, {"title": "C Comments", "url": "https://www.w3schools.com/c/c_comments.php"}, {"title": "GeeksForGeeks: C Language", "url": "https://www.geeksforgeeks.org/c-programming-language/"}]}',
+     '// Example Code\nprint(\"Hello Learning Phase!\");'),
+    ('660e8400-e29b-41d4-a716-446655440012', '550e8400-e29b-41d4-a716-446655440002', 2, 'Conditionals', 'If, Else If, Else, and Switch statements',
+     '{"introduction": "Learn decision-making in C with conditional statements.", "concepts": [{"title": "If-Else Statements", "explanation": "Execute code based on conditions."}, {"title": "Switch Statement", "explanation": "Handle multiple conditions efficiently."}], "key_terms": ["If", "Else", "Switch", "Case"], "resources": [{"title": "C If...Else", "url": "https://www.w3schools.com/c/c_conditions.php"}, {"title": "C Switch", "url": "https://www.w3schools.com/c/c_switch.php"}, {"title": "Using Ternary Operator", "url": "https://www.w3schools.com/c/c_ternary.php"}, {"title": "GeeksForGeeks: Decision Making", "url": "https://www.geeksforgeeks.org/decision-making-c-cpp/"}]}',
+     '#include <stdio.h>\nint main() {\n    int x = 10;\n    if (x > 5) {\n        printf("x is greater than 5");\n    }\n    return 0;\n}'),
+    ('660e8400-e29b-41d4-a716-446655440013', '550e8400-e29b-41d4-a716-446655440002', 3, 'Loops', 'While, Do-While, and For loops',
+     '{"introduction": "Master iteration using loops in C programming.", "concepts": [{"title": "For Loop", "explanation": "Repeat code a specific number of times."}, {"title": "While Loop", "explanation": "Repeat code while a condition is true."}], "key_terms": ["For", "While", "Do-While", "Break", "Continue"], "resources": [{"title": "C While Loop", "url": "https://www.w3schools.com/c/c_while_loop.php"}, {"title": "C For Loop", "url": "https://www.w3schools.com/c/c_for_loop.php"}, {"title": "C Break and Continue", "url": "https://www.w3schools.com/c/c_break.php"}, {"title": "GeeksForGeeks: Loops in C", "url": "https://www.geeksforgeeks.org/loops-in-c-and-cpp/"}]}',
+     '#include <stdio.h>\nint main() {\n    for (int i = 0; i < 5; i++) {\n        printf("%d\\n", i);\n    }\n    return 0;\n}'),
+    ('660e8400-e29b-41d4-a716-446655440014', '550e8400-e29b-41d4-a716-446655440002', 4, 'Arrays', 'Single and multi-dimensional arrays',
+     '{"introduction": "Learn to store multiple values using arrays.", "concepts": [{"title": "Array Declaration", "explanation": "Create and initialize arrays."}, {"title": "Array Indexing", "explanation": "Access elements using indices."}], "key_terms": ["Array", "Index", "Element", "Size"], "resources": [{"title": "C Arrays", "url": "https://www.w3schools.com/c/c_arrays.php"}, {"title": "C Multi-Dimensional Arrays", "url": "https://www.w3schools.com/c/c_arrays_multi.php"}, {"title": "GeeksForGeeks: Arrays in C", "url": "https://www.geeksforgeeks.org/arrays-in-c-cpp/"}]}',
+     '#include <stdio.h>\nint main() {\n    int arr[5] = {1, 2, 3, 4, 5};\n    printf("%d", arr[0]);\n    return 0;\n}'),
+    ('660e8400-e29b-41d4-a716-446655440015', '550e8400-e29b-41d4-a716-446655440002', 5, 'Strings', 'Character arrays and string functions',
+     '{"introduction": "Work with text data using strings in C.", "concepts": [{"title": "String Declaration", "explanation": "Create strings as character arrays."}, {"title": "String Functions", "explanation": "Use strlen, strcpy, strcat, and more."}], "key_terms": ["String", "Character", "strlen", "strcpy"], "resources": [{"title": "C Strings", "url": "https://www.w3schools.com/c/c_strings.php"}, {"title": "C String Functions", "url": "https://www.w3schools.com/c/c_strings_functions.php"}, {"title": "GeeksForGeeks: Strings in C", "url": "https://www.geeksforgeeks.org/strings-in-c/"}]}',
+     '#include <stdio.h>\n#include <string.h>\nint main() {\n    char str[] = "Hello";\n    printf("%lu", strlen(str));\n    return 0;\n}'),
+    ('660e8400-e29b-41d4-a716-446655440016', '550e8400-e29b-41d4-a716-446655440002', 6, 'Functions', 'Function declaration, definition, and recursion',
+     '{"introduction": "Create reusable code blocks with functions.", "concepts": [{"title": "Function Definition", "explanation": "Create your own functions."}, {"title": "Recursion", "explanation": "Functions that call themselves."}], "key_terms": ["Function", "Return", "Parameters", "Recursion"], "resources": [{"title": "C Functions", "url": "https://www.w3schools.com/c/c_functions.php"}, {"title": "C Function Parameters", "url": "https://www.w3schools.com/c/c_function_parameters.php"}, {"title": "GeeksForGeeks: Functions in C", "url": "https://www.geeksforgeeks.org/functions-in-c/"}]}',
+     '#include <stdio.h>\nint add(int a, int b) {\n    return a + b;\n}\nint main() {\n    printf("%d", add(5, 3));\n    return 0;\n}')
+ON DUPLICATE KEY UPDATE 
+    title=VALUES(title), 
+    description=VALUES(description), 
+    learning_materials=VALUES(learning_materials),
+    code_snippet=VALUES(code_snippet);
 
 -- Insert default levels for Machine Learning
 INSERT INTO levels (id, course_id, level_number, title, description) VALUES

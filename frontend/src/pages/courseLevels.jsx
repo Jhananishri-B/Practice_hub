@@ -124,30 +124,34 @@ const CourseLevels = () => {
                       </p>
                     )}
 
-                    {level.learning_materials && (
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-1 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-                          <BookOpen size={12} /> Materials
+                    {level.learning_materials && (() => {
+                      const materials = typeof level.learning_materials === 'string'
+                        ? JSON.parse(level.learning_materials)
+                        : level.learning_materials;
+                      const resources = materials.resources || [];
+
+                      return resources.length > 0 && (
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                            <BookOpen size={12} /> Materials
+                          </div>
+                          <div className="space-y-1 pl-1">
+                            {resources.map((mat, idx) => (
+                              <a
+                                key={idx}
+                                href={mat.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 truncate block"
+                              >
+                                <ExternalLink size={10} className="flex-shrink-0" />
+                                {mat.title}
+                              </a>
+                            ))}
+                          </div>
                         </div>
-                        <div className="space-y-1 pl-1">
-                          {(typeof level.learning_materials === 'string'
-                            ? JSON.parse(level.learning_materials)
-                            : level.learning_materials
-                          ).map((mat, idx) => (
-                            <a
-                              key={idx}
-                              href={mat.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 truncate block"
-                            >
-                              <ExternalLink size={10} className="flex-shrink-0" />
-                              {mat.title}
-                            </a>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                      );
+                    })()}
                   </div>
                 )}
 
