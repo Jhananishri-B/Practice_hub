@@ -17,6 +17,7 @@ const LevelOverview = () => {
         introduction: '',
         concepts: [],
         resources: [],
+        key_terms: [],
         example_code: ''
     });
 
@@ -28,16 +29,15 @@ const LevelOverview = () => {
     }, [courseId, levelId]);
 
     const fetchLessonPlan = async () => {
-        console.log('Fetching lesson plan for:', courseId, levelId);
         try {
             // Fetch persistent user-curated/admin-curated content
             const response = await api.get(`/courses/${courseId}/levels/${levelId}`);
-            console.log('Lesson plan fetched:', response.data);
             setLessonPlan(response.data);
             setEditData({
                 introduction: response.data.introduction || '',
                 concepts: response.data.concepts || [],
                 resources: response.data.resources || [],
+                key_terms: response.data.key_terms || [],
                 example_code: response.data.example_code || ''
             });
             setLoading(false);
@@ -59,12 +59,11 @@ const LevelOverview = () => {
     const handleSave = async () => {
         try {
             const payload = {
-                // description: editData.introduction, // Ensure this maps if needed, but current storage is single JSON
                 learning_materials: {
                     introduction: editData.introduction,
                     concepts: editData.concepts,
                     resources: editData.resources,
-                    key_terms: lessonPlan.key_terms || [] // Preserve if not editing
+                    key_terms: editData.key_terms
                 },
                 code_snippet: editData.example_code
             };
@@ -112,6 +111,21 @@ const LevelOverview = () => {
     const removeResource = (idx) => {
         const newResources = editData.resources.filter((_, i) => i !== idx);
         setEditData({ ...editData, resources: newResources });
+    };
+
+    const addKeyTerm = () => {
+        const term = prompt('Enter key term:');
+        if (term && term.trim()) {
+            setEditData({
+                ...editData,
+                key_terms: [...editData.key_terms, term.trim()]
+            });
+        }
+    };
+
+    const removeKeyTerm = (idx) => {
+        const newTerms = editData.key_terms.filter((_, i) => i !== idx);
+        setEditData({ ...editData, key_terms: newTerms });
     };
 
 
@@ -224,6 +238,26 @@ const LevelOverview = () => {
                             </div>
 
                             <div>
+                                <div className="flex justify-between items-center mb-2">
+                                    <label className="block text-sm font-medium text-gray-700">Key Terms</label>
+                                    <button onClick={addKeyTerm} className="text-sm text-purple-600 flex items-center gap-1 hover:underline"><Plus size={14} /> Add</button>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {editData.key_terms.map((term, idx) => (
+                                        <span key={idx} className="px-3 py-1.5 bg-gray-100 border border-gray-200 rounded-full text-gray-700 text-sm font-medium flex items-center gap-2">
+                                            {term}
+                                            <button onClick={() => removeKeyTerm(idx)} className="text-red-400 hover:text-red-600">
+                                                <X size={14} />
+                                            </button>
+                                        </span>
+                                    ))}
+                                    {editData.key_terms.length === 0 && (
+                                        <span className="text-gray-400 text-sm italic">No key terms added yet</span>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">Example Code</label>
                                 <textarea
                                     className="w-full p-4 border border-gray-300 rounded-lg font-mono text-sm min-h-[200px] bg-slate-900 text-white"
@@ -266,6 +300,33 @@ const LevelOverview = () => {
                                         <p className="text-gray-600 leading-relaxed">{concept.explanation}</p>
                                     </div>
                                 ))}
+                            </div>
+                        </div>
+
+                        {/* Key Terminology */}
+                        <div className="mt-8">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Key Terminology</h3>
+                                {isEditing && (
+                                    <button onClick={addKeyTerm} className="text-blue-600 hover:text-blue-700 text-sm flex items-center gap-1">
+                                        <Plus size={14} /> Add Term
+                                    </button>
+                                )}
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                {(isEditing ? editData.key_terms : (lessonPlan.key_terms || [])).map((term, idx) => (
+                                    <span key={idx} className="px-4 py-2 bg-white border border-gray-200 rounded-full text-gray-700 text-sm font-medium hover:bg-blue-50 hover:border-blue-200 transition-colors flex items-center gap-2">
+                                        {term}
+                                        {isEditing && (
+                                            <button onClick={() => removeKeyTerm(idx)} className="text-red-400 hover:text-red-600">
+                                                <X size={14} />
+                                            </button>
+                                        )}
+                                    </span>
+                                ))}
+                                {(!isEditing && (!lessonPlan.key_terms || lessonPlan.key_terms.length === 0)) && (
+                                    <span className="text-gray-400 text-sm">No key terms defined</span>
+                                )}
                             </div>
                         </div>
 
