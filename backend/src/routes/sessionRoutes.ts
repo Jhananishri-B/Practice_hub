@@ -5,6 +5,7 @@ import {
   completeSessionController,
   runCodeController,
   getAllSessionsController,
+  runTestCasesController,
 } from '../controllers/sessionController';
 import { authenticate } from '../middlewares/auth';
 
@@ -14,6 +15,7 @@ router.get('/', getAllSessionsController);
 router.post('/start', authenticate, startSessionController);
 router.post('/:sessionId/submit', authenticate, submitSolutionController);
 router.post('/:sessionId/run', authenticate, runCodeController);
+router.post('/:sessionId/run-tests', authenticate, runTestCasesController);
 router.post('/:sessionId/complete', authenticate, completeSessionController);
 
 export default router;

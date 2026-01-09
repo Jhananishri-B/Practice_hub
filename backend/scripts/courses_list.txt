@@ -1,0 +1,8 @@
+COURSES FOUND:
+C Programming | Levels: 6 (DB says 6) | ID: 550e8400-e29b-41d4-a716-446655440002
+Deep Learning | Levels: 5 (DB says 1) | ID: 3e11be5b-ed27-11f0-8e4e-329369cf3b6e
+Cloud Computing | Levels: 5 (DB says 1) | ID: 3e11c40f-ed27-11f0-8e4e-329369cf3b6e
+Machine Learning | Levels: 5 (DB says 1) | ID: 3e11b88c-ed27-11f0-8e4e-329369cf3b6e
+Machine Learning | Levels: 10 (DB says 10) | ID: 550e8400-e29b-41d4-a716-446655440003
+Python | Levels: 5 (DB says 5) | ID: 550e8400-e29b-41d4-a716-446655440001
+Data Science | Levels: 5 (DB says 1) | ID: 3e11aad3-ed27-11f0-8e4e-329369cf3b6e

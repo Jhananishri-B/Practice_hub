@@ -81,7 +81,7 @@ const executePythonCode = async (
         if (code === 0) {
           resolve({
             success: true,
-            output: stdout,
+            output: stdout.replace(/\r\n/g, '\n'),
             executionTime,
           });
         } else {
@@ -89,7 +89,7 @@ const executePythonCode = async (
             success: false,
             // If stderr is empty, use stdout (some errors go to stdout) or generic message
             error: stderr || stdout || 'Process exited with error',
-            output: stdout, // Return stdout even on error (partial output)
+            output: stdout.replace(/\r\n/g, '\n'), // Return stdout even on error (partial output)
             executionTime,
           });
         }
@@ -150,6 +150,9 @@ export const validateLanguage = (courseName: string, language: string): boolean 
     'Python': 'python',
     'C Programming': 'c',
     'Machine Learning': 'python',
+    'Data Science': 'python',
+    'Deep Learning': 'python',
+    'Cloud Computing': 'python',
   };
 
   const expectedLanguage = courseLanguageMap[courseName];

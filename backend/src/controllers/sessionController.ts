@@ -92,6 +92,26 @@ export const runCodeController = async (req: AuthRequest, res: Response): Promis
   }
 };
 
+export const runTestCasesController = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { sessionId } = req.params;
+    const { questionId, code, language } = req.body;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const { runTestCases } = await import('../services/sessionService');
+    const result = await runTestCases(sessionId, questionId, code, language);
+    res.json(result);
+  } catch (error: any) {
+    logger.error('Run test cases error:', error);
+    res.status(500).json({ error: error.message || 'Failed to run tests' });
+  }
+};
+
 /**
  * Get all sessions
  * GET /api/sessions

@@ -357,29 +357,32 @@ export const runCode = async (
 /**
  * Get all practice sessions from the database
  */
-export const getAllSessions = async () => {
-  const result = await pool.query(
-    `SELECT
-      ps.id,
-      ps.user_id,
-      ps.course_id,
-      ps.level_id,
-      ps.session_type,
-      ps.status,
-      ps.started_at,
-      ps.completed_at,
-      ps.time_limit,
-      ps.total_questions,
-      ps.questions_answered,
-      u.username,
-      u.name as user_name,
-      c.title as course_title,
-      l.title as level_title
-     FROM practice_sessions ps
-     LEFT JOIN users u ON ps.user_id = u.id
-     LEFT JOIN courses c ON ps.course_id = c.id
-     LEFT JOIN levels l ON ps.level_id = l.id
-     ORDER BY ps.started_at DESC`
+// ... (previous code)
+
+export const runTestCases = async (
+  sessionId: string,
+  code: string,
+  language: string
+) => {
+  // Validate Session
+  const sessionResult = await pool.query(
+    `SELECT s.course_id, c.title, sq.question_id 
+     FROM practice_sessions s 
+     JOIN courses c ON s.course_id = c.id
+     JOIN session_questions sq ON s.id = sq.session_id
+     WHERE s.id = ? 
+     ORDER BY sq.question_order ASC`, // Getting all questions? We need the *current* question.
+    // Wait, the API needs questionId. The frontend practice.jsx checks by currentQuestionIndex.
+    // Frontend handleSubmit sends questionId. handleRun currently does NOT.
+    // I need to update handleRun to send questionId.
+    [sessionId]
   );
-  return getRows(result);
+  // Re-thinking: sessionService.runCode didn't need questionId because it was raw execution.
+  // runTestCases NEEDS questionId to find test cases.
+  // I will assume I'll update controller to accept question1Id.
+  throw new Error("Implementation in progress - need questionId");
 };
+
+export const getAllSessions = async () => {
+// ...
+

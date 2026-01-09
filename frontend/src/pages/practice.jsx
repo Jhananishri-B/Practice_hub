@@ -81,18 +81,54 @@ const Practice = () => {
     setLastRunError(null);
 
     try {
-      const response = await api.post(`/sessions/${session.id}/run`, {
-        code,
-        language,
-        customInput: input
-      });
+      let response;
 
-      const { output, error, execution_time } = response.data;
-      setOutput(output || '');
-      setLastRunError(error || null);
+      if (useCustomInput) {
+        // Run with custom input (Execution only)
+        response = await api.post(`/sessions/${session.id}/run`, {
+          code,
+          language,
+          customInput: input
+        });
+        const { output, error } = response.data;
+        setOutput(output || '');
+        setLastRunError(error || null);
+      } else {
+        // Run against Visible Test Cases (Validation)
+        // Find current question ID
+        const activeQuestions = getActiveQuestions();
+        const currentQ = activeQuestions[currentQuestionIndex];
+
+        response = await api.post(`/sessions/${session.id}/run-tests`, {
+          code,
+          language,
+          questionId: currentQ.question_id
+        });
+
+        // Update Test Results
+        if (response.data.test_results) {
+          setTestResultsByQuestion((prev) => ({
+            ...prev,
+            [currentQuestionIndex]: response.data.test_results,
+          }));
+
+          // Also show a summary in console output area?
+          const passed = response.data.test_results.filter(r => r.passed).length;
+          const total = response.data.test_results.length;
+          setOutput(`Run Results: ${passed}/${total} visible test cases passed.\nSee detailed status above.`);
+          setLastRunError(null);
+        } else {
+          setOutput("No visible test cases to run.");
+        }
+      }
     } catch (error) {
       console.error('Failed to run code:', error);
-      setLastRunError('Failed to execute code. Connection error or server issue.');
+      const msg = error.response?.data?.error || 'Failed to execute code.';
+      setLastRunError(msg);
+      // Also show specific alert if it's language issue
+      if (msg.includes('Invalid language')) {
+        alert('Please use the correct programming language for this course!');
+      }
     } finally {
       setIsRunning(false);
     }
@@ -304,10 +340,10 @@ const Practice = () => {
                     <div
                       key={tc.id}
                       className={`p-3 rounded border text-sm ${status === 'passed'
-                          ? 'border-green-500 bg-green-50 test-case-passed'
-                          : status === 'failed'
-                            ? 'border-red-500 bg-red-50 test-case-failed'
-                            : 'border-gray-200 bg-gray-50'
+                        ? 'border-green-500 bg-green-50 test-case-passed'
+                        : status === 'failed'
+                          ? 'border-red-500 bg-red-50 test-case-failed'
+                          : 'border-gray-200 bg-gray-50'
                         }`}
                     >
                       <div className="flex items-center justify-between mb-1">

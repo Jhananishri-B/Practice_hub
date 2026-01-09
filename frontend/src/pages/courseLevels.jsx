@@ -42,6 +42,26 @@ const CourseLevels = () => {
     navigate(`/courses/${courseId}/level/${level.id}/learn`);
   };
 
+  const getDifficultyColor = (title) => {
+    if (title.includes('Python')) return 'bg-blue-500';
+    if (title.includes('C')) return 'bg-orange-500';
+    if (title.includes('Machine Learning')) return 'bg-purple-500';
+    if (title.includes('Data Science')) return 'bg-green-500';
+    if (title.includes('Deep Learning')) return 'bg-indigo-500';
+    if (title.includes('Cloud')) return 'bg-cyan-500';
+    return 'bg-gray-500';
+  };
+
+  const getDifficultyLabel = (title) => {
+    if (title.includes('Python')) return 'BEGINNER';
+    if (title.includes('C')) return 'INTERMEDIATE';
+    if (title.includes('Machine Learning')) return 'ADVANCED';
+    if (title.includes('Data Science')) return 'INTERMEDIATE';
+    if (title.includes('Deep Learning')) return 'ADVANCED';
+    if (title.includes('Cloud')) return 'INTERMEDIATE';
+    return 'BEGINNER';
+  };
+
   const getCourseImage = () => {
     const title = course?.title?.toLowerCase() || '';
 
@@ -55,6 +75,16 @@ const CourseLevels = () => {
     if (title.includes('python')) {
       return 'https://webandcrafts.com/_next/image?url=https%3A%2F%2Fadmin.wac.co%2Fuploads%2FFeatures_Of_Python_1_f4ccd6d9f7.jpg&w=4500&q=90';
     }
+    if (title.includes('data science')) {
+      return 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80';
+    }
+    if (title.includes('deep learning')) {
+      return 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=800&q=80';
+    }
+    if (title.includes('cloud')) {
+      return 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80';
+    }
+
 
     // Fallback gradient
     return 'linear-gradient(to bottom right, #667eea, #764ba2)';
@@ -64,7 +94,7 @@ const CourseLevels = () => {
     return (
       <div className="flex min-h-screen">
         <Sidebar />
-        <div className="flex-1 p-8">Loading...</div>
+        <div className="flex-1 p-4 md:p-8">Loading...</div>
       </div>
     );
   }
@@ -72,16 +102,23 @@ const CourseLevels = () => {
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
-      <div className="flex-1 p-8">
+      <div className="flex-1 p-4 md:p-8 pb-24 md:pb-8">
         <div className="mb-6">
           <nav className="text-sm text-gray-600 mb-4">
             Courses / {course?.title}
           </nav>
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">{course?.title}</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
+            {course?.title}
+            {course?.title && (
+              <span className={`ml-3 text-sm px-2 py-1 rounded text-white align-middle ${getDifficultyColor(course.title)}`}>
+                {getDifficultyLabel(course.title)}
+              </span>
+            )}
+          </h1>
           <p className="text-gray-600">{course?.description}</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           {levels.map((level) => (
             <div
               key={level.id}

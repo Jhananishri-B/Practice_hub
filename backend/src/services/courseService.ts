@@ -179,7 +179,7 @@ export const getCourseLevels = async (
 
 export const getLevelDetails = async (levelId: string): Promise<any> => {
   const result = await pool.query(
-    'SELECT title, description, learning_materials, code_snippet FROM levels WHERE id = ?',
+    'SELECT title, description, learning_materials, code_snippet, level_number FROM levels WHERE id = ?',
     [levelId]
   );
   const rows = getRows(result);

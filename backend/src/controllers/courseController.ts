@@ -55,6 +55,9 @@ export const getLevelDetailsController = async (req: AuthRequest, res: Response)
     const lessonPlan = level.learning_materials || {};
     // Ensure structure
     const response = {
+      id: level.id,
+      title: level.title,
+      level_number: level.level_number,
       introduction: lessonPlan.introduction || level.description || '',
       concepts: lessonPlan.concepts || [],
       resources: lessonPlan.resources || [],

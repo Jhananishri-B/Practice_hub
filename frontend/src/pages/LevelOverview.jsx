@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import api from '../services/api';
-import { BookOpen, Code, Lightbulb, ExternalLink, ArrowRight, Sparkles, Loader, Edit, Save, Plus, X, Trash2 } from 'lucide-react';
+import { BookOpen, Code, Lightbulb, ExternalLink, ArrowRight, Sparkles, Loader, Edit, Save, Plus, X, Trash2, CheckCircle, FolderIcon } from 'lucide-react';
 
 const LevelOverview = () => {
     const { courseId, levelId } = useParams();
@@ -23,8 +23,15 @@ const LevelOverview = () => {
 
     useEffect(() => {
         // Check Admin Role
-        const role = localStorage.getItem('user_role');
-        setIsAdmin(role === 'admin');
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+            try {
+                const user = JSON.parse(userStr);
+                setIsAdmin(user.role === 'admin');
+            } catch (e) {
+                console.error("Failed to parse user", e);
+            }
+        }
         fetchLessonPlan();
     }, [courseId, levelId]);
 
@@ -269,94 +276,113 @@ const LevelOverview = () => {
 
                     </div>
                 ) : (
-                    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
-                        {/* VIEW MODE */}
-                        <div className="mb-6 relative overflow-hidden rounded-3xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white p-10 shadow-2xl">
-                            <div className="absolute top-0 right-0 p-8 opacity-10">
-                                <BookOpen size={200} />
-                            </div>
+                    <div className="max-w-6xl mx-auto space-y-12 animate-in fade-in duration-500">
+                        {/* Header Section */}
+                        <div className="space-y-6">
                             <button
                                 onClick={() => navigate(-1)}
-                                className="text-white/80 hover:text-white text-sm mb-6 flex items-center gap-1 transition-colors"
+                                className="text-gray-500 hover:text-gray-900 text-sm flex items-center gap-2 transition-colors group"
                             >
-                                ← Back to Levels
+                                <ArrowRight className="rotate-180 group-hover:-translate-x-1 transition-transform" size={16} />
+                                Back to Levels
                             </button>
 
-                            <h1 className="text-4xl md:text-5xl font-extrabold mb-4 tracking-tight">Level Overview</h1>
-                            <p className="text-indigo-100 text-lg md:text-xl leading-relaxed max-w-2xl font-light">
-                                {lessonPlan.introduction}
-                            </p>
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600">
+                                        <BookOpen size={24} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <h3 className="text-sm font-bold text-blue-600 tracking-wider uppercase">LEVEL {lessonPlan.level_number ?? levelId}</h3>
+                                        <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight">
+                                            {lessonPlan.title || `Level ${levelId} Overview`}
+                                        </h1>
+                                    </div>
+                                </div>
+                                <p className="text-gray-600 text-lg leading-relaxed max-w-3xl">
+                                    {lessonPlan.introduction}
+                                </p>
+
+                                {/* Key Terms */}
+                                {lessonPlan.key_terms && lessonPlan.key_terms.length > 0 && (
+                                    <div className="pt-4">
+                                        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                            Key Terms
+                                        </h4>
+                                        <div className="flex flex-wrap gap-2">
+                                            {lessonPlan.key_terms.map((term, idx) => (
+                                                <span key={idx} className="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-xs font-bold uppercase tracking-wide border border-gray-200">
+                                                    {term}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
-                        {/* Core Concepts */}
+                        {/* Core Topics Grid */}
                         <div>
-                            <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                                <Lightbulb className="text-yellow-500" /> Core Concepts
-                            </h2>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="flex items-center gap-2 mb-6">
+                                <span className="w-6 h-6 rounded bg-gray-200 flex items-center justify-center">
+                                    <div className="w-3 h-3 bg-gray-400 rounded-sm"></div>
+                                </span>
+                                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">CORE TOPICS</h3>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                                 {lessonPlan.concepts.map((concept, idx) => (
-                                    <div key={idx} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                                        <h3 className="text-xl font-bold text-gray-800 mb-3">{concept.title}</h3>
-                                        <p className="text-gray-600 leading-relaxed">{concept.explanation}</p>
+                                    <div key={idx} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow flex flex-col h-full">
+                                        <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
+                                            {/* Dynamic Icon based on index or content? Using generic icons for now */}
+                                            {[<Code size={20} />, <Lightbulb size={20} />, <Sparkles size={20} />, <BookOpen size={20} />][idx % 4]}
+                                        </div>
+                                        <h3 className="font-bold text-gray-900 mb-2 text-lg">{concept.title}</h3>
+                                        <p className="text-sm text-gray-500 leading-relaxed flex-1">
+                                            {concept.explanation.length > 80
+                                                ? concept.explanation.substring(0, 80) + '...'
+                                                : concept.explanation}
+                                        </p>
                                     </div>
                                 ))}
-                            </div>
-                        </div>
-
-                        {/* Key Terminology */}
-                        <div className="mt-8">
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Key Terminology</h3>
-                                {isEditing && (
-                                    <button onClick={addKeyTerm} className="text-blue-600 hover:text-blue-700 text-sm flex items-center gap-1">
-                                        <Plus size={14} /> Add Term
-                                    </button>
-                                )}
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                                {(isEditing ? editData.key_terms : (lessonPlan.key_terms || [])).map((term, idx) => (
-                                    <span key={idx} className="px-4 py-2 bg-white border border-gray-200 rounded-full text-gray-700 text-sm font-medium hover:bg-blue-50 hover:border-blue-200 transition-colors flex items-center gap-2">
-                                        {term}
-                                        {isEditing && (
-                                            <button onClick={() => removeKeyTerm(idx)} className="text-red-400 hover:text-red-600">
-                                                <X size={14} />
-                                            </button>
-                                        )}
-                                    </span>
-                                ))}
-                                {(!isEditing && (!lessonPlan.key_terms || lessonPlan.key_terms.length === 0)) && (
-                                    <span className="text-gray-400 text-sm">No key terms defined</span>
+                                {lessonPlan.concepts.length === 0 && (
+                                    <div className="col-span-4 text-center py-12 text-gray-400 bg-white rounded-2xl border border-dashed border-gray-200">
+                                        No core topics defined yet.
+                                    </div>
                                 )}
                             </div>
                         </div>
 
-                        {/* Example Code */}
-                        <div className="bg-slate-900 rounded-2xl overflow-hidden shadow-2xl border border-slate-800">
-                            <div className="bg-slate-800/50 px-6 py-4 flex items-center justify-between">
-                                <div className="flex items-center gap-2 text-slate-400 font-mono text-sm">
-                                    <Code size={16} />
-                                    <span>example.c</span>
-                                </div>
-                                <div className="flex gap-2">
-                                    <span className="w-3 h-3 rounded-full bg-red-500/50"></span>
-                                    <span className="w-3 h-3 rounded-full bg-yellow-500/50"></span>
-                                    <span className="w-3 h-3 rounded-full bg-green-500/50"></span>
-                                </div>
-                            </div>
-                            <div className="p-8 overflow-x-auto">
-                                <pre className="text-blue-100 font-mono text-sm leading-relaxed">
-                                    {lessonPlan.example_code}
-                                </pre>
-                            </div>
-                        </div>
+                        {/* ... after Core Topics ... */}
 
-                        {/* Resources & CTA - Staggered Layout */}
-                        <div className="flex flex-col lg:flex-row gap-8 mt-12">
-                            {/* Resources List */}
-                            <div className="w-full lg:w-1/3 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                                <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                    <LinkIcon size={18} /> Learning Resources
-                                </h3>
+                        {/* Example Code Section */}
+                        {lessonPlan.example_code && (
+                            <div className="bg-slate-900 rounded-2xl overflow-hidden shadow-lg border border-slate-800 my-8">
+                                <div className="bg-slate-800/50 px-6 py-3 border-b border-slate-700 flex items-center gap-2">
+                                    <Code size={16} className="text-blue-400" />
+                                    <span className="text-sm font-medium text-slate-300">Code Snippet</span>
+                                </div>
+                                <div className="p-6 overflow-x-auto">
+                                    <pre className="font-mono text-sm text-blue-100 leading-relaxed">
+                                        <code>{lessonPlan.example_code}</code>
+                                    </pre>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Lower Section: Materials & Assessment */}
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+                            {/* Left Col: Course Materials (Size: 4/12) */}
+                            <div className="lg:col-span-5 space-y-6">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <FolderIcon className="text-gray-400" size={20} />
+                                        <h3 className="font-bold text-gray-900 text-lg">Course Materials</h3>
+                                    </div>
+                                    <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">{lessonPlan.resources.length} ASSETS</span>
+                                </div>
+
                                 <div className="space-y-3">
                                     {lessonPlan.resources.map((res, idx) => (
                                         <a
@@ -364,43 +390,91 @@ const LevelOverview = () => {
                                             href={res.url}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="flex items-center justify-between p-3 rounded-xl bg-gray-50 hover:bg-blue-50 transition-colors group border border-transparent hover:border-blue-100"
+                                            className="group bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover:border-blue-200 hover:shadow-md transition-all flex items-center gap-4"
                                         >
-                                            <span className="text-gray-700 font-medium group-hover:text-blue-600 truncate mr-2">{res.title}</span>
-                                            <ExternalLink size={16} className="text-gray-400 group-hover:text-blue-500 flex-shrink-0" />
+                                            <div className="w-10 h-10 rounded-lg bg-orange-50 text-orange-500 flex items-center justify-center group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">
+                                                <BookOpen size={20} />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="font-bold text-gray-800 text-sm truncate group-hover:text-blue-700 transition-colors">
+                                                    {res.title}
+                                                </h4>
+                                                <p className="text-xs text-gray-500 truncate">External Resource • Click to view</p>
+                                            </div>
+                                            <ExternalLink size={16} className="text-gray-300 group-hover:text-blue-400" />
                                         </a>
                                     ))}
+                                    {lessonPlan.resources.length === 0 && (
+                                        <div className="text-sm text-gray-500 italic p-4 bg-white rounded-xl border border-gray-100">
+                                            No materials added.
+                                        </div>
+                                    )}
+
+                                    {/* Hardcoded extras just to fill space if empty (optional, matches design which lists multiple) */}
+                                    {lessonPlan.resources.length === 0 && (
+                                        <div className="opacity-50 pointer-events-none grayscale">
+                                            <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4 mb-3">
+                                                <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-500 flex items-center justify-center"><Code size={20} /></div>
+                                                <div><h4 className="font-bold text-gray-800 text-sm">Example Code Snippet</h4></div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
-                            {/* CTA Card */}
-                            <div className="flex-1 bg-gradient-to-br from-indigo-900 to-purple-900 text-white rounded-3xl p-8 lg:p-12 relative overflow-hidden shadow-2xl flex flex-col justify-center">
-                                <div className="absolute top-0 right-0 -m-8 opacity-20">
-                                    <Code size={200} />
-                                </div>
+                            {/* Right Col: Assessment (Size: 8/12 - actually 7/12 looks better, let's use flex-1) */}
+                            <div className="lg:col-span-7">
+                                <div className="bg-blue-600 rounded-3xl p-8 md:p-10 text-white shadow-2xl relative overflow-hidden flex flex-col justify-between h-full min-h-[400px]">
+                                    {/* Background Decor */}
+                                    <div className="absolute top-0 right-0 p-12 opacity-10 pointer-events-none">
+                                        <Sparkles size={300} />
+                                    </div>
+                                    <div className="absolute bottom-0 right-0 w-64 h-64 bg-blue-500 rounded-full blur-3xl opacity-50 pointer-events-none -mr-16 -mb-16"></div>
 
-                                <h2 className="text-3xl font-bold mb-4 relative z-10">Start Your Practice</h2>
-                                <p className="text-indigo-200 mb-8 max-w-md relative z-10">
-                                    Ready to write some code? Launch the interactive environment to test your skills now.
-                                </p>
+                                    {/* Content */}
+                                    <div className="relative z-10 space-y-6">
+                                        <span className="inline-block px-3 py-1 bg-blue-500/50 border border-blue-400/30 rounded-full text-xs font-bold tracking-wider uppercase">
+                                            Assessment Ready
+                                        </span>
 
-                                <div className="flex flex-wrap gap-4 relative z-10">
-                                    <button
-                                        onClick={() => navigate(`/practice/${courseId}/${levelId}`, { state: { sessionType: 'coding' } })}
-                                        className="bg-white text-indigo-900 px-8 py-4 rounded-xl font-bold hover:bg-indigo-50 hover:scale-105 transition-all shadow-lg flex items-center gap-3"
-                                    >
-                                        <Code className="text-indigo-600" /> Start Coding
-                                    </button>
-                                    <button
-                                        onClick={() => navigate(`/mcq-practice/${courseId}/${levelId}`, { state: { sessionType: 'mcq' } })}
-                                        className="bg-indigo-800/50 text-white px-8 py-4 rounded-xl font-bold hover:bg-indigo-700/50 border border-indigo-400/30 transition-all flex items-center gap-3"
-                                    >
-                                        <BookOpen /> Take Quiz
-                                    </button>
+                                        <div>
+                                            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+                                                Ready to Test Your Knowledge?
+                                            </h2>
+                                            <p className="text-blue-100 text-lg leading-relaxed max-w-lg">
+                                                Validation is the final step of learning. Prove your proficiency
+                                                in <strong>Level {lessonPlan.level_number ?? levelId}</strong> fundamentals and earn your certification badge.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Actions */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-auto pt-10 relative z-10">
+                                        <button
+                                            onClick={() => navigate(`/mcq-practice/${courseId}/${levelId}`, { state: { sessionType: 'mcq' } })}
+                                            className="bg-white text-blue-900 px-6 py-4 rounded-xl font-bold hover:bg-blue-50 transition-colors shadow-lg flex items-center justify-center gap-3"
+                                        >
+                                            <CheckCircle size={20} className="text-blue-600" />
+                                            <div className="text-left">
+                                                <div className="text-xs text-gray-500 font-normal uppercase">Quiz</div>
+                                                <div>Take MCQ Test</div>
+                                            </div>
+                                        </button>
+                                        <button
+                                            onClick={() => navigate(`/practice/${courseId}/${levelId}`, { state: { sessionType: 'coding' } })}
+                                            className="bg-blue-500/40 backdrop-blur-sm border border-blue-400/30 text-white px-6 py-4 rounded-xl font-bold hover:bg-blue-500/50 transition-colors flex items-center justify-center gap-3"
+                                        >
+                                            <Code size={20} />
+                                            <div className="text-left">
+                                                <div className="text-xs text-blue-200 font-normal uppercase">Practice</div>
+                                                <div>Start Coding</div>
+                                            </div>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
+
                         </div>
-
                     </div>
                 )}
             </div>
