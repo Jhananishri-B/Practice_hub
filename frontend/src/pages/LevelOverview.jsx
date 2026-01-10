@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import Sidebar from '../components/Sidebar';
+import Layout from '../components/Layout';
 import api from '../services/api';
 import { BookOpen, Code, Lightbulb, ExternalLink, ArrowRight, Sparkles, Loader, Edit, Save, Plus, X, Trash2, CheckCircle, FolderIcon } from 'lucide-react';
 
@@ -138,8 +138,7 @@ const LevelOverview = () => {
 
     if (loading) {
         return (
-            <div className="flex min-h-screen bg-gray-50">
-                <Sidebar />
+            <Layout>
                 <div className="flex-1 flex flex-col items-center justify-center p-8">
                     <div className="bg-white p-8 rounded-2xl shadow-lg border border-purple-100 max-w-md w-full text-center">
                         <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6 relative">
@@ -149,16 +148,15 @@ const LevelOverview = () => {
                         <h2 className="text-xl font-bold text-gray-800 mb-2">Loading Lesson Plan...</h2>
                     </div>
                 </div>
-            </div>
+            </Layout>
         );
     }
 
     if (!lessonPlan) return null;
 
     return (
-        <div className="flex min-h-screen bg-gray-50 font-sans">
-            <Sidebar />
-            <div className="flex-1 p-8 pb-24 md:pb-8 overflow-y-auto relative">
+        <Layout>
+            <div className="flex-1 p-8 pb-24 md:pb-8 overflow-y-auto relative font-sans">
 
                 {/* Admin Float Button */}
                 {isAdmin && (
@@ -478,7 +476,7 @@ const LevelOverview = () => {
                     </div>
                 )}
             </div>
-        </div>
+        </Layout>
     );
 };
 

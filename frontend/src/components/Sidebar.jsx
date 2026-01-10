@@ -33,15 +33,15 @@ const Sidebar = () => {
         </div>
       </div>
 
-      {/* Desktop Sidebar */}
-      <div className="hidden md:flex w-64 bg-gray-50 min-h-screen p-6 flex-col border-r border-gray-200 shrink-0">
-        <div className="mb-8">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-xl">&gt;_</span>
+      {/* Desktop Sidebar Shover Effect */}
+      <div className="hidden md:flex sticky left-0 top-0 h-screen bg-gray-50 flex-col border-r border-gray-200 z-50 transition-all duration-300 w-20 hover:w-64 group shadow-lg shrink-0">
+        <div className="mb-8 p-6">
+          <div className="flex items-center gap-2 mb-2 overflow-hidden whitespace-nowrap">
+            <div className="w-8 h-8 min-w-[2rem] bg-blue-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-lg">&gt;_</span>
             </div>
-            <div>
-              <h1 className="text-xl font-bold text-gray-800">AI Practice Hub</h1>
+            <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+              <h1 className="text-xl font-bold text-gray-800">Practice Hub</h1>
               {user?.role === 'admin' && (
                 <p className="text-xs text-gray-500">Admin Dashboard</p>
               )}
@@ -49,7 +49,7 @@ const Sidebar = () => {
           </div>
         </div>
 
-        <nav className="flex-1">
+        <nav className="flex-1 px-4">
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path ||
@@ -59,31 +59,35 @@ const Sidebar = () => {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-3 px-4 py-3 mb-2 rounded-lg transition-colors ${isActive
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-700 hover:bg-gray-200'
+                className={`flex items-center gap-3 px-3 py-3 mb-2 rounded-lg transition-all overflow-hidden whitespace-nowrap ${isActive
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-700 hover:bg-gray-200'
                   }`}
               >
-                <Icon size={20} />
-                <span>{item.label}</span>
+                <div className="min-w-[1.25rem]">
+                  <Icon size={20} />
+                </div>
+                <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-75">{item.label}</span>
               </Link>
             );
           })}
         </nav>
 
-        <div className="mt-auto pt-4 border-t border-gray-200">
-          <div className="px-4 py-2 mb-4">
-            <p className="font-semibold text-gray-800">{user?.name || user?.username}</p>
+        <div className="mt-auto pt-4 border-t border-gray-200 p-4">
+          <div className="mb-4 overflow-hidden whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            <p className="font-semibold text-gray-800 truncate">{user?.name || user?.username}</p>
             {user?.role === 'student' && (
               <p className="text-sm text-gray-500">Student</p>
             )}
           </div>
           <button
             onClick={logout}
-            className="flex items-center gap-3 px-4 py-3 w-full text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
+            className="flex items-center gap-3 px-3 py-3 w-full text-gray-700 hover:bg-gray-200 rounded-lg transition-colors overflow-hidden whitespace-nowrap"
           >
-            <LogOut size={20} />
-            <span>Logout</span>
+            <div className="min-w-[1.25rem]">
+              <LogOut size={20} />
+            </div>
+            <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">Logout</span>
           </button>
         </div>
       </div>

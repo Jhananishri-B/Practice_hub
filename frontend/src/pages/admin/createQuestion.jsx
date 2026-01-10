@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
-import Sidebar from '../../components/Sidebar';
+import Layout from '../../components/Layout';
 import Editor from '@monaco-editor/react';
 import api from '../../services/api';
 import { Plus, Trash2, Save, CheckCircle, Upload } from 'lucide-react';
@@ -303,27 +303,26 @@ const CreateQuestion = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <Sidebar />
-      <div className="flex-1 p-8">
+    <Layout>
+      <div className="flex-1 p-4 md:p-8 pb-20 md:pb-8">
         <div className="mb-6">
           <nav className="text-sm text-gray-600 mb-4">
             Home / Questions / {isEditMode ? 'Edit' : 'Create New'}
           </nav>
-          <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold text-gray-800">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-800">
               {isEditMode ? 'Edit Question' : 'Create New Question'}
             </h1>
             <div className="flex gap-3">
               <button
                 onClick={() => navigate(`/admin/courses/${courseId}/levels`)}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                className="flex-1 md:flex-none px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSubmit}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
                 <Save size={18} />
                 Save Question
@@ -366,8 +365,8 @@ const CreateQuestion = () => {
             <button
               onClick={() => setQuestionType('coding')}
               className={`px-6 py-3 rounded-lg font-medium ${questionType === 'coding'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-700'
                 }`}
             >
               Coding Question
@@ -375,8 +374,8 @@ const CreateQuestion = () => {
             <button
               onClick={() => setQuestionType('mcq')}
               className={`px-6 py-3 rounded-lg font-medium ${questionType === 'mcq'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-700'
                 }`}
             >
               MCQ Question
@@ -593,7 +592,7 @@ const CreateQuestion = () => {
           </div>
         </form>
       </div>
-    </div>
+    </Layout>
   );
 };
 

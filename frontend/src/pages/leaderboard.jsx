@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import Sidebar from '../components/Sidebar';
+import Layout from '../components/Layout';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -25,16 +25,14 @@ const Leaderboard = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen">
-        <Sidebar />
-        <div className="flex-1 p-8">Loading...</div>
-      </div>
+      <Layout>
+        <div className="p-8">Loading...</div>
+      </Layout>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <Sidebar />
+    <Layout>
       <div className="flex-1 p-8">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">Leaderboard</h1>
         <p className="text-gray-600 mb-8">Top performers in AI problem solving this week</p>
@@ -66,12 +64,12 @@ const Leaderboard = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div
                       className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${entry.rank === 1
-                          ? 'bg-yellow-500'
-                          : entry.rank === 2
-                            ? 'bg-gray-400'
-                            : entry.rank === 3
-                              ? 'bg-orange-500'
-                              : 'bg-gray-200 text-gray-700'
+                        ? 'bg-yellow-500'
+                        : entry.rank === 2
+                          ? 'bg-gray-400'
+                          : entry.rank === 3
+                            ? 'bg-orange-500'
+                            : 'bg-gray-200 text-gray-700'
                         }`}
                     >
                       {entry.rank}
@@ -101,7 +99,7 @@ const Leaderboard = () => {
           </table>
         </div>
       </div>
-    </div>
+    </Layout>
   );
 };
 

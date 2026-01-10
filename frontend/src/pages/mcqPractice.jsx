@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import Sidebar from '../components/Sidebar';
+import Layout from '../components/Layout';
 import api from '../services/api';
 import { ArrowRight, CheckCircle, MessageSquare, X, Sparkles } from 'lucide-react';
 
@@ -13,7 +13,7 @@ const MCQPractice = () => {
   const [selectedOptions, setSelectedOptions] = useState({});
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [timeLeft, setTimeLeft] = useState(3600);
+  const [timeLeft, setTimeLeft] = useState(1200);
   const [autoSubmitted, setAutoSubmitted] = useState(false);
   const [hint, setHint] = useState(null);
   const [loadingHint, setLoadingHint] = useState(false);
@@ -63,15 +63,6 @@ const MCQPractice = () => {
     });
   };
 
-  const handleNext = () => {
-    if (currentQuestionIndex < session.questions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-      setSubmitted(false);
-      setHint(null);
-      setShowHint(false);
-    }
-  };
-
   const handleGetHint = async () => {
     if (hint) {
       setShowHint(true);
@@ -96,49 +87,55 @@ const MCQPractice = () => {
     }
   };
 
-  const handleSubmit = async () => {
-    if (!session) return;
-
-    const currentQuestion = session.questions[currentQuestionIndex];
+  const handleNext = async () => {
     const selectedOptionId = selectedOptions[currentQuestionIndex];
-
     if (!selectedOptionId) {
       alert('Please select an option');
       return;
     }
 
     try {
+      // Auto-submit current answer
       await api.post(`/sessions/${session.id}/submit`, {
-        questionId: currentQuestion.question_id,
+        questionId: session.questions[currentQuestionIndex].question_id,
         selected_option_id: selectedOptionId,
       });
 
-      setSubmitted(true);
-
-      if (currentQuestionIndex === session.questions.length - 1) {
-        alert('You have answered all questions. You can review or finish the test.');
+      if (currentQuestionIndex < session.questions.length - 1) {
+        setCurrentQuestionIndex(currentQuestionIndex + 1);
+        setSubmitted(false);
+        setHint(null);
+        setShowHint(false);
+      } else {
+        // Last question - finish test
+        handleFinish(false);
       }
     } catch (error) {
-      console.error('Failed to submit:', error);
-      alert('Failed to submit answer');
+      console.error('Failed to submit answer:', error);
+      alert('Failed to save answer. Please try again.');
     }
   };
 
   const handleFinish = async (auto = false) => {
     if (!session) return;
 
+    // For manual finish (last question button), we might need to submit the last answer if not already submitted
+    // But handleNext calls this for the last question, so it's already submitted.
+    // However, if auto-submit triggers, we just finish.
+
+    // If auto is true, just finish.
     if (!auto) {
-      const confirmFinish = window.confirm('Are you willing to finish the test?');
-      if (!confirmFinish) {
-        return;
-      }
+      // Double check if we need a confirmation, but user requested streamlined flow.
+      // Let's keep confirmation only if explicitly "Finish"ed not via flow? 
+      // Actually, plan said "Finish Test" button on last question.
+      // User probably expects it to just finish.
     } else {
       setAutoSubmitted(true);
     }
 
     try {
       await api.post(`/sessions/${session.id}/complete`);
-      alert(auto ? 'Test submitted successfully' : 'Test submitted successfully');
+      if (auto) alert('Time is up! Test submitted automatically.');
       navigate(`/results/${session.id}`);
     } catch (error) {
       console.error('Failed to complete session:', error);
@@ -154,10 +151,9 @@ const MCQPractice = () => {
 
   if (loading || !session) {
     return (
-      <div className="flex min-h-screen">
-        <Sidebar />
-        <div className="flex-1 p-8">Loading...</div>
-      </div>
+      <Layout>
+        <div className="p-8">Loading...</div>
+      </Layout>
     );
   }
 
@@ -165,8 +161,7 @@ const MCQPractice = () => {
   const selectedOption = selectedOptions[currentQuestionIndex];
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <Sidebar />
+    <Layout>
       <div className="flex-1 flex">
         <div className="w-64 bg-white border-r border-gray-200 p-4">
           <h3 className="font-semibold text-gray-800 mb-4">QUESTIONS</h3>
@@ -202,14 +197,7 @@ const MCQPractice = () => {
                   <div className="text-sm font-semibold text-gray-800">
                     Time Left: {formatTime(timeLeft)}
                   </div>
-                  <button
-                    onClick={handleNext}
-                    disabled={currentQuestionIndex === session.questions.length - 1}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Next Question
-                    <ArrowRight size={18} />
-                  </button>
+
                 </div>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
@@ -297,23 +285,18 @@ const MCQPractice = () => {
 
             <div className="flex justify-end gap-3">
               <button
-                onClick={handleSubmit}
-                disabled={!selectedOption || submitted}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={handleNext}
+                disabled={!selectedOption}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                Submit
-              </button>
-              <button
-                onClick={() => handleFinish(false)}
-                className="px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700"
-              >
-                Finish Test
+                {currentQuestionIndex === session.questions.length - 1 ? 'Finish Test' : 'Next Question'}
+                {currentQuestionIndex < session.questions.length - 1 && <ArrowRight size={18} />}
               </button>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </Layout>
   );
 };
 

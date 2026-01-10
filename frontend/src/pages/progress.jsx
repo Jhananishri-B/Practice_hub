@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Sidebar from '../components/Sidebar';
+import Layout from '../components/Layout';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -58,19 +58,17 @@ const Progress = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen bg-gray-50">
-        <Sidebar />
+      <Layout>
         <div className="flex-1 flex items-center justify-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
         </div>
-      </div>
+      </Layout>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50 font-sans">
-      <Sidebar />
-      <div className="flex-1 p-6 pb-24 md:pb-8 overflow-y-auto">
+    <Layout>
+      <div className="flex-1 p-6 pb-24 md:pb-8 overflow-y-auto font-sans">
 
         {/* Header Section */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-8 gap-4">
@@ -187,7 +185,7 @@ const Progress = () => {
                 </h2>
 
                 {/* Tab Toggle */}
-                <div className="flex bg-gray-100 rounded-lg p-1">
+                <div className="flex flex-wrap bg-gray-100 rounded-lg p-1 gap-1">
                   <button
                     onClick={() => setActiveTab('mcq')}
                     className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'mcq'
@@ -368,7 +366,7 @@ const Progress = () => {
           </div>
         </div>
       </div>
-    </div>
+    </Layout>
   );
 };
 

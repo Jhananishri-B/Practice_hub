@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import Sidebar from '../components/Sidebar';
+import Layout from '../components/Layout';
 import api from '../services/api';
 import { CheckCircle, XCircle, MessageSquare, Send, X } from 'lucide-react';
 import RecommendationCard from '../components/RecommendationCard';
@@ -74,10 +74,9 @@ const Results = () => {
 
   if (loading || !results) {
     return (
-      <div className="flex min-h-screen">
-        <Sidebar />
-        <div className="flex-1 p-8">Loading...</div>
-      </div>
+      <Layout>
+        <div className="p-8">Loading...</div>
+      </Layout>
     );
   }
 
@@ -85,8 +84,7 @@ const Results = () => {
   const isCoding = results.session.session_type === 'coding';
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <Sidebar />
+    <Layout>
       <div className="flex-1 flex">
         <div className="flex-1 p-6">
           <div className="mb-4">
@@ -356,7 +354,7 @@ const Results = () => {
           </div>
         )}
       </div>
-    </div>
+    </Layout>
   );
 };
 

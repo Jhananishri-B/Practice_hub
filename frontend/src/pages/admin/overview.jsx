@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import Sidebar from '../../components/Sidebar';
+import Layout from '../../components/Layout';
 import api from '../../services/api';
 import { Users, Activity, FileText, AlertCircle, Search, Edit, Trash2, Trophy } from 'lucide-react';
 
@@ -56,16 +56,14 @@ const AdminOverview = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen">
-        <Sidebar />
-        <div className="flex-1 p-8">Loading...</div>
-      </div>
+      <Layout>
+        <div className="p-8">Loading...</div>
+      </Layout>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <Sidebar />
+    <Layout>
       <div className="flex-1 p-8">
         <h1 className="text-3xl font-bold text-gray-800 mb-8">Dashboard Overview</h1>
 
@@ -172,15 +170,14 @@ const AdminOverview = () => {
                     <tr key={user.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div
-                          className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${
-                            user.rank === 1
-                              ? 'bg-yellow-500'
-                              : user.rank === 2
+                          className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${user.rank === 1
+                            ? 'bg-yellow-500'
+                            : user.rank === 2
                               ? 'bg-gray-400'
                               : user.rank === 3
-                              ? 'bg-orange-500'
-                              : 'bg-gray-200 text-gray-700'
-                          }`}
+                                ? 'bg-orange-500'
+                                : 'bg-gray-200 text-gray-700'
+                            }`}
                         >
                           {user.rank}
                         </div>
@@ -226,7 +223,7 @@ const AdminOverview = () => {
           </div>
         </div>
       </div>
-    </div>
+    </Layout>
   );
 };
 

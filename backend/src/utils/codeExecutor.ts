@@ -114,35 +114,99 @@ const executeCCode = async (
   code: string,
   input: string
 ): Promise<ExecutionResult> => {
-  // Check for GCC first
-  return new Promise((resolve) => {
-    const checkGcc = spawn('gcc', ['--version']);
-    checkGcc.on('error', () => {
-      resolve({
-        success: false,
-        error: 'Compiler not found: GCC is not installed on the server. Please check with administrator.',
+  const id = uuidv4();
+  const sourceFile = path.join(os.tmpdir(), `${id}.c`);
+  const outputFile = path.join(os.tmpdir(), `${id}.exe`);
+
+  try {
+    // Write source code
+    await fs.writeFile(sourceFile, code);
+
+    // Compile
+    await new Promise<void>((resolve, reject) => {
+      const gcc = spawn('gcc', [sourceFile, '-o', outputFile]);
+      let stderr = '';
+
+      gcc.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+
+      gcc.on('close', (code) => {
+        if (code === 0) {
+          resolve();
+        } else {
+          reject(new Error(`Compilation Error:\n${stderr}`));
+        }
+      });
+
+      gcc.on('error', (err) => {
+        reject(new Error(`Failed to run GCC. Is it installed? ${err.message}`));
       });
     });
 
-    checkGcc.on('close', (code) => {
-      if (code !== 0) {
-        resolve({
-          success: false,
-          error: 'Compiler Check Failed: GCC found but returned error.',
-        });
-        return;
+    // Run the compiled executable
+    return new Promise((resolve) => {
+      const startTime = Date.now();
+      const process = spawn(outputFile);
+
+      let stdout = '';
+      let stderr = '';
+
+      if (input) {
+        process.stdin.write(input);
+        process.stdin.end();
       }
 
-      // If we are here, GCC exists. Since user OS is windows and we don't have full setup,
-      // we effectively block C execution until GCC is confirmed working.
-      // But for now, returning the specific error request by user plan.
-      // If we wanted to implement it, we would compile then run.
-      resolve({
-        success: false,
-        error: 'Compiler not found: GCC is not installed on the server (Simulated check for strict requirement).',
+      process.stdout.on('data', (data) => {
+        stdout += data.toString();
+      });
+
+      process.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+
+      process.on('close', async (code) => {
+        const executionTime = Date.now() - startTime;
+
+        // Cleanup files
+        try {
+          await fs.unlink(sourceFile);
+          await fs.unlink(outputFile);
+        } catch (e) { /* ignore */ }
+
+        if (code === 0) {
+          resolve({
+            success: true,
+            output: stdout.replace(/\r\n/g, '\n'),
+            executionTime,
+          });
+        } else {
+          resolve({
+            success: false,
+            error: stderr || stdout || 'Runtime Error',
+            output: stdout.replace(/\r\n/g, '\n'),
+            executionTime,
+          });
+        }
+      });
+
+      process.on('error', (err) => {
+        resolve({
+          success: false,
+          error: `Execution failed: ${err.message}`
+        });
       });
     });
-  });
+
+  } catch (error: any) {
+    // Cleanup source file if compilation failed
+    try { await fs.unlink(sourceFile); } catch (e) { /* ignore */ }
+
+    return {
+      success: false,
+      error: error.message || 'Compilation/Execution failed',
+    };
+  }
 };
 
 export const validateLanguage = (courseName: string, language: string): boolean => {

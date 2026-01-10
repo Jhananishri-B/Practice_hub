@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import Sidebar from '../components/Sidebar';
+import Layout from '../components/Layout';
 import api from '../services/api';
 import { Check, Lock, BookOpen, ExternalLink } from 'lucide-react';
 
@@ -92,17 +92,15 @@ const CourseLevels = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen">
-        <Sidebar />
-        <div className="flex-1 p-4 md:p-8">Loading...</div>
-      </div>
+      <Layout>
+        <div className="p-4 md:p-8">Loading...</div>
+      </Layout>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <Sidebar />
-      <div className="flex-1 p-4 md:p-8 pb-24 md:pb-8">
+    <Layout>
+      <div className="p-4 md:p-8 pb-24 md:pb-8">
         <div className="mb-6">
           <nav className="text-sm text-gray-600 mb-4">
             Courses / {course?.title}
@@ -217,7 +215,7 @@ const CourseLevels = () => {
         </div>
 
       </div>
-    </div>
+    </Layout>
   );
 };
 
