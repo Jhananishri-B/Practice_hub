@@ -21,8 +21,9 @@ export interface UserData {
 export const login = async (credentials: LoginCredentials) => {
   const { username, password } = credentials;
 
+  // Case-insensitive username matching
   const result = await pool.query(
-    'SELECT id, username, password_hash, role, name, email FROM users WHERE username = ?',
+    'SELECT id, username, password_hash, role, name, email FROM users WHERE LOWER(username) = LOWER(?)',
     [username]
   );
 

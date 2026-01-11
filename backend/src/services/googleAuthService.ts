@@ -6,10 +6,10 @@ import logger from '../config/logger';
 import { randomUUID } from 'crypto';
 import { getRows, getFirstRow } from '../utils/mysqlHelper';
 
+// Initialize OAuth2Client - redirect URI will be set during token exchange
 const client = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  process.env.FRONTEND_URL || 'http://localhost:5173'
+  process.env.GOOGLE_CLIENT_SECRET
 );
 
 export interface GoogleUserInfo {
@@ -45,7 +45,17 @@ export const verifyGoogleToken = async (token: string): Promise<GoogleUserInfo> 
 
 export const exchangeCodeForToken = async (code: string): Promise<GoogleUserInfo> => {
   try {
-    const { tokens } = await client.getToken(code);
+    // For auth-code flow, redirect URI should be the frontend URL
+    // This must match what's configured in Google Cloud Console
+    const redirectUri = process.env.FRONTEND_URL || 'http://localhost:5173';
+    
+    logger.info(`Exchanging code with redirect URI: ${redirectUri}`);
+    
+    // Exchange authorization code for tokens
+    const { tokens } = await client.getToken({
+      code: code,
+      redirect_uri: redirectUri,
+    });
     
     if (!tokens.id_token) {
       throw new Error('No ID token received');
@@ -68,9 +78,10 @@ export const exchangeCodeForToken = async (code: string): Promise<GoogleUserInfo
       name: payload.name || '',
       picture: payload.picture,
     };
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Google code exchange error:', error);
-    throw new Error('Failed to exchange code for token');
+    logger.error('Error details:', error.message || error);
+    throw new Error(`Failed to exchange code for token: ${error.message || 'Unknown error'}`);
   }
 };
 

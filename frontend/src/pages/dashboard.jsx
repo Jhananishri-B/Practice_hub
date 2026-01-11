@@ -14,15 +14,42 @@ const Dashboard = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchCourses();
+    // Verify token exists before fetching
+    const token = localStorage.getItem('token');
+    console.log('Dashboard mounted. Token exists:', !!token, 'Token value:', token);
+    if (token) {
+      fetchCourses();
+    } else {
+      console.error('No token found in localStorage! Redirecting to login...');
+      navigate('/login');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchCourses = async () => {
     try {
+      const token = localStorage.getItem('token');
+      console.log('Fetching courses with token:', token ? token.substring(0, 30) + '...' : 'NO TOKEN');
+      
       const response = await api.get('/courses');
-      setCourses(response.data);
+      console.log('Courses fetched successfully:', response.data?.length || 0, 'courses');
+      console.log('Courses data:', response.data);
+      setCourses(response.data || []);
     } catch (error) {
       console.error('Failed to fetch courses:', error);
+      console.error('Error response:', error.response);
+      console.error('Error status:', error.response?.status);
+      console.error('Error details:', error.response?.data || error.message);
+      
+      // If 401, token might be invalid - clear it
+      if (error.response?.status === 401) {
+        console.error('401 Unauthorized - Token issue. Current token:', localStorage.getItem('token'));
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        navigate('/login');
+      }
+      
+      setCourses([]); // Set empty array on error
     } finally {
       setLoading(false);
     }

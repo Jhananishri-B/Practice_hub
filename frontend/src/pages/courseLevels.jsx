@@ -18,16 +18,30 @@ const CourseLevels = () => {
 
   const fetchCourseData = async () => {
     try {
+      setLoading(true);
+      console.log(`[CourseLevels] Fetching data for courseId: ${courseId}`);
+      
       const [courseResponse, levelsResponse] = await Promise.all([
-        api.get('/courses'),
-        api.get(`/courses/${courseId}/levels`),
+        api.get('/courses').catch(err => {
+          console.error('[CourseLevels] Error fetching courses:', err);
+          return { data: [] };
+        }),
+        api.get(`/courses/${courseId}/levels`).catch(err => {
+          console.error(`[CourseLevels] Error fetching levels for course ${courseId}:`, err);
+          return { data: [] };
+        }),
       ]);
 
-      const courseData = courseResponse.data.find((c) => c.id === courseId);
-      setCourse(courseData);
-      setLevels(levelsResponse.data);
+      const courseData = courseResponse.data?.find((c) => c.id === courseId);
+      console.log(`[CourseLevels] Course data:`, courseData);
+      console.log(`[CourseLevels] Levels data:`, levelsResponse.data);
+      
+      setCourse(courseData || null);
+      setLevels(levelsResponse.data || []);
     } catch (error) {
-      console.error('Failed to fetch course data:', error);
+      console.error('[CourseLevels] Failed to fetch course data:', error);
+      setCourse(null);
+      setLevels([]);
     } finally {
       setLoading(false);
     }

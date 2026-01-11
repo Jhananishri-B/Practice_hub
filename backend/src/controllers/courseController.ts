@@ -5,11 +5,24 @@ import logger from '../config/logger';
 
 export const getAllCoursesController = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    logger.info(`[getAllCoursesController] Fetching courses for user ${req.user?.userId}`);
     const courses = await getAllCourses(req.user?.userId);
+    logger.info(`[getAllCoursesController] Returning ${courses.length} courses to user ${req.user?.userId}`);
+    if (courses.length === 0) {
+      logger.warn(`[getAllCoursesController] No courses found in database`);
+    }
     res.json(courses);
   } catch (error: any) {
-    logger.error('Get courses error:', error);
-    res.status(500).json({ error: 'Failed to fetch courses' });
+    logger.error('[getAllCoursesController] Get courses error:', error);
+    logger.error('[getAllCoursesController] Error stack:', error.stack);
+    // On database timeout, return empty array so frontend doesn't break
+    if (error.code === 'ETIMEDOUT' || error.code === 'ECONNREFUSED' || error.code === 'PROTOCOL_CONNECTION_LOST') {
+      logger.warn('[getAllCoursesController] Database timeout/connection error, returning empty courses array');
+      res.json([]);
+    } else {
+      logger.error('[getAllCoursesController] Unexpected error, returning 500:', error.message);
+      res.status(500).json({ error: 'Failed to fetch courses', details: error.message });
+    }
   }
 };
 
@@ -23,11 +36,20 @@ export const getCourseLevelsController = async (req: AuthRequest, res: Response)
       return;
     }
 
+    logger.info(`Fetching levels for course ${courseId} for user ${userId}`);
     const levels = await getCourseLevels(courseId, userId);
+    logger.info(`Returning ${levels.length} levels for course ${courseId}`);
     res.json(levels);
   } catch (error: any) {
     logger.error('Get course levels error:', error);
-    res.status(500).json({ error: 'Failed to fetch course levels' });
+    logger.error('Error stack:', error.stack);
+    // On database timeout, return empty array so frontend doesn't break
+    if (error.code === 'ETIMEDOUT' || error.code === 'ECONNREFUSED' || error.code === 'PROTOCOL_CONNECTION_LOST') {
+      logger.warn('Database timeout/connection error, returning empty levels array');
+      res.json([]);
+    } else {
+      res.status(500).json({ error: 'Failed to fetch course levels', details: error.message });
+    }
   }
 };
 

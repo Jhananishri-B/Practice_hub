@@ -42,6 +42,26 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
+  mysql:
+    image: mysql:8.0
+    container_name: practice-hub-mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: practicehub123
+      MYSQL_DATABASE: practice_hub
+      MYSQL_USER: practicehub
+      MYSQL_PASSWORD: practicehub123
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./db/schema_mysql.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   chromadb:
     image: chromadb/chroma:latest
     container_name: practice-hub-chromadb

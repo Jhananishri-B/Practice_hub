@@ -384,5 +384,11 @@ export const runTestCases = async (
 };
 
 export const getAllSessions = async () => {
-// ...
+  const result = await pool.query(
+    `SELECT id, user_id, course_id, level_id, session_type, status, created_at, completed_at
+     FROM practice_sessions
+     ORDER BY created_at DESC`
+  );
+  return getRows(result);
+};
 
