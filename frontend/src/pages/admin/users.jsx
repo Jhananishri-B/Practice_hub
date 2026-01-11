@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import Sidebar from '../../components/Sidebar';
+import Layout from '../../components/Layout';
 import api from '../../services/api';
 import { Search } from 'lucide-react';
 
@@ -25,16 +25,14 @@ const AdminUsers = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen">
-        <Sidebar />
-        <div className="flex-1 p-8">Loading...</div>
-      </div>
+      <Layout>
+        <div className="p-8">Loading...</div>
+      </Layout>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <Sidebar />
+    <Layout>
       <div className="flex-1 p-8">
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">User Management</h1>
@@ -95,18 +93,17 @@ const AdminUsers = () => {
                         {user.last_practice_date
                           ? new Date(user.last_practice_date).toLocaleString()
                           : user.created_at
-                          ? new Date(user.created_at).toLocaleString()
-                          : 'Never'}
+                            ? new Date(user.created_at).toLocaleString()
+                            : 'Never'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
-                          className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                            user.last_status === 'completed'
-                              ? 'bg-green-100 text-green-800'
-                              : user.last_status === 'in_progress'
+                          className={`px-2 py-1 text-xs font-semibold rounded-full ${user.last_status === 'completed'
+                            ? 'bg-green-100 text-green-800'
+                            : user.last_status === 'in_progress'
                               ? 'bg-blue-100 text-blue-800'
                               : 'bg-gray-100 text-gray-800'
-                          }`}
+                            }`}
                         >
                           {user.last_status || 'Not Started'}
                         </span>
@@ -125,7 +122,7 @@ const AdminUsers = () => {
           </div>
         </div>
       </div>
-    </div>
+    </Layout>
   );
 };
 

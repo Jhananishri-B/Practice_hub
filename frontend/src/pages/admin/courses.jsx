@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Sidebar from '../../components/Sidebar';
+import Layout from '../../components/Layout';
 import api from '../../services/api';
 import { Plus, Edit, Upload } from 'lucide-react';
 
@@ -75,16 +75,14 @@ const AdminCourses = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen">
-        <Sidebar />
-        <div className="flex-1 p-8">Loading...</div>
-      </div>
+      <Layout>
+        <div className="p-8">Loading...</div>
+      </Layout>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <Sidebar />
+    <Layout>
       <div className="flex-1 p-8">
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -229,7 +227,7 @@ const AdminCourses = () => {
           ))}
         </div>
       </div>
-    </div>
+    </Layout>
   );
 };
 

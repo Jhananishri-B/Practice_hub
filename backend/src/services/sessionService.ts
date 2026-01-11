@@ -22,6 +22,7 @@ export interface PracticeSession {
   session_type: string;
   status: string;
   questions: SessionQuestion[];
+  course_title: string;
 }
 
 export const startSession = async (
@@ -133,6 +134,7 @@ export const startSession = async (
     session_type: sessionType,
     status: 'in_progress',
     questions: sessionQuestions,
+    course_title: courseTitle,
   };
 };
 
@@ -361,34 +363,71 @@ export const runCode = async (
 
 export const runTestCases = async (
   sessionId: string,
+  questionId: string,
   code: string,
   language: string
 ) => {
-  // Validate Session
+  // Validate Session and get course info
   const sessionResult = await pool.query(
-    `SELECT s.course_id, c.title, sq.question_id 
+    `SELECT s.course_id, c.title as course_title
      FROM practice_sessions s 
      JOIN courses c ON s.course_id = c.id
-     JOIN session_questions sq ON s.id = sq.session_id
-     WHERE s.id = ? 
-     ORDER BY sq.question_order ASC`, // Getting all questions? We need the *current* question.
-    // Wait, the API needs questionId. The frontend practice.jsx checks by currentQuestionIndex.
-    // Frontend handleSubmit sends questionId. handleRun currently does NOT.
-    // I need to update handleRun to send questionId.
+     WHERE s.id = ?`,
     [sessionId]
   );
-  // Re-thinking: sessionService.runCode didn't need questionId because it was raw execution.
-  // runTestCases NEEDS questionId to find test cases.
-  // I will assume I'll update controller to accept question1Id.
-  throw new Error("Implementation in progress - need questionId");
+
+  const sessionRows = getRows(sessionResult);
+  if (sessionRows.length === 0) {
+    throw new Error('Session not found');
+  }
+
+  const courseName = sessionRows[0].course_title;
+
+  // Validate language for this course
+  if (!validateLanguage(courseName, language)) {
+    throw new Error(`Invalid language for ${courseName}. Please use the correct programming language for this course.`);
+  }
+
+  // Get ONLY visible test cases for "Run" mode
+  const testCasesResult = await pool.query(
+    `SELECT id, input_data, expected_output, test_case_number 
+     FROM test_cases 
+     WHERE question_id = ? AND is_hidden = 0
+     ORDER BY test_case_number`,
+    [questionId]
+  );
+
+  const testCasesRows = getRows(testCasesResult);
+  if (testCasesRows.length === 0) {
+    return {
+      test_results: [],
+      message: 'No visible test cases to run'
+    };
+  }
+
+  // Execute code against visible test cases
+  const { evaluateCode } = await import('./codeExecutionService');
+  const testResults = await evaluateCode(
+    code,
+    language,
+    testCasesRows,
+    courseName
+  );
+
+  const passedCount = testResults.filter((r) => r.passed).length;
+
+  return {
+    test_results: testResults,
+    test_cases_passed: passedCount,
+    total_test_cases: testCasesRows.length,
+  };
 };
 
 export const getAllSessions = async () => {
   const result = await pool.query(
-    `SELECT id, user_id, course_id, level_id, session_type, status, created_at, completed_at
+    `SELECT id, user_id, course_id, level_id, session_type, status, total_questions, time_limit, created_at, completed_at
      FROM practice_sessions
      ORDER BY created_at DESC`
   );
   return getRows(result);
 };
-

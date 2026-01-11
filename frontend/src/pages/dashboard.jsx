@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Sidebar from '../components/Sidebar';
+import Layout from '../components/Layout';
 import api from '../services/api';
 import { Search, Play } from 'lucide-react';
 
@@ -108,9 +108,8 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <Sidebar />
-      <div className="flex-1 p-4 md:p-8 pb-24 md:pb-8">
+    <Layout>
+      <div className="p-4 md:p-8 pb-24 md:pb-8">
         <div className="mb-8">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">Hello, {user?.name || user?.username || 'Student'}!</h1>
           <p className="text-gray-600">Ready to code today? Your streak is on fire! 🔥</p>
@@ -182,7 +181,7 @@ const Dashboard = () => {
           )}
         </div>
       </div>
-    </div>
+    </Layout>
   );
 };
 

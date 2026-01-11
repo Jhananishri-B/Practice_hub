@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import Sidebar from '../components/Sidebar';
+import Layout from '../components/Layout';
 import api from '../services/api';
 import { Send, Bot, User, Sparkles, Loader } from 'lucide-react';
 
@@ -68,19 +68,18 @@ const AICoach = () => {
     };
 
     return (
-        <div className="flex min-h-screen bg-gray-50 font-sans">
-            <Sidebar />
-            <div className="flex-1 flex flex-col h-screen overflow-hidden">
+        <Layout>
+            <div className="flex-1 flex flex-col h-screen overflow-hidden font-sans">
 
                 {/* Header */}
-                <div className="bg-white border-b border-gray-100 p-6 shadow-sm flex items-center justify-between z-10">
+                <div className="bg-white border-b border-gray-100 p-4 md:p-6 shadow-sm flex items-center justify-between z-10 sticky top-0">
                     <div className="flex items-center gap-3">
-                        <div className="bg-gradient-to-br from-purple-500 to-indigo-600 p-2.5 rounded-xl shadow-lg shadow-purple-200">
-                            <Sparkles className="text-white" size={24} />
+                        <div className="bg-gradient-to-br from-purple-500 to-indigo-600 p-2 md:p-2.5 rounded-xl shadow-lg shadow-purple-200">
+                            <Sparkles className="text-white" size={20} />
                         </div>
                         <div>
-                            <h1 className="text-2xl font-bold text-gray-800">PracticeHub AI Coach</h1>
-                            <p className="text-gray-500 text-sm">Your personal intelligent coding assistant</p>
+                            <h1 className="text-lg md:text-2xl font-bold text-gray-800">PracticeHub AI Coach</h1>
+                            <p className="text-gray-500 text-xs md:text-sm hidden md:block">Your personal intelligent coding assistant</p>
                         </div>
                     </div>
                     <button
@@ -95,7 +94,7 @@ const AICoach = () => {
                 {/* Chat Area */}
                 <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gray-50/50">
                     {messages.length === 1 && (
-                        <div className="grid grid-cols-2 gap-4 max-w-2xl mx-auto mb-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto mb-8">
                             {STARTER_PROMPTS.map((prompt, i) => (
                                 <button
                                     key={i}
@@ -171,7 +170,7 @@ const AICoach = () => {
                 </div>
 
             </div>
-        </div>
+        </Layout>
     );
 };
 
