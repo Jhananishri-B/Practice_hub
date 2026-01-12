@@ -3,6 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
 import { v4 as uuidv4 } from 'uuid';
+import { normalizeExecutionInput } from './inputNormalizer';
 
 export interface ExecutionResult {
   success: boolean;
@@ -55,9 +56,10 @@ const executePythonCode = async (
       let stdout = '';
       let stderr = '';
 
-      // Handle input
+      // Handle input - normalize escaped characters before execution
       if (input) {
-        pythonProcess.stdin.write(input);
+        const normalizedInput = normalizeExecutionInput(input);
+        pythonProcess.stdin.write(normalizedInput);
         pythonProcess.stdin.end();
       }
 
@@ -152,8 +154,10 @@ const executeCCode = async (
       let stdout = '';
       let stderr = '';
 
+      // Normalize escaped characters before execution
       if (input) {
-        process.stdin.write(input);
+        const normalizedInput = normalizeExecutionInput(input);
+        process.stdin.write(normalizedInput);
         process.stdin.end();
       }
 

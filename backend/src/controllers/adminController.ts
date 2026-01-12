@@ -201,34 +201,81 @@ interface MulterRequest extends AuthRequest {
 
 export const uploadCSVQuestionsController = async (req: MulterRequest, res: Response): Promise<void> => {
   try {
+    logger.info('[uploadCSVQuestionsController] CSV upload request received');
+    
     if (!req.file) {
+      logger.warn('[uploadCSVQuestionsController] No file uploaded');
       res.status(400).json({ error: 'No file uploaded' });
       return;
     }
 
     const { level_id } = req.body;
+    logger.info(`[uploadCSVQuestionsController] level_id: ${level_id}`);
+    
     if (!level_id) {
+      logger.warn('[uploadCSVQuestionsController] level_id is missing');
       res.status(400).json({ error: 'level_id is required' });
       return;
     }
 
     // Parse CSV file
+    logger.info(`[uploadCSVQuestionsController] Parsing CSV file. Size: ${req.file.size} bytes`);
     const csvContent = req.file.buffer.toString('utf-8');
-    const parseResult = parse(csvContent, {
-      columns: true,
-      skip_empty_lines: true,
-      trim: true,
-      cast: (value: any, context: any) => {
-        // Transform header names to lowercase with underscores
-        if (context.header) {
-          return value.trim().toLowerCase().replace(/\s+/g, '_');
-        }
-        return value;
-      },
-    }) as CSVRow[];
+    logger.info(`[uploadCSVQuestionsController] CSV content length: ${csvContent.length} characters`);
+    logger.info(`[uploadCSVQuestionsController] CSV preview (first 200 chars): ${csvContent.substring(0, 200)}`);
+    
+    let parseResult: CSVRow[];
+    try {
+      parseResult = parse(csvContent, {
+        columns: true,
+        skip_empty_lines: true,
+        trim: true,
+        relax_column_count: true, // Allow inconsistent column counts (handles extra/missing columns)
+        relax_quotes: true, // Allow quotes in unquoted fields
+        cast: (value: any, context: any) => {
+          // Transform header names to lowercase with underscores
+          if (context.header) {
+            return value.trim().toLowerCase().replace(/\s+/g, '_');
+          }
+          return value;
+        },
+      }) as CSVRow[];
+      
+      // Log column count mismatches after parsing
+      if (parseResult.length > 0) {
+        const headerKeys = Object.keys(parseResult[0]);
+        parseResult.forEach((row, index) => {
+          const rowKeys = Object.keys(row);
+          if (rowKeys.length !== headerKeys.length) {
+            logger.warn(`[uploadCSVQuestionsController] Row ${index + 2}: Column count mismatch. Expected: ${headerKeys.length}, Got: ${rowKeys.length}`);
+          }
+        });
+      }
+      logger.info(`[uploadCSVQuestionsController] CSV parsed successfully. Rows: ${parseResult.length}`);
+      if (parseResult.length > 0) {
+        logger.info(`[uploadCSVQuestionsController] First row keys: ${Object.keys(parseResult[0]).join(', ')}`);
+      }
+    } catch (parseError: any) {
+      logger.error('[uploadCSVQuestionsController] CSV parsing error:', parseError);
+      logger.error('[uploadCSVQuestionsController] Parse error stack:', parseError.stack);
+      res.status(400).json({ 
+        error: 'Failed to parse CSV file', 
+        details: parseError.message,
+        hint: 'Please check CSV format and ensure headers are correct'
+      });
+      return;
+    }
+
+    if (parseResult.length === 0) {
+      logger.warn('[uploadCSVQuestionsController] CSV file is empty or has no valid rows');
+      res.status(400).json({ error: 'CSV file is empty or has no valid rows' });
+      return;
+    }
 
     // Process and create questions
+    logger.info(`[uploadCSVQuestionsController] Processing ${parseResult.length} rows`);
     const result = await parseAndCreateQuestionsFromCSV(parseResult, level_id);
+    logger.info(`[uploadCSVQuestionsController] Processing complete. Success: ${result.success}, Errors: ${result.errors.length}`);
 
     res.json({
       message: `Successfully created ${result.success} questions`,
@@ -236,8 +283,16 @@ export const uploadCSVQuestionsController = async (req: MulterRequest, res: Resp
       errors: result.errors,
     });
   } catch (error: any) {
-    logger.error('CSV upload error:', error);
-    res.status(500).json({ error: error.message || 'Failed to upload CSV file' });
+    logger.error('[uploadCSVQuestionsController] CSV upload error:', error);
+    logger.error('[uploadCSVQuestionsController] Error message:', error.message);
+    logger.error('[uploadCSVQuestionsController] Error stack:', error.stack);
+    logger.error('[uploadCSVQuestionsController] Error name:', error.name);
+    
+    const errorMessage = error.message || 'Failed to upload CSV file';
+    res.status(500).json({ 
+      error: errorMessage,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 };
 
@@ -268,20 +323,34 @@ export const generateQuestionsWithAIController = async (req: AuthRequest, res: R
 export const updateLevelDetailsController = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { levelId } = req.params;
-    const { description, learning_materials, code_snippet } = req.body;
+    const { description, learning_materials } = req.body;
+
+    logger.info(`[updateLevelDetailsController] Updating level ${levelId}`);
+    logger.info(`[updateLevelDetailsController] Request body:`, { 
+      hasDescription: description !== undefined,
+      hasLearningMaterials: learning_materials !== undefined
+    });
 
     // Import dynamically or move to top if no cycle
     const { updateLevelDetails } = await import('../services/adminService');
 
     await updateLevelDetails(levelId, {
       description,
-      learning_materials,
-      code_snippet
+      learning_materials
     });
 
+    logger.info(`[updateLevelDetailsController] Successfully updated level ${levelId}`);
     res.json({ message: 'Level details updated successfully' });
   } catch (error: any) {
-    logger.error('Update level details error:', error);
-    res.status(500).json({ error: 'Failed to update level details' });
+    logger.error('[updateLevelDetailsController] Update level details error:', error);
+    logger.error('[updateLevelDetailsController] Error stack:', error.stack);
+    logger.error('[updateLevelDetailsController] Error message:', error.message);
+    logger.error('[updateLevelDetailsController] Error code:', error.code);
+    
+    const errorMessage = error.message || 'Failed to update level details';
+    res.status(500).json({ 
+      error: errorMessage,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 };

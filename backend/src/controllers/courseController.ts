@@ -64,27 +64,59 @@ export const getLevelDetailsController = async (req: AuthRequest, res: Response)
       return;
     }
 
-    // Parse learning_materials if stored as JSON string
+    // Transform to match frontend expectations
+    // The service already parses coreTopics and materials, but we also need to support
+    // the lessonPlan structure for LevelOverview component
+    const lessonPlan = level.learning_materials || {};
+    let parsedLessonPlan: any = {};
+    
     if (typeof level.learning_materials === 'string') {
       try {
-        level.learning_materials = JSON.parse(level.learning_materials);
+        parsedLessonPlan = JSON.parse(level.learning_materials);
       } catch (e) {
-        // keep as string or set default
+        // keep as empty object
       }
+    } else if (level.learning_materials && typeof level.learning_materials === 'object') {
+      parsedLessonPlan = level.learning_materials;
     }
 
-    // Transform to match frontend lessonPlan structure
-    const lessonPlan = level.learning_materials || {};
-    // Ensure structure
+    // Transform coreTopics from topic_description into concepts format for frontend
+    // coreTopics format: [{ title: "..." }] 
+    // concepts format: [{ title: "...", explanation: "..." }]
+    let conceptsFromCoreTopics = [];
+    if (level.coreTopics && Array.isArray(level.coreTopics) && level.coreTopics.length > 0) {
+      conceptsFromCoreTopics = level.coreTopics.map((topic: any) => {
+        // Handle different formats
+        if (typeof topic === 'string') {
+          return { title: topic, explanation: '' };
+        } else if (topic && typeof topic === 'object') {
+          return {
+            title: topic.title || topic.name || '',
+            explanation: topic.explanation || topic.description || ''
+          };
+        }
+        return { title: '', explanation: '' };
+      }).filter((c: any) => c.title); // Filter out empty titles
+    }
+
+    // Return both formats to support different frontend components
+    // Use coreTopics (from topic_description) as primary source for concepts
+    // Fallback to parsedLessonPlan.concepts if coreTopics is empty
     const response = {
       id: level.id,
       title: level.title,
+      levelNumber: level.level_number,
       level_number: level.level_number,
-      introduction: lessonPlan.introduction || level.description || '',
-      concepts: lessonPlan.concepts || [],
-      resources: lessonPlan.resources || [],
-      key_terms: lessonPlan.key_terms || [],
-      example_code: level.code_snippet || lessonPlan.example_code || ''
+      description: level.description,
+      coreTopics: level.coreTopics || [],
+      materials: level.materials || [],
+      // Also include lessonPlan structure for LevelOverview component
+      introduction: parsedLessonPlan.introduction || level.description || '',
+      // Use coreTopics (from topic_description) as primary source, fallback to learning_materials.concepts
+      concepts: conceptsFromCoreTopics.length > 0 ? conceptsFromCoreTopics : (parsedLessonPlan.concepts || []),
+      resources: parsedLessonPlan.resources || level.materials || [],
+      key_terms: parsedLessonPlan.key_terms || [],
+      example_code: parsedLessonPlan.example_code || ''
     };
 
     res.json(response);

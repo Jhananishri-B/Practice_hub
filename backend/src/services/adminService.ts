@@ -231,33 +231,66 @@ export const updateLevelDetails = async (
   data: {
     description?: string;
     learning_materials?: any;
-    code_snippet?: string;
   }
 ) => {
-  const updates: string[] = [];
-  const params: any[] = [];
+  try {
+    console.log(`[updateLevelDetails] Updating level ${levelId} with data:`, JSON.stringify(data, null, 2));
+    
+    // Check if level exists
+    const levelCheck = await pool.query('SELECT id FROM levels WHERE id = ?', [levelId]);
+    const levelRows = getRows(levelCheck);
+    
+    if (levelRows.length === 0) {
+      console.error(`[updateLevelDetails] Level ${levelId} not found`);
+      throw new Error(`Level ${levelId} not found`);
+    }
+    
+    const updates: string[] = [];
+    const params: any[] = [];
 
-  if (data.description !== undefined) {
-    updates.push('description = ?');
-    params.push(data.description);
+    if (data.description !== undefined) {
+      updates.push('description = ?');
+      params.push(data.description || null);
+      console.log(`[updateLevelDetails] Adding description update`);
+    }
+
+    if (data.learning_materials !== undefined) {
+      updates.push('learning_materials = ?');
+      // Handle learning_materials - can be object or string
+      let learningMaterialsValue: string;
+      if (typeof data.learning_materials === 'string') {
+        learningMaterialsValue = data.learning_materials;
+      } else if (data.learning_materials === null) {
+        learningMaterialsValue = null;
+      } else {
+        learningMaterialsValue = JSON.stringify(data.learning_materials);
+      }
+      params.push(learningMaterialsValue);
+      console.log(`[updateLevelDetails] Adding learning_materials update (length: ${learningMaterialsValue ? learningMaterialsValue.length : 0})`);
+    }
+
+    if (updates.length === 0) {
+      console.warn(`[updateLevelDetails] No updates to apply for level ${levelId}`);
+      return;
+    }
+
+    updates.push('updated_at = CURRENT_TIMESTAMP');
+
+    const query = `UPDATE levels SET ${updates.join(', ')} WHERE id = ?`;
+    params.push(levelId);
+    
+    console.log(`[updateLevelDetails] Executing query: ${query}`);
+    console.log(`[updateLevelDetails] Params:`, params.map(p => typeof p === 'string' && p.length > 100 ? p.substring(0, 100) + '...' : p));
+    
+    await pool.query(query, params);
+    
+    console.log(`[updateLevelDetails] Successfully updated level ${levelId}`);
+  } catch (error: any) {
+    console.error(`[updateLevelDetails] Error updating level ${levelId}:`, error);
+    console.error(`[updateLevelDetails] Error message:`, error.message);
+    console.error(`[updateLevelDetails] Error code:`, error.code);
+    console.error(`[updateLevelDetails] Error stack:`, error.stack);
+    // Re-throw the error so controller can handle it
+    throw error;
   }
-
-  if (data.learning_materials !== undefined) {
-    updates.push('learning_materials = ?');
-    params.push(typeof data.learning_materials === 'string' ? data.learning_materials : JSON.stringify(data.learning_materials));
-  }
-
-  if (data.code_snippet !== undefined) {
-    updates.push('code_snippet = ?');
-    params.push(data.code_snippet);
-  }
-
-  if (updates.length === 0) return;
-
-  updates.push('updated_at = CURRENT_TIMESTAMP');
-
-  const query = `UPDATE levels SET ${updates.join(', ')} WHERE id = ?`;
-  params.push(levelId);
-
-  await pool.query(query, params);
 };

@@ -1,8 +1,0 @@
---- Course Level Check ---
-Data Science: total_levels=5, actual_levels=5
-Deep Learning: total_levels=5, actual_levels=5
-Cloud Computing: total_levels=5, actual_levels=5
-Python: total_levels=5, actual_levels=5
-C Programming: total_levels=6, actual_levels=6
-Machine Learning: total_levels=10, actual_levels=10
---------------------------

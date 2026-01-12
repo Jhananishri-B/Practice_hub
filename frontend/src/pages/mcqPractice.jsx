@@ -51,7 +51,10 @@ const MCQPractice = () => {
       setLoading(false);
     } catch (error) {
       console.error('Failed to start session:', error);
-      alert('Failed to start practice session');
+      const errorMessage = error?.response?.data?.error || error?.message || 'Failed to start practice session';
+      console.error('Error details:', error?.response?.data);
+      alert(`Failed to start practice session: ${errorMessage}`);
+      setLoading(false);
     }
   };
 

@@ -66,14 +66,22 @@ const AdminCourseLevels = () => {
       const res = await api.post('/admin/questions/upload-csv', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      alert(`Uploaded ${res.data.count} questions! Errors: ${res.data.errors?.length || 0}`);
+      if (res.data.errors && res.data.errors.length > 0) {
+        alert(`Uploaded ${res.data.count} questions!\nErrors: ${res.data.errors.length}\n\n${res.data.errors.slice(0, 5).join('\n')}${res.data.errors.length > 5 ? '\n...' : ''}`);
+      } else {
+        alert(`Uploaded ${res.data.count} questions! Errors: ${res.data.errors?.length || 0}`);
+      }
       setCsvUploadModal({ show: false, levelId: null, uploading: false, questionType: null });
       fetchData();
     } catch (err) {
-      alert('Upload failed');
+      console.error('CSV upload error:', err);
+      const errorMessage = err.response?.data?.error || err.response?.data?.details || err.message || 'Upload failed';
+      const errorDetails = err.response?.data?.details || '';
+      alert(`Upload failed: ${errorMessage}${errorDetails ? '\n\nDetails: ' + errorDetails.substring(0, 200) : ''}`);
       setCsvUploadModal(prev => ({ ...prev, uploading: false }));
     }
   };
+
 
   const handleAddLevel = async () => {
     const title = prompt('Enter new level title:');
@@ -174,21 +182,23 @@ const AdminCourseLevels = () => {
 
               {/* Questions Body */}
               <div className="p-6 bg-gray-50/30">
-                <div className="flex items-center gap-6 mb-6 border-b border-gray-200">
-                  <button
-                    onClick={() => setActiveTab('coding')}
-                    className={`pb-3 px-1 text-sm font-medium transition-all relative ${activeTab === 'coding' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-                  >
-                    Coding Questions
-                    {activeTab === 'coding' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 rounded-full"></div>}
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('mcq')}
-                    className={`pb-3 px-1 text-sm font-medium transition-all relative ${activeTab === 'mcq' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-                  >
-                    Multiple Choice
-                    {activeTab === 'mcq' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 rounded-full"></div>}
-                  </button>
+                <div className="flex items-center justify-between mb-6 border-b border-gray-200">
+                  <div className="flex items-center gap-6">
+                    <button
+                      onClick={() => setActiveTab('coding')}
+                      className={`pb-3 px-1 text-sm font-medium transition-all relative ${activeTab === 'coding' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                      Coding Questions
+                      {activeTab === 'coding' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 rounded-full"></div>}
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('mcq')}
+                      className={`pb-3 px-1 text-sm font-medium transition-all relative ${activeTab === 'mcq' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                      Multiple Choice
+                      {activeTab === 'mcq' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 rounded-full"></div>}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-3">
@@ -206,8 +216,25 @@ const AdminCourseLevels = () => {
                           <span className="text-gray-800 font-medium group-hover:text-blue-700 transition-colors">{q.title}</span>
                         </div>
                         <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => navigate(`/admin/questions/edit/${q.id}?type=${q.question_type}`)} className="p-1.5 hover:bg-gray-100 rounded text-gray-500">
+                          <button onClick={() => navigate(`/admin/questions/edit/${q.id}?type=${q.question_type}`)} className="p-1.5 hover:bg-gray-100 rounded text-gray-500" title="Edit Question">
                             <Edit size={16} />
+                          </button>
+                          <button 
+                            onClick={async () => {
+                              if (confirm(`Are you sure you want to delete "${q.title}"? This action cannot be undone.`)) {
+                                try {
+                                  await api.delete(`/admin/questions/${q.id}`);
+                                  alert('Question deleted successfully');
+                                  fetchData();
+                                } catch (err) {
+                                  alert('Failed to delete question: ' + (err.response?.data?.error || err.message));
+                                }
+                              }
+                            }}
+                            className="p-1.5 hover:bg-red-50 rounded text-gray-500 hover:text-red-600" 
+                            title="Delete Question"
+                          >
+                            <Trash2 size={16} />
                           </button>
                         </div>
                       </div>

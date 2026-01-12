@@ -8,26 +8,52 @@ export const startSessionController = async (req: AuthRequest, res: Response): P
     const { courseId, levelId, sessionType } = req.body;
     const userId = req.user?.userId;
 
+    logger.info(`[startSessionController] Request received - userId: ${userId}, courseId: ${courseId}, levelId: ${levelId}, sessionType: ${sessionType}`);
+
     if (!userId) {
+      logger.warn('[startSessionController] Unauthorized - no userId');
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
 
     if (!courseId || !levelId) {
+      logger.warn('[startSessionController] Bad request - missing courseId or levelId');
       res.status(400).json({ error: 'Course ID and Level ID are required' });
       return;
     }
 
+    logger.info(`[startSessionController] Starting session for user ${userId}`);
     const session = await startSession(
       userId,
       courseId,
       levelId,
       sessionType === 'coding' || sessionType === 'mcq' ? sessionType : undefined
     );
+    
+    logger.info(`[startSessionController] Session created successfully: ${session.id}`);
     res.json(session);
   } catch (error: any) {
-    logger.error('Start session error:', error);
-    res.status(500).json({ error: error.message || 'Failed to start session' });
+    logger.error('[startSessionController] Start session error:', error);
+    logger.error('[startSessionController] Error stack:', error.stack);
+    logger.error('[startSessionController] Error message:', error.message);
+    logger.error('[startSessionController] Error code:', error.code);
+    
+    // Return detailed error message for debugging
+    const errorMessage = error.message || 'Failed to start session';
+    const errorResponse: any = {
+      error: errorMessage,
+      code: error.code,
+    };
+    
+    // Include more details in development
+    if (process.env.NODE_ENV === 'development') {
+      errorResponse.details = error.stack;
+      errorResponse.sqlMessage = error.sqlMessage;
+      errorResponse.sqlState = error.sqlState;
+      errorResponse.sqlCode = error.sqlCode;
+    }
+    
+    res.status(500).json(errorResponse);
   }
 };
 

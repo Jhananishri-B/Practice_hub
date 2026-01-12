@@ -133,6 +133,59 @@ export const getCourseLevels = async (
         status = 'unlocked';
       }
 
+      // Parse topic_description (JSON string) into coreTopics array
+      let coreTopics: any[] = [];
+      if (level.topic_description) {
+        try {
+          if (typeof level.topic_description === 'string') {
+            const parsed = JSON.parse(level.topic_description);
+            // Handle different possible formats
+            if (Array.isArray(parsed)) {
+              coreTopics = parsed;
+            } else if (parsed && typeof parsed === 'object' && parsed.topics) {
+              coreTopics = Array.isArray(parsed.topics) ? parsed.topics : [];
+            } else if (parsed && typeof parsed === 'object' && parsed.coreTopics) {
+              coreTopics = Array.isArray(parsed.coreTopics) ? parsed.coreTopics : [];
+            }
+          } else if (Array.isArray(level.topic_description)) {
+            coreTopics = level.topic_description;
+          }
+        } catch (e) {
+          console.warn(`[getCourseLevels] Failed to parse topic_description for level ${level.id}:`, e);
+          coreTopics = [];
+        }
+      }
+
+      // Parse learning_materials into materials array
+      let materials: any[] = [];
+      if (level.learning_materials) {
+        try {
+          let parsedMaterials: any;
+          if (typeof level.learning_materials === 'string') {
+            parsedMaterials = JSON.parse(level.learning_materials);
+          } else {
+            parsedMaterials = level.learning_materials;
+          }
+          
+          // Handle different possible formats
+          if (Array.isArray(parsedMaterials)) {
+            materials = parsedMaterials;
+          } else if (parsedMaterials && typeof parsedMaterials === 'object') {
+            // If it's an object with 'resources' or 'materials' key
+            if (Array.isArray(parsedMaterials.resources)) {
+              materials = parsedMaterials.resources;
+            } else if (Array.isArray(parsedMaterials.materials)) {
+              materials = parsedMaterials.materials;
+            } else if (Array.isArray(parsedMaterials)) {
+              materials = parsedMaterials;
+            }
+          }
+        } catch (e) {
+          console.warn(`[getCourseLevels] Failed to parse learning_materials for level ${level.id}:`, e);
+          materials = [];
+        }
+      }
+
       return {
         id: level.id,
         course_id: level.course_id,
@@ -140,6 +193,8 @@ export const getCourseLevels = async (
         title: level.title,
         description: level.description,
         status,
+        coreTopics: coreTopics || [],
+        materials: materials || [],
       };
     });
 
@@ -160,9 +215,74 @@ export const getCourseLevels = async (
 
 export const getLevelDetails = async (levelId: string): Promise<any> => {
   const result = await pool.query(
-    'SELECT title, description, learning_materials, code_snippet, level_number FROM levels WHERE id = ?',
+    'SELECT id, title, description, topic_description, learning_materials, level_number FROM levels WHERE id = ?',
     [levelId]
   );
   const rows = getRows(result);
-  return rows.length > 0 ? rows[0] : null;
+  if (rows.length === 0) {
+
+    
+    return null;
+  }
+  
+  const level = rows[0];
+  
+  // Parse topic_description (JSON string) into coreTopics array
+  let coreTopics: any[] = [];
+  if (level.topic_description) {
+    try {
+      if (typeof level.topic_description === 'string') {
+        const parsed = JSON.parse(level.topic_description);
+        // Handle different possible formats
+        if (Array.isArray(parsed)) {
+          coreTopics = parsed;
+        } else if (parsed && typeof parsed === 'object' && parsed.topics) {
+          coreTopics = Array.isArray(parsed.topics) ? parsed.topics : [];
+        } else if (parsed && typeof parsed === 'object' && parsed.coreTopics) {
+          coreTopics = Array.isArray(parsed.coreTopics) ? parsed.coreTopics : [];
+        }
+      } else if (Array.isArray(level.topic_description)) {
+        coreTopics = level.topic_description;
+      }
+    } catch (e) {
+      console.warn(`[getLevelDetails] Failed to parse topic_description for level ${levelId}:`, e);
+      coreTopics = [];
+    }
+  }
+
+  // Parse learning_materials into materials array
+  let materials: any[] = [];
+  if (level.learning_materials) {
+    try {
+      let parsedMaterials: any;
+      if (typeof level.learning_materials === 'string') {
+        parsedMaterials = JSON.parse(level.learning_materials);
+      } else {
+        parsedMaterials = level.learning_materials;
+      }
+      
+      // Handle different possible formats
+      if (Array.isArray(parsedMaterials)) {
+        materials = parsedMaterials;
+      } else if (parsedMaterials && typeof parsedMaterials === 'object') {
+        // If it's an object with 'resources' or 'materials' key
+        if (Array.isArray(parsedMaterials.resources)) {
+          materials = parsedMaterials.resources;
+        } else if (Array.isArray(parsedMaterials.materials)) {
+          materials = parsedMaterials.materials;
+        } else if (Array.isArray(parsedMaterials)) {
+          materials = parsedMaterials;
+        }
+      }
+    } catch (e) {
+      console.warn(`[getLevelDetails] Failed to parse learning_materials for level ${levelId}:`, e);
+      materials = [];
+    }
+  }
+
+  return {
+    ...level,
+    coreTopics: coreTopics || [],
+    materials: materials || [],
+  };
 };

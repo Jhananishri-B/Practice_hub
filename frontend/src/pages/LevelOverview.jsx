@@ -351,23 +351,6 @@ const LevelOverview = () => {
                             </div>
                         </div>
 
-                        {/* ... after Core Topics ... */}
-
-                        {/* Example Code Section */}
-                        {lessonPlan.example_code && (
-                            <div className="bg-slate-900 rounded-2xl overflow-hidden shadow-lg border border-slate-800 my-8">
-                                <div className="bg-slate-800/50 px-6 py-3 border-b border-slate-700 flex items-center gap-2">
-                                    <Code size={16} className="text-blue-400" />
-                                    <span className="text-sm font-medium text-slate-300">Code Snippet</span>
-                                </div>
-                                <div className="p-6 overflow-x-auto">
-                                    <pre className="font-mono text-sm text-blue-100 leading-relaxed">
-                                        <code>{lessonPlan.example_code}</code>
-                                    </pre>
-                                </div>
-                            </div>
-                        )}
-
                         {/* Lower Section: Materials & Assessment */}
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
 

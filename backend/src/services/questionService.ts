@@ -134,10 +134,14 @@ export const createCodingQuestion = async (data: {
   for (let i = 0; i < data.test_cases.length; i++) {
     const testCase = data.test_cases[i];
     const testCaseId = randomUUID();
+    // Use test_case_number from testCase if provided, otherwise use index + 1
+    const testCaseNumber = (testCase as any).test_case_number !== undefined 
+      ? (testCase as any).test_case_number 
+      : i + 1;
     await pool.query(
       `INSERT INTO test_cases (id, question_id, input_data, expected_output, is_hidden, test_case_number)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [testCaseId, questionId, testCase.input_data, testCase.expected_output, testCase.is_hidden, i + 1]
+      [testCaseId, questionId, testCase.input_data, testCase.expected_output, testCase.is_hidden, testCaseNumber]
     );
   }
 

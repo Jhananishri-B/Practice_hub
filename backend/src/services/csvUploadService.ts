@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import { getRows } from '../utils/mysqlHelper';
 import { createCodingQuestion, createMCQQuestion } from './questionService';
 import logger from '../config/logger';
+import { normalizeExecutionInput } from '../utils/inputNormalizer';
 
 export interface CSVRow {
   [key: string]: string;
@@ -15,11 +16,28 @@ export const parseAndCreateQuestionsFromCSV = async (
   let successCount = 0;
   const errors: string[] = [];
 
+  logger.info(`[parseAndCreateQuestionsFromCSV] Starting processing. Rows: ${csvData.length}, levelId: ${levelId}`);
+
+  // Validate level exists
+  try {
+    const levelCheck = await pool.query('SELECT id FROM levels WHERE id = ?', [levelId]);
+    const levelRows = getRows(levelCheck);
+    if (levelRows.length === 0) {
+      logger.error(`[parseAndCreateQuestionsFromCSV] Level ${levelId} not found`);
+      return { success: 0, errors: [`Level ${levelId} not found`] };
+    }
+    logger.info(`[parseAndCreateQuestionsFromCSV] Level ${levelId} validated`);
+  } catch (levelError: any) {
+    logger.error(`[parseAndCreateQuestionsFromCSV] Error checking level:`, levelError);
+    return { success: 0, errors: [`Failed to validate level: ${levelError.message}`] };
+  }
+
   for (let i = 0; i < csvData.length; i++) {
     const row = csvData[i];
     const rowNumber = i + 2; // +2 because row 1 is header, and arrays are 0-indexed
 
     try {
+      logger.info(`[parseAndCreateQuestionsFromCSV] Processing row ${rowNumber}. Keys: ${Object.keys(row).join(', ')}`);
       // Determine question type based on available columns
       const hasTestCases = row.test_cases || row.test_case_1 || row['test_case_1'];
       const hasOptions = row.option1 || row.option_1 || row['option_1'];
@@ -27,124 +45,62 @@ export const parseAndCreateQuestionsFromCSV = async (
 
       if (questionType === 'coding') {
         // Parse coding question - required columns
-        if (!row.title || !row.description || !row.reference_solution || !row.test_cases) {
-          errors.push(`Row ${rowNumber}: Missing required fields (title, description, reference_solution, or test_cases)`);
+        if (!row.title || !row.description || !row.reference_solution) {
+          errors.push(`Row ${rowNumber}: Missing required fields (title, description, or reference_solution)`);
           continue;
         }
 
-        // Parse test cases from test_cases column with special format
-        // Format: Each test case starts with [VISIBLE] or [HIDDEN]
-        // Then "Input:" followed by input data, then "Output:" followed by output data
-        // Test cases are separated by blank lines
-        const testCases: Array<{ input_data: string; expected_output: string; is_hidden: boolean }> = [];
+        // Parse test cases from testcase1_input through testcase6_input columns
+        // Format: testcase1_input, testcase1_output, testcase1_hidden, ... up to testcase6
+        // Test cases must be inserted with correct test_case_number (1-6) matching CSV column number
+        const testCases: Array<{ input_data: string; expected_output: string; is_hidden: boolean; test_case_number: number }> = [];
         
-        if (row.test_cases) {
-          const testCasesText = row.test_cases.trim();
-          logger.info(`Row ${rowNumber}: Parsing test cases. Length: ${testCasesText.length}, Preview: ${testCasesText.substring(0, 100)}`);
+        for (let testCaseNum = 1; testCaseNum <= 6; testCaseNum++) {
+          const inputKey = `testcase${testCaseNum}_input`;
+          const outputKey = `testcase${testCaseNum}_output`;
+          const hiddenKey = `testcase${testCaseNum}_hidden`;
           
-          // Split by pattern: [VISIBLE] or [HIDDEN] markers
-          // This will split the text into blocks, each starting with a visibility marker
-          const testCaseBlocks = testCasesText.split(/(?=\[(?:VISIBLE|HIDDEN)\])/i);
-          logger.info(`Row ${rowNumber}: Split into ${testCaseBlocks.length} blocks`);
+          const inputData = row[inputKey]?.trim();
+          const outputData = row[outputKey]?.trim();
+          const hiddenValue = row[hiddenKey]?.trim();
           
-          for (const block of testCaseBlocks) {
-            const trimmedBlock = block.trim();
-            if (!trimmedBlock) continue;
-            
-            logger.info(`Row ${rowNumber}: Processing block. Length: ${trimmedBlock.length}, Preview: ${trimmedBlock.substring(0, 100)}`);
-
-            let isHidden = false;
-            let blockContent = trimmedBlock;
-
-            // Extract visibility marker [VISIBLE] or [HIDDEN] (case-insensitive)
-            const visibilityMatch = trimmedBlock.match(/^\[(VISIBLE|HIDDEN)\]/i);
-            if (visibilityMatch) {
-              const visibility = visibilityMatch[1].toUpperCase();
-              isHidden = visibility === 'HIDDEN';
-              // Remove [VISIBLE] or [HIDDEN] prefix and any following whitespace/newlines
-              blockContent = trimmedBlock.replace(/^\[(?:VISIBLE|HIDDEN)\]\s*/i, '').trim();
-            } else {
-              // If no visibility marker found, skip this block or default to visible
-              logger.warn(`Row ${rowNumber}: Test case block missing [VISIBLE] or [HIDDEN] marker, skipping`);
-              continue;
-            }
-
-            // Extract Input and Output sections using line-by-line parsing
-            // This is more robust for multi-line content
-            const lines = blockContent.split(/\r?\n/);
-            
-            let inputStartIndex = -1;
-            let outputStartIndex = -1;
-            
-            // Find Input and Output markers
-            for (let i = 0; i < lines.length; i++) {
-              const lineLower = lines[i].trim().toLowerCase();
-              if (lineLower.startsWith('input')) {
-                inputStartIndex = i;
-              } else if (lineLower.startsWith('output') && inputStartIndex !== -1) {
-                outputStartIndex = i;
-                break; // Stop at first Output after Input
-              }
-            }
-            
-            if (inputStartIndex !== -1 && outputStartIndex !== -1 && outputStartIndex > inputStartIndex) {
-              // Extract input: everything from line after "Input:" until "Output:"
-              // The "Input:" line might be "Input:" or "Input" - extract content after colon if present
-              const inputFirstLine = lines[inputStartIndex].trim();
-              const inputColonIndex = inputFirstLine.toLowerCase().indexOf(':');
-              const inputContentStart = inputColonIndex !== -1 ? inputFirstLine.substring(inputColonIndex + 1).trim() : '';
-              
-              // Collect all input lines (from Input line until Output line)
-              const inputLines: string[] = [];
-              if (inputContentStart) {
-                inputLines.push(inputContentStart);
-              }
-              for (let i = inputStartIndex + 1; i < outputStartIndex; i++) {
-                const line = lines[i].trim();
-                if (line) {
-                  inputLines.push(line);
-                }
-              }
-              
-              // Extract output: everything from line after "Output:" until end
-              const outputFirstLine = lines[outputStartIndex].trim();
-              const outputColonIndex = outputFirstLine.toLowerCase().indexOf(':');
-              const outputContentStart = outputColonIndex !== -1 ? outputFirstLine.substring(outputColonIndex + 1).trim() : '';
-              
-              // Collect all output lines (from Output line until end)
-              const outputLines: string[] = [];
-              if (outputContentStart) {
-                outputLines.push(outputContentStart);
-              }
-              for (let i = outputStartIndex + 1; i < lines.length; i++) {
-                const line = lines[i].trim();
-                if (line) {
-                  outputLines.push(line);
-                }
-              }
-              
-              const inputData = inputLines.join('\n').trim();
-              const outputData = outputLines.join('\n').trim();
-
-              if (inputData && outputData) {
-                testCases.push({
-                  input_data: inputData,
-                  expected_output: outputData,
-                  is_hidden: isHidden,
-                });
-                logger.info(`Row ${rowNumber}: Successfully parsed test case. Hidden: ${isHidden}, Input: "${inputData.substring(0, 50)}...", Output: "${outputData}"`);
+          // If input and output are both present, add this test case with correct test_case_number
+          if (inputData && outputData) {
+            // Parse is_hidden: must be 0 or 1, default to 0 if missing or invalid
+            let isHidden = 0;
+            if (hiddenValue !== undefined && hiddenValue !== '') {
+              const hiddenLower = hiddenValue.toLowerCase();
+              if (hiddenLower === '1' || hiddenLower === 'true') {
+                isHidden = 1;
+              } else if (hiddenLower === '0' || hiddenLower === 'false') {
+                isHidden = 0;
               } else {
-                logger.warn(`Row ${rowNumber}: Test case block has empty Input or Output section. Input lines: ${inputLines.length}, Output lines: ${outputLines.length}, Input: "${inputData}", Output: "${outputData}"`);
+                errors.push(`Row ${rowNumber}: Invalid value for ${hiddenKey} "${hiddenValue}". Must be 0 or 1. Defaulting to 0.`);
               }
-            } else {
-              logger.warn(`Row ${rowNumber}: Could not find Input or Output sections. Input index: ${inputStartIndex}, Output index: ${outputStartIndex}. Block preview: ${blockContent.substring(0, 200)}`);
             }
+            
+            // Normalize escaped characters in input and output before storing
+            // This converts "5\\n1 2 3 4 5" to "5\n1 2 3 4 5" (actual newline)
+            const normalizedInput = normalizeExecutionInput(inputData);
+            const normalizedOutput = normalizeExecutionInput(outputData);
+            
+            testCases.push({
+              input_data: normalizedInput,
+              expected_output: normalizedOutput,
+              is_hidden: isHidden === 1,
+              test_case_number: testCaseNum, // Preserve the test case number from CSV column
+            });
+            
+            logger.info(`Row ${rowNumber}: Parsed test case ${testCaseNum}. Hidden: ${isHidden === 1}, Input: "${normalizedInput.substring(0, 50)}${normalizedInput.length > 50 ? '...' : ''}", Output: "${normalizedOutput.substring(0, 50)}${normalizedOutput.length > 50 ? '...' : ''}"`);
+          } else if (inputData || outputData) {
+            // Partial test case (only input or only output) - warn but don't fail
+            logger.warn(`Row ${rowNumber}: Test case ${testCaseNum} has partial data. Input: ${inputData ? 'present' : 'missing'}, Output: ${outputData ? 'present' : 'missing'}. Skipping this test case.`);
           }
         }
 
         // Validate that at least one test case was parsed
         if (testCases.length === 0) {
-          errors.push(`Row ${rowNumber}: No valid test cases found. Expected format: [VISIBLE] or [HIDDEN] followed by Input and Output sections separated by blank lines`);
+          errors.push(`Row ${rowNumber}: No valid test cases found. Provide at least one test case using testcase1_input, testcase1_output columns (up to testcase6).`);
           continue;
         }
 
@@ -241,11 +197,15 @@ export const parseAndCreateQuestionsFromCSV = async (
         successCount++;
       }
     } catch (error: any) {
-      logger.error(`Error processing CSV row ${rowNumber}:`, error);
+      logger.error(`[parseAndCreateQuestionsFromCSV] Error processing CSV row ${rowNumber}:`, error);
+      logger.error(`[parseAndCreateQuestionsFromCSV] Row ${rowNumber} error message:`, error.message);
+      logger.error(`[parseAndCreateQuestionsFromCSV] Row ${rowNumber} error stack:`, error.stack);
+      logger.error(`[parseAndCreateQuestionsFromCSV] Row ${rowNumber} data:`, JSON.stringify(row, null, 2));
       errors.push(`Row ${rowNumber}: ${error.message || 'Unknown error'}`);
     }
   }
 
+  logger.info(`[parseAndCreateQuestionsFromCSV] Processing complete. Success: ${successCount}, Errors: ${errors.length}`);
   return { success: successCount, errors };
 };
 
