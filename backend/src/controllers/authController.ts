@@ -12,23 +12,39 @@ export const loginController = async (req: Request, res: Response): Promise<void
       return;
     }
 
+    // Ensure default users exist before attempting login
+    try {
+      await createDefaultUsers();
+    } catch (userInitError) {
+      logger.warn('Could not initialize default users, continuing with login attempt:', userInitError);
+    }
+
     const result = await login({ username, password });
     res.json(result);
   } catch (error: any) {
     logger.error('Login error:', error);
-    res.status(401).json({ error: error.message || 'Authentication failed' });
+    const errorMessage = error.message || 'Authentication failed';
+    
+    // Provide helpful error messages
+    if (errorMessage.includes('Invalid credentials')) {
+      res.status(401).json({ 
+        error: 'Invalid username or password. Default credentials: USER/123 or ADMIN/123' 
+      });
+    } else {
+      res.status(401).json({ error: errorMessage });
+    }
   }
 };
 
 export const googleLoginController = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { token, code } = req.body;
+    const { token, code, redirectUri } = req.body;
 
     let googleUser;
 
     if (code) {
       // Exchange authorization code for user info
-      googleUser = await exchangeCodeForToken(code);
+      googleUser = await exchangeCodeForToken(code, redirectUri);
     } else if (token) {
       // Verify ID token directly
       googleUser = await verifyGoogleToken(token);

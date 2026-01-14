@@ -5,7 +5,9 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
-    host: true,
+    host: '0.0.0.0', // Listen on all network interfaces
+    strictPort: false, // Try next available port if 5173 is busy
+    open: true, // Automatically open browser
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:5000',

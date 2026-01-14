@@ -128,7 +128,7 @@ export const getCourseLevels = async (
       else if (userStatus) {
         status = userStatus as string;
       }
-      // For now, unlock all levels for simplicity (can be refined later)
+      // Default to 'unlocked' for all levels
       else {
         status = 'unlocked';
       }

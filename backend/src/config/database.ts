@@ -5,6 +5,28 @@ import path from 'path';
 
 dotenv.config();
 
+// SSL Configuration
+const getSSLConfig = () => {
+  const caCertPath = path.join(__dirname, '../../certs/ca-certificate.crt');
+  
+  if (fs.existsSync(caCertPath)) {
+    try {
+      const caCert = fs.readFileSync(caCertPath, 'utf8');
+      console.log('SSL/TLS enabled for database connection with CA certificate');
+      return {
+        ca: caCert,
+        rejectUnauthorized: true,
+      };
+    } catch (error) {
+      console.warn('Failed to read CA certificate, SSL disabled:', error);
+      return undefined;
+    }
+  }
+  return undefined;
+};
+
+const sslConfig = getSSLConfig();
+
 // Parse DATABASE_URL or use individual connection parameters
 let connectionConfig: mysql.PoolOptions;
 
@@ -33,7 +55,10 @@ if (process.env.DATABASE_URL) {
     connectionLimit: 10,
     queueLimit: 0,
     multipleStatements: true,
-    connectTimeout: 60000, // 60 seconds connection timeout
+    connectTimeout: 10000, // 10 seconds connection timeout
+    enableKeepAlive: true, // Keep connections alive
+    keepAliveInitialDelay: 0, // Start keep-alive immediately
+    ssl: sslConfig,
   };
 
   // Add SSL configuration if required
@@ -72,21 +97,29 @@ if (process.env.DATABASE_URL) {
     connectionLimit: 10,
     queueLimit: 0,
     multipleStatements: true,
-    connectTimeout: 60000, // 60 seconds connection timeout
+    connectTimeout: 10000, // 10 seconds connection timeout
+    enableKeepAlive: true, // Keep connections alive
+    keepAliveInitialDelay: 0, // Start keep-alive immediately
+    ssl: sslConfig,
   };
 }
 
 const pool = mysql.createPool(connectionConfig);
 
-pool.on('connection', () => {
+// Handle new connections
+pool.on('connection', (connection: any) => {
   console.log('New MySQL connection established');
+  
+  // Handle connection errors on individual connections
+  connection.on('error', (err: any) => {
+    console.error('Database connection error:', err);
+    if (err.code === 'PROTOCOL_CONNECTION_LOST' || err.code === 'ECONNRESET') {
+      console.log('Database connection lost. Pool will automatically reconnect.');
+    }
+  });
 });
 
-pool.on('error', (err) => {
-  console.error('Database pool error:', err);
-  if (err.code === 'PROTOCOL_CONNECTION_LOST') {
-    console.error('Database connection lost. Attempting to reconnect...');
-  }
-});
+// Note: mysql2/promise pool doesn't have 'error' event
+// Connection errors are handled at the connection level above
 
 export default pool;

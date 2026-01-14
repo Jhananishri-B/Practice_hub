@@ -21,23 +21,54 @@ export interface UserData {
 export const login = async (credentials: LoginCredentials) => {
   const { username, password } = credentials;
 
-  // Case-insensitive username matching
-  const result = await pool.query(
-    'SELECT id, username, password_hash, role, name, email FROM users WHERE LOWER(username) = LOWER(?)',
-    [username]
-  );
+  let result;
+  let retries = 3;
+  
+  // Retry logic for connection errors with case-insensitive username matching
+  while (retries > 0) {
+    try {
+      result = await pool.query(
+        'SELECT id, username, password_hash, role, name, email FROM users WHERE LOWER(username) = LOWER(?)',
+        [username]
+      );
+      break; // Success, exit retry loop
+    } catch (error: any) {
+      retries--;
+      
+      // If it's a connection error and we have retries left, wait and retry
+      if ((error.code === 'ECONNRESET' || error.code === 'PROTOCOL_CONNECTION_LOST' || error.code === 'ETIMEDOUT') && retries > 0) {
+        logger.warn(`Database connection error, retrying... (${retries} retries left)`);
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+        continue;
+      }
+      
+      // If no retries left or different error, throw
+      logger.error('Login database query error:', error);
+      throw new Error('Database connection failed. Please try again.');
+    }
+  }
 
   const rows = getRows(result);
   if (rows.length === 0) {
+    logger.warn(`Login attempt with non-existent username: ${username}`);
     throw new Error('Invalid credentials');
   }
 
   const user = rows[0];
+  
+  if (!user.password_hash) {
+    logger.error(`User ${username} has no password hash`);
+    throw new Error('Invalid credentials');
+  }
+  
   const isValid = await comparePassword(password, user.password_hash);
 
   if (!isValid) {
+    logger.warn(`Invalid password attempt for username: ${username}`);
     throw new Error('Invalid credentials');
   }
+
+  logger.info(`Successful login for user: ${username} (${user.role})`);
 
   const token = generateToken({
     userId: user.id,
@@ -59,6 +90,9 @@ export const login = async (credentials: LoginCredentials) => {
 
 export const createDefaultUsers = async () => {
   try {
+    // Test database connection first with a simple query
+    await pool.query('SELECT 1');
+    
     // Check if users already exist
     const userCheck = await pool.query('SELECT id FROM users WHERE username IN (?, ?)', ['USER', 'ADMIN']);
 
@@ -83,13 +117,20 @@ export const createDefaultUsers = async () => {
       );
 
       logger.info('Default users created');
+    } else {
+      logger.info('Default users already exist');
     }
-  } catch (error) {
-    console.error('Error creating default users:', error);
-    if (error instanceof Error) {
-      console.error('Stack trace:', error.stack);
+  } catch (error: any) {
+    // Handle timeout errors gracefully
+    if (error.code === 'ETIMEDOUT' || error.code === 'ECONNREFUSED') {
+      logger.warn('Database connection timeout or refused. Default users will be created on first request.');
+    } else {
+      logger.error('Error creating default users:', error);
+      if (error instanceof Error) {
+        logger.error('Stack trace:', error.stack);
+      }
     }
-    throw error;
+    // Don't throw - allow server to start even if user creation fails
   }
 };
 

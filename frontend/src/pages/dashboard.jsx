@@ -59,26 +59,6 @@ const Dashboard = () => {
     course.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const getDifficultyColor = (title) => {
-    if (title.includes('Python')) return 'bg-blue-500';
-    if (title.includes('C')) return 'bg-orange-500';
-    if (title.includes('Machine Learning')) return 'bg-purple-500';
-    if (title.includes('Data Science')) return 'bg-green-500';
-    if (title.includes('Deep Learning')) return 'bg-indigo-500';
-    if (title.includes('Cloud')) return 'bg-cyan-500';
-    return 'bg-gray-500';
-  };
-
-  const getDifficultyLabel = (title) => {
-    if (title.includes('Python')) return 'BEGINNER';
-    if (title.includes('C')) return 'INTERMEDIATE';
-    if (title.includes('Machine Learning')) return 'ADVANCED';
-    if (title.includes('Data Science')) return 'INTERMEDIATE';
-    if (title.includes('Deep Learning')) return 'ADVANCED';
-    if (title.includes('Cloud')) return 'INTERMEDIATE';
-    return 'BEGINNER';
-  };
-
   const getCourseImage = (courseTitle) => {
     const title = courseTitle?.toLowerCase() || '';
 
@@ -92,17 +72,16 @@ const Dashboard = () => {
     if (title.includes('python')) {
       return 'https://webandcrafts.com/_next/image?url=https%3A%2F%2Fadmin.wac.co%2Fuploads%2FFeatures_Of_Python_1_f4ccd6d9f7.jpg&w=4500&q=90';
     }
-    if (title.includes('data science')) {
-      return 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80';
+    if (title.includes('cloud computing')) {
+      return 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&auto=format&fit=crop';
     }
     if (title.includes('deep learning')) {
-      return 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=800&q=80';
+      return 'https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=800&auto=format&fit=crop';
     }
-    if (title.includes('cloud')) {
-      return 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80';
+    if (title.includes('data science')) {
+      return 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop';
     }
-
-
+    
     // Fallback gradient
     return null;
   };
@@ -156,13 +135,6 @@ const Dashboard = () => {
                       ) : (
                         <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900"></div>
                       )}
-                      <span
-                        className={`absolute bottom-2 left-2 px-2 py-1 text-xs font-semibold text-white rounded ${getDifficultyColor(
-                          course.title
-                        )}`}
-                      >
-                        {getDifficultyLabel(course.title)}
-                      </span>
                     </div>
                     <div className="p-6">
                       <h3 className="text-xl font-bold text-gray-800 mb-2">{course.title}</h3>

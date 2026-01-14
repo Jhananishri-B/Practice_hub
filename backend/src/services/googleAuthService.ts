@@ -5,11 +5,28 @@ import { hashPassword } from '../utils/password';
 import logger from '../config/logger';
 import { randomUUID } from 'crypto';
 import { getRows, getFirstRow } from '../utils/mysqlHelper';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+// Get Google OAuth credentials from environment variables
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+  logger.warn('Google OAuth credentials not configured. Google login will be disabled.');
+}
+
+if (GOOGLE_CLIENT_ID) {
+  logger.info(`Google OAuth configured with Client ID: ${GOOGLE_CLIENT_ID.substring(0, 20)}...`);
+}
 
 // Initialize OAuth2Client - redirect URI will be set during token exchange
 const client = new OAuth2Client(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET
+  GOOGLE_CLIENT_ID,
+  GOOGLE_CLIENT_SECRET,
+  FRONTEND_URL
 );
 
 export interface GoogleUserInfo {
@@ -23,7 +40,7 @@ export const verifyGoogleToken = async (token: string): Promise<GoogleUserInfo> 
   try {
     const ticket = await client.verifyIdToken({
       idToken: token,
-      audience: process.env.GOOGLE_CLIENT_ID,
+      audience: GOOGLE_CLIENT_ID,
     });
 
     const payload = ticket.getPayload();
@@ -43,19 +60,21 @@ export const verifyGoogleToken = async (token: string): Promise<GoogleUserInfo> 
   }
 };
 
-export const exchangeCodeForToken = async (code: string): Promise<GoogleUserInfo> => {
+export const exchangeCodeForToken = async (code: string, redirectUri?: string): Promise<GoogleUserInfo> => {
   try {
-    // For auth-code flow, redirect URI should be the frontend URL
-    // This must match what's configured in Google Cloud Console
-    const redirectUri = process.env.FRONTEND_URL || 'http://localhost:5173';
+    // Use the provided redirect URI or the default one
+    const redirect = redirectUri || FRONTEND_URL;
     
-    logger.info(`Exchanging code with redirect URI: ${redirectUri}`);
+    logger.info(`Exchanging code with redirect URI: ${redirect}`);
     
-    // Exchange authorization code for tokens
-    const { tokens } = await client.getToken({
-      code: code,
-      redirect_uri: redirectUri,
-    });
+    // Create a new client instance with the redirect URI for code exchange
+    const exchangeClient = new OAuth2Client(
+      GOOGLE_CLIENT_ID,
+      GOOGLE_CLIENT_SECRET,
+      redirect
+    );
+    
+    const { tokens } = await exchangeClient.getToken(code);
     
     if (!tokens.id_token) {
       throw new Error('No ID token received');
@@ -64,7 +83,7 @@ export const exchangeCodeForToken = async (code: string): Promise<GoogleUserInfo
     // Verify the ID token
     const ticket = await client.verifyIdToken({
       idToken: tokens.id_token,
-      audience: process.env.GOOGLE_CLIENT_ID,
+      audience: GOOGLE_CLIENT_ID,
     });
 
     const payload = ticket.getPayload();

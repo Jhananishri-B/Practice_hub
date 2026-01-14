@@ -10,6 +10,10 @@ const CourseLevels = () => {
   const [course, setCourse] = useState(null);
   const [levels, setLevels] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [modeSelection, setModeSelection] = useState({
+    open: false,
+    level: null,
+  });
 
   useEffect(() => {
     fetchCourseData();
@@ -48,32 +52,9 @@ const CourseLevels = () => {
   };
 
   const handleLevelClick = (level) => {
-    if (level.status === 'locked') {
-      alert('Complete previous levels to unlock this level');
-      return;
-    }
-    // Navigate to Learning Phase (AI Lesson Plan)
-    navigate(`/courses/${courseId}/level/${level.id}/learn`);
-  };
-
-  const getDifficultyColor = (title) => {
-    if (title.includes('Python')) return 'bg-blue-500';
-    if (title.includes('C')) return 'bg-orange-500';
-    if (title.includes('Machine Learning')) return 'bg-purple-500';
-    if (title.includes('Data Science')) return 'bg-green-500';
-    if (title.includes('Deep Learning')) return 'bg-indigo-500';
-    if (title.includes('Cloud')) return 'bg-cyan-500';
-    return 'bg-gray-500';
-  };
-
-  const getDifficultyLabel = (title) => {
-    if (title.includes('Python')) return 'BEGINNER';
-    if (title.includes('C')) return 'INTERMEDIATE';
-    if (title.includes('Machine Learning')) return 'ADVANCED';
-    if (title.includes('Data Science')) return 'INTERMEDIATE';
-    if (title.includes('Deep Learning')) return 'ADVANCED';
-    if (title.includes('Cloud')) return 'INTERMEDIATE';
-    return 'BEGINNER';
+    // All levels are now unlocked, so no need to check status
+    // Ask user whether they want Coding Test or MCQ Practice
+    setModeSelection({ open: true, level });
   };
 
   const getCourseImage = () => {
@@ -89,19 +70,18 @@ const CourseLevels = () => {
     if (title.includes('python')) {
       return 'https://webandcrafts.com/_next/image?url=https%3A%2F%2Fadmin.wac.co%2Fuploads%2FFeatures_Of_Python_1_f4ccd6d9f7.jpg&w=4500&q=90';
     }
-    if (title.includes('data science')) {
-      return 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80';
+    if (title.includes('cloud computing')) {
+      return 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&auto=format&fit=crop';
     }
     if (title.includes('deep learning')) {
-      return 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=800&q=80';
+      return 'https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=800&auto=format&fit=crop';
     }
-    if (title.includes('cloud')) {
-      return 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80';
+    if (title.includes('data science')) {
+      return 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop';
     }
-
 
     // Fallback gradient
-    return 'linear-gradient(to bottom right, #667eea, #764ba2)';
+    return null;
   };
 
   if (loading) {
@@ -121,11 +101,6 @@ const CourseLevels = () => {
           </nav>
           <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
             {course?.title}
-            {course?.title && (
-              <span className={`ml-3 text-sm px-2 py-1 rounded text-white align-middle ${getDifficultyColor(course.title)}`}>
-                {getDifficultyLabel(course.title)}
-              </span>
-            )}
           </h1>
           <p className="text-gray-600">{course?.description}</p>
         </div>
@@ -134,20 +109,23 @@ const CourseLevels = () => {
           {levels.map((level) => (
             <div
               key={level.id}
-              className={`bg-white rounded-lg shadow-md overflow-hidden ${level.status === 'locked' ? 'opacity-60' : ''
-                }`}
+              className="bg-white rounded-lg shadow-md overflow-hidden"
             >
-              <div className="h-32 w-full overflow-hidden bg-gray-200">
-                <img
-                  src={getCourseImage()}
-                  alt={course?.title || 'Course banner'}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    // Fallback to gradient if image fails to load
-                    e.target.style.display = 'none';
-                    e.target.parentElement.style.background = 'linear-gradient(to bottom right, #667eea, #764ba2)';
-                  }}
-                />
+              <div className="h-32 w-full overflow-hidden bg-gray-200 relative">
+                {getCourseImage() ? (
+                  <img
+                    src={getCourseImage()}
+                    alt={course?.title || 'Course banner'}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.style.display = 'none';
+                      e.target.parentElement.style.background = 'linear-gradient(to bottom right, #667eea, #764ba2)';
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900"></div>
+                )}
               </div>
               <div className="p-6">
                 <div className="flex items-center justify-between mb-2">
@@ -156,9 +134,6 @@ const CourseLevels = () => {
                   </span>
                   {level.status === 'completed' && (
                     <Check className="text-green-600" size={20} />
-                  )}
-                  {level.status === 'locked' && (
-                    <Lock className="text-gray-400" size={20} />
                   )}
                 </div>
                 <h3 className="text-xl font-bold text-gray-800 mb-2">{level.title}</h3>
@@ -205,28 +180,63 @@ const CourseLevels = () => {
                 )}
 
                 <button
-                  onClick={() => {
-                    // Start Level Clicked
-                    handleLevelClick(level);
-                  }}
-                  disabled={level.status === 'locked'}
-                  className={`w-full py-2 rounded-lg font-medium transition-colors ${level.status === 'completed'
-                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                    : level.status === 'locked'
-                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  onClick={() => handleLevelClick(level)}
+                  className={`w-full py-2 rounded-lg font-medium transition-colors ${
+                    level.status === 'completed'
+                      ? 'bg-green-100 text-green-700 hover:bg-green-200'
                       : 'bg-blue-600 text-white hover:bg-blue-700'
-                    }`}
+                  }`}
                 >
-                  {level.status === 'completed'
-                    ? 'Review Lesson'
-                    : level.status === 'locked'
-                      ? 'Locked'
-                      : 'Start Learning Phase'}
+                  {level.status === 'completed' ? 'Review' : 'Start Level'}
                 </button>
               </div>
             </div>
           ))}
         </div>
+
+        {/* Mode selection dialog */}
+        {modeSelection.open && modeSelection.level && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full">
+              <h2 className="text-xl font-bold text-gray-800 mb-4">
+                Choose Practice Type
+              </h2>
+              <p className="text-gray-600 mb-6">
+                Do you want to practice coding questions or MCQ questions for this level?
+              </p>
+              <div className="space-y-3">
+                <button
+                  onClick={() => {
+                    navigate(`/practice/${courseId}/${modeSelection.level.id}`, {
+                      state: { sessionType: 'coding' },
+                    });
+                    setModeSelection({ open: false, level: null });
+                  }}
+                  className="w-full px-4 py-3 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors"
+                >
+                  Coding Test
+                </button>
+                <button
+                  onClick={() => {
+                    navigate(`/mcq-practice/${courseId}/${modeSelection.level.id}`, {
+                      state: { sessionType: 'mcq' },
+                    });
+                    setModeSelection({ open: false, level: null });
+                  }}
+                  className="w-full px-4 py-3 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition-colors"
+                >
+                  MCQ Practice
+                </button>
+                <button
+                  onClick={() => setModeSelection({ open: false, level: null })}
+                  className="w-full px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
     </Layout>

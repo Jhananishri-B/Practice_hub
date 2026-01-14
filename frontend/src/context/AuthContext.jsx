@@ -59,9 +59,11 @@ export const AuthProvider = ({ children }) => {
 
       return { success: true, user };
     } catch (error) {
+      console.error('Login error details:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'Login failed';
       return {
         success: false,
-        error: error.response?.data?.error || 'Login failed',
+        error: errorMessage,
       };
     }
   };
@@ -84,9 +86,11 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const googleLogin = async (googleToken, code) => {
+  const googleLogin = async (googleToken, code, redirectUri) => {
     try {
-      const payload = code ? { code } : { token: googleToken };
+      const payload = code 
+        ? { code, redirectUri: redirectUri || window.location.origin } 
+        : { token: googleToken };
       const response = await api.post('/auth/google', payload);
       const { token, user } = response.data;
 
