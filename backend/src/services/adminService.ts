@@ -88,8 +88,8 @@ export const getDashboardStats = async () => {
     let activeUsers = 0;
     try {
       const activeUsersResult = await pool.query(
-        "SELECT COUNT(DISTINCT user_id) as count FROM practice_sessions WHERE started_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)"
-      );
+    "SELECT COUNT(DISTINCT user_id) as count FROM practice_sessions WHERE started_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)"
+  );
       const activeUsersRows = getRows(activeUsersResult);
       activeUsers = parseInt(activeUsersRows[0]?.count || '0');
     } catch (error: any) {
@@ -110,8 +110,8 @@ export const getDashboardStats = async () => {
     let pendingApprovals = 0;
     try {
       const pendingApprovalsResult = await pool.query(
-        "SELECT COUNT(*) as count FROM practice_sessions WHERE status = 'in_progress' AND started_at < DATE_SUB(NOW(), INTERVAL 2 HOUR)"
-      );
+    "SELECT COUNT(*) as count FROM practice_sessions WHERE status = 'in_progress' AND started_at < DATE_SUB(NOW(), INTERVAL 2 HOUR)"
+  );
       const pendingApprovalsRows = getRows(pendingApprovalsResult);
       pendingApprovals = parseInt(pendingApprovalsRows[0]?.count || '0');
     } catch (error: any) {
@@ -119,8 +119,8 @@ export const getDashboardStats = async () => {
     }
 
     console.log(`[getDashboardStats] Stats: users=${totalUsers}, active=${activeUsers}, questions=${questionsAttempted}, pending=${pendingApprovals}`);
-    
-    return {
+
+  return {
       total_users: totalUsers,
       active_learners: activeUsers,
       questions_attempted: questionsAttempted,
@@ -135,7 +135,7 @@ export const getDashboardStats = async () => {
       active_learners: 0,
       questions_attempted: 0,
       pending_approvals: 0,
-    };
+  };
   }
 };
 
@@ -168,29 +168,29 @@ export const getCoursesWithLevels = async () => {
   try {
     console.log('[getCoursesWithLevels] Fetching courses with levels');
     
-    const coursesResult = await pool.query(
-      'SELECT id, title, description, total_levels, updated_at, created_at FROM courses ORDER BY title'
-    );
+  const coursesResult = await pool.query(
+    'SELECT id, title, description, total_levels, updated_at, created_at FROM courses ORDER BY title'
+  );
 
-    const courses = [];
-    const coursesRows = getRows(coursesResult);
+  const courses = [];
+  const coursesRows = getRows(coursesResult);
     console.log(`[getCoursesWithLevels] Found ${coursesRows.length} courses`);
     
-    for (const course of coursesRows) {
+  for (const course of coursesRows) {
       try {
-        const levelsResult = await pool.query(
-          `SELECT l.id, l.level_number, l.title, l.description, l.time_limit,
-                  COUNT(q.id) as question_count
-           FROM levels l
-           LEFT JOIN questions q ON l.id = q.level_id
-           WHERE l.course_id = ?
-           GROUP BY l.id, l.level_number, l.title, l.description, l.time_limit
-           ORDER BY l.level_number`,
-          [course.id]
-        );
+    const levelsResult = await pool.query(
+      `SELECT l.id, l.level_number, l.title, l.description, l.time_limit,
+              COUNT(q.id) as question_count
+       FROM levels l
+       LEFT JOIN questions q ON l.id = q.level_id
+       WHERE l.course_id = ?
+       GROUP BY l.id, l.level_number, l.title, l.description, l.time_limit
+       ORDER BY l.level_number`,
+      [course.id]
+    );
 
-        courses.push({
-          ...course,
+    courses.push({
+      ...course,
           levels: getRows(levelsResult) || [],
         });
       } catch (levelError: any) {
@@ -198,12 +198,12 @@ export const getCoursesWithLevels = async () => {
         courses.push({
           ...course,
           levels: [],
-        });
-      }
+    });
+  }
     }
 
     console.log(`[getCoursesWithLevels] Returning ${courses.length} courses`);
-    return courses;
+  return courses;
   } catch (error: any) {
     console.error('[getCoursesWithLevels] Error:', error);
     console.error('[getCoursesWithLevels] Error stack:', error.stack);
@@ -245,17 +245,17 @@ export const updateLevelDetails = async (
       throw new Error(`Level ${levelId} not found`);
     }
     
-    const updates: string[] = [];
-    const params: any[] = [];
+  const updates: string[] = [];
+  const params: any[] = [];
 
-    if (data.description !== undefined) {
-      updates.push('description = ?');
+  if (data.description !== undefined) {
+    updates.push('description = ?');
       params.push(data.description || null);
       console.log(`[updateLevelDetails] Adding description update`);
-    }
+  }
 
-    if (data.learning_materials !== undefined) {
-      updates.push('learning_materials = ?');
+  if (data.learning_materials !== undefined) {
+    updates.push('learning_materials = ?');
       // Handle learning_materials - can be object or string
       let learningMaterialsValue: string;
       if (typeof data.learning_materials === 'string') {
@@ -267,22 +267,22 @@ export const updateLevelDetails = async (
       }
       params.push(learningMaterialsValue);
       console.log(`[updateLevelDetails] Adding learning_materials update (length: ${learningMaterialsValue ? learningMaterialsValue.length : 0})`);
-    }
+  }
 
     if (updates.length === 0) {
       console.warn(`[updateLevelDetails] No updates to apply for level ${levelId}`);
       return;
     }
 
-    updates.push('updated_at = CURRENT_TIMESTAMP');
+  updates.push('updated_at = CURRENT_TIMESTAMP');
 
-    const query = `UPDATE levels SET ${updates.join(', ')} WHERE id = ?`;
-    params.push(levelId);
+  const query = `UPDATE levels SET ${updates.join(', ')} WHERE id = ?`;
+  params.push(levelId);
     
     console.log(`[updateLevelDetails] Executing query: ${query}`);
     console.log(`[updateLevelDetails] Params:`, params.map(p => typeof p === 'string' && p.length > 100 ? p.substring(0, 100) + '...' : p));
-    
-    await pool.query(query, params);
+
+  await pool.query(query, params);
     
     console.log(`[updateLevelDetails] Successfully updated level ${levelId}`);
   } catch (error: any) {

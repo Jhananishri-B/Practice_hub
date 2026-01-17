@@ -7,6 +7,7 @@ export interface Course {
   id: string;
   title: string;
   description: string | null;
+  overview: string | null;
   total_levels: number;
 }
 
@@ -22,12 +23,34 @@ export interface Level {
 export const getAllCourses = async (userId?: string): Promise<Course[]> => {
   try {
     console.log(`[getAllCourses] Fetching all courses for userId: ${userId || 'none'}`);
-    const result = await pool.query(
-      'SELECT id, title, description, total_levels FROM courses ORDER BY title'
-    );
-    const courses = getRows(result);
-    console.log(`[getAllCourses] Found ${courses.length} courses`);
-    return courses || [];
+    
+    // Try to fetch with overview column first
+    try {
+      const result = await pool.query(
+        'SELECT id, title, description, overview, total_levels FROM courses ORDER BY title'
+      );
+      const courses = getRows(result);
+      console.log(`[getAllCourses] Found ${courses.length} courses with overview`);
+      return courses || [];
+    } catch (queryError: any) {
+      // If overview column doesn't exist, fallback to query without it
+      if (queryError.code === 'ER_BAD_FIELD_ERROR' || queryError.message?.includes('Unknown column') || queryError.message?.includes('overview')) {
+        console.warn('[getAllCourses] Overview column not found, fetching without overview');
+        const result = await pool.query(
+          'SELECT id, title, description, total_levels FROM courses ORDER BY title'
+        );
+        const courses = getRows(result);
+        // Add null overview to each course
+        const coursesWithOverview = (courses || []).map((course: any) => ({
+          ...course,
+          overview: null
+        }));
+        console.log(`[getAllCourses] Found ${coursesWithOverview.length} courses without overview`);
+        return coursesWithOverview;
+      }
+      // Re-throw if it's a different error
+      throw queryError;
+    }
   } catch (error: any) {
     console.error('[getAllCourses] Error fetching courses:', error);
     console.error('[getAllCourses] Error stack:', error.stack);

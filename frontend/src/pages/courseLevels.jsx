@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import api from '../services/api';
-import { Check, Lock, BookOpen, ExternalLink } from 'lucide-react';
+import { Check, Lock, BookOpen, ExternalLink, ChevronDown, ChevronUp, GraduationCap } from 'lucide-react';
 
 const CourseLevels = () => {
   const { courseId } = useParams();
@@ -14,6 +14,7 @@ const CourseLevels = () => {
     open: false,
     level: null,
   });
+  const [showOverview, setShowOverview] = useState(false);
 
   useEffect(() => {
     fetchCourseData();
@@ -102,7 +103,36 @@ const CourseLevels = () => {
           <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2">
             {course?.title}
           </h1>
-          <p className="text-gray-600">{course?.description}</p>
+          <p className="text-gray-600 mb-4">{course?.description}</p>
+          
+          {/* Course Overview Section */}
+          {course?.overview && (
+            <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              <button
+                onClick={() => setShowOverview(!showOverview)}
+                className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50 transition-colors"
+              >
+                <span className="flex items-center gap-2 font-semibold text-gray-800">
+                  <BookOpen size={18} className="text-blue-600" />
+                  Course Overview
+                </span>
+                {showOverview ? (
+                  <ChevronUp size={20} className="text-gray-600" />
+                ) : (
+                  <ChevronDown size={20} className="text-gray-600" />
+                )}
+              </button>
+              {showOverview && (
+                <div className="px-4 pb-4 pt-2 border-t border-gray-200">
+                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                      {course.overview}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
@@ -179,16 +209,25 @@ const CourseLevels = () => {
                   </div>
                 )}
 
-                <button
-                  onClick={() => handleLevelClick(level)}
-                  className={`w-full py-2 rounded-lg font-medium transition-colors ${
-                    level.status === 'completed'
-                      ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                      : 'bg-blue-600 text-white hover:bg-blue-700'
-                  }`}
-                >
-                  {level.status === 'completed' ? 'Review' : 'Start Level'}
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => navigate(`/courses/${courseId}/level/${level.id}/learn`)}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors"
+                  >
+                    <GraduationCap size={18} />
+                    Learn
+                  </button>
+                  <button
+                    onClick={() => handleLevelClick(level)}
+                    className={`flex-1 py-2 rounded-lg font-medium transition-colors ${
+                      level.status === 'completed'
+                        ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                    }`}
+                  >
+                    {level.status === 'completed' ? 'Review' : 'Practice'}
+                  </button>
+                </div>
               </div>
             </div>
           ))}

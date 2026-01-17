@@ -71,16 +71,24 @@ const LevelOverview = () => {
                     concepts: editData.concepts,
                     resources: editData.resources,
                     key_terms: editData.key_terms
-                },
-                code_snippet: editData.example_code
+                }
             };
 
-            await api.put(`/admin/levels/${levelId}/details`, payload);
+            console.log('[LevelOverview] Saving payload:', payload);
+            const response = await api.put(`/admin/levels/${levelId}/details`, payload);
+            console.log('[LevelOverview] Save successful:', response.data);
+            
+            // Show success popup
+            alert("✅ Changes saved successfully!");
+            
             setIsEditing(false);
             fetchLessonPlan(); // Refresh
         } catch (error) {
             console.error("Failed to save level details", error);
-            alert("Failed to save changes.");
+            const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || 'Failed to save changes';
+            const errorDetails = error.response?.data?.details;
+            console.error('[LevelOverview] Error details:', errorDetails);
+            alert(`❌ Failed to save changes: ${errorMessage}`);
         }
     };
 

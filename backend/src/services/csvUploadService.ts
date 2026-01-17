@@ -74,7 +74,7 @@ export const parseAndCreateQuestionsFromCSV = async (
                 isHidden = 1;
               } else if (hiddenLower === '0' || hiddenLower === 'false') {
                 isHidden = 0;
-              } else {
+            } else {
                 errors.push(`Row ${rowNumber}: Invalid value for ${hiddenKey} "${hiddenValue}". Must be 0 or 1. Defaulting to 0.`);
               }
             }
@@ -84,7 +84,7 @@ export const parseAndCreateQuestionsFromCSV = async (
             const normalizedInput = normalizeExecutionInput(inputData);
             const normalizedOutput = normalizeExecutionInput(outputData);
             
-            testCases.push({
+                testCases.push({
               input_data: normalizedInput,
               expected_output: normalizedOutput,
               is_hidden: isHidden === 1,

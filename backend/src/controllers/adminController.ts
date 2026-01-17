@@ -205,16 +205,23 @@ export const uploadCSVQuestionsController = async (req: MulterRequest, res: Resp
     
     if (!req.file) {
       logger.warn('[uploadCSVQuestionsController] No file uploaded');
-      res.status(400).json({ error: 'No file uploaded' });
+      res.status(400).json({ 
+        error: 'No file uploaded',
+        details: 'Please select a CSV file to upload'
+      });
       return;
     }
 
     const { level_id } = req.body;
     logger.info(`[uploadCSVQuestionsController] level_id: ${level_id}`);
+    logger.info(`[uploadCSVQuestionsController] Request body keys: ${Object.keys(req.body).join(', ')}`);
     
     if (!level_id) {
       logger.warn('[uploadCSVQuestionsController] level_id is missing');
-      res.status(400).json({ error: 'level_id is required' });
+      res.status(400).json({ 
+        error: 'level_id is required',
+        details: 'Please ensure the level ID is included in the upload request'
+      });
       return;
     }
 
@@ -227,19 +234,19 @@ export const uploadCSVQuestionsController = async (req: MulterRequest, res: Resp
     let parseResult: CSVRow[];
     try {
       parseResult = parse(csvContent, {
-        columns: true,
-        skip_empty_lines: true,
-        trim: true,
+      columns: true,
+      skip_empty_lines: true,
+      trim: true,
         relax_column_count: true, // Allow inconsistent column counts (handles extra/missing columns)
         relax_quotes: true, // Allow quotes in unquoted fields
-        cast: (value: any, context: any) => {
-          // Transform header names to lowercase with underscores
-          if (context.header) {
-            return value.trim().toLowerCase().replace(/\s+/g, '_');
-          }
-          return value;
-        },
-      }) as CSVRow[];
+      cast: (value: any, context: any) => {
+        // Transform header names to lowercase with underscores
+        if (context.header) {
+          return value.trim().toLowerCase().replace(/\s+/g, '_');
+        }
+        return value;
+      },
+    }) as CSVRow[];
       
       // Log column count mismatches after parsing
       if (parseResult.length > 0) {
@@ -268,7 +275,10 @@ export const uploadCSVQuestionsController = async (req: MulterRequest, res: Resp
 
     if (parseResult.length === 0) {
       logger.warn('[uploadCSVQuestionsController] CSV file is empty or has no valid rows');
-      res.status(400).json({ error: 'CSV file is empty or has no valid rows' });
+      res.status(400).json({ 
+        error: 'CSV file is empty or has no valid rows',
+        hint: 'Please ensure your CSV file has at least one data row (excluding headers)'
+      });
       return;
     }
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import api from '../services/api';
-import { Search, Play } from 'lucide-react';
+import { Search, Play, ChevronDown, ChevronUp, BookOpen } from 'lucide-react';
 
 import { useAuth } from '../context/AuthContext';
 
@@ -11,6 +11,7 @@ const Dashboard = () => {
   const [courses, setCourses] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [expandedOverview, setExpandedOverview] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -138,7 +139,35 @@ const Dashboard = () => {
                     </div>
                     <div className="p-6">
                       <h3 className="text-xl font-bold text-gray-800 mb-2">{course.title}</h3>
-                      <p className="text-gray-600 text-sm mb-4">{course.description}</p>
+                      <p className="text-gray-600 text-sm mb-3">{course.description}</p>
+                      
+                      {/* Course Overview Section */}
+                      {course.overview && (
+                        <div className="mb-4">
+                          <button
+                            onClick={() => setExpandedOverview(expandedOverview === course.id ? null : course.id)}
+                            className="flex items-center justify-between w-full text-left text-sm font-medium text-blue-600 hover:text-blue-800 mb-2"
+                          >
+                            <span className="flex items-center gap-2">
+                              <BookOpen size={16} />
+                              Course Overview
+                            </span>
+                            {expandedOverview === course.id ? (
+                              <ChevronUp size={18} />
+                            ) : (
+                              <ChevronDown size={18} />
+                            )}
+                          </button>
+                          {expandedOverview === course.id && (
+                            <div className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                                {course.overview}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
                       <button
                         onClick={() => navigate(`/courses/${course.id}/levels`)}
                         className="w-full bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
