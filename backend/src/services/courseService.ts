@@ -36,9 +36,9 @@ export const getAllCourses = async (userId?: string): Promise<Course[]> => {
       // If overview column doesn't exist, fallback to query without it
       if (queryError.code === 'ER_BAD_FIELD_ERROR' || queryError.message?.includes('Unknown column') || queryError.message?.includes('overview')) {
         console.warn('[getAllCourses] Overview column not found, fetching without overview');
-        const result = await pool.query(
-          'SELECT id, title, description, total_levels FROM courses ORDER BY title'
-        );
+  const result = await pool.query(
+    'SELECT id, title, description, total_levels FROM courses ORDER BY title'
+  );
         const courses = getRows(result);
         // Add null overview to each course
         const coursesWithOverview = (courses || []).map((course: any) => ({
@@ -71,14 +71,14 @@ export const getCourseLevels = async (
   try {
     console.log(`[getCourseLevels] Starting for courseId: ${courseId}, userId: ${userId}`);
     
-    // Get all levels for the course
-    const levelsResult = await pool.query(
-      `SELECT l.id, l.course_id, l.level_number, l.title, l.description, l.topic_description, l.learning_materials
-       FROM levels l
-       WHERE l.course_id = ?
-       ORDER BY l.level_number`,
-      [courseId]
-    );
+  // Get all levels for the course
+  const levelsResult = await pool.query(
+    `SELECT l.id, l.course_id, l.level_number, l.title, l.description, l.topic_description, l.learning_materials
+     FROM levels l
+     WHERE l.course_id = ?
+     ORDER BY l.level_number`,
+    [courseId]
+  );
 
     const levelsRows = getRows(levelsResult);
     console.log(`[getCourseLevels] Found ${levelsRows.length} levels for course ${courseId}`);
@@ -91,15 +91,15 @@ export const getCourseLevels = async (
     // Get user progress for this course (with error handling)
     let progressMap = new Map<string, string>();
     try {
-      const progressResult = await pool.query(
-        `SELECT level_id, status FROM user_progress
-         WHERE user_id = ? AND course_id = ?`,
-        [userId, courseId]
-      );
-      const progressRows = getRows(progressResult);
+  const progressResult = await pool.query(
+    `SELECT level_id, status FROM user_progress
+     WHERE user_id = ? AND course_id = ?`,
+    [userId, courseId]
+  );
+  const progressRows = getRows(progressResult);
       progressMap = new Map(
-        progressRows.map((row: any) => [row.level_id, row.status])
-      );
+    progressRows.map((row: any) => [row.level_id, row.status])
+  );
       console.log(`[getCourseLevels] Found ${progressRows.length} progress entries for user ${userId}`);
     } catch (progressError: any) {
       console.warn(`[getCourseLevels] Error fetching progress, continuing without progress data:`, progressError.message);
@@ -109,51 +109,51 @@ export const getCourseLevels = async (
     // Get course title (with error handling)
     let courseTitle = '';
     try {
-      const courseResult = await pool.query(
-        'SELECT title FROM courses WHERE id = ?',
-        [courseId]
-      );
-      const courseRows = getRows(courseResult);
+  const courseResult = await pool.query(
+    'SELECT title FROM courses WHERE id = ?',
+    [courseId]
+  );
+  const courseRows = getRows(courseResult);
       courseTitle = courseRows[0]?.title || '';
     } catch (courseError: any) {
       console.warn(`[getCourseLevels] Error fetching course title:`, courseError.message);
-    }
+  }
 
     // Initialize user progress for level 1 if not exists (with error handling)
     try {
-      const firstLevel = levelsRows[0];
+    const firstLevel = levelsRows[0];
       if (firstLevel && !progressMap.has(firstLevel.id)) {
-        const progressId = randomUUID();
-        await pool.query(
-          `INSERT INTO user_progress (id, user_id, course_id, level_id, status)
-           VALUES (?, ?, ?, ?, 'unlocked')
+      const progressId = randomUUID();
+      await pool.query(
+        `INSERT INTO user_progress (id, user_id, course_id, level_id, status)
+         VALUES (?, ?, ?, ?, 'unlocked')
            ON DUPLICATE KEY UPDATE status='unlocked'`,
-          [progressId, userId, courseId, firstLevel.id]
-        );
-        progressMap.set(firstLevel.id, 'unlocked');
+        [progressId, userId, courseId, firstLevel.id]
+      );
+      progressMap.set(firstLevel.id, 'unlocked');
         console.log(`[getCourseLevels] Initialized progress for level 1`);
-      }
+    }
     } catch (insertError: any) {
       console.warn(`[getCourseLevels] Error inserting progress, continuing:`, insertError.message);
       // Continue even if insert fails - we'll just unlock level 1 by default
-    }
+  }
 
     // Map levels with status - simplified logic
-    const levels = levelsRows.map((level: any) => {
-      const userStatus = progressMap.get(level.id);
-      let status = 'locked';
+  const levels = levelsRows.map((level: any) => {
+    const userStatus = progressMap.get(level.id);
+    let status = 'locked';
 
-      // Level 1 is always unlocked
-      if (level.level_number === 1) {
+    // Level 1 is always unlocked
+    if (level.level_number === 1) {
         status = 'unlocked';
-      }
+    }
       // If user has progress on this level, use that status
-      else if (userStatus) {
-        status = userStatus as string;
-      }
+    else if (userStatus) {
+      status = userStatus as string;
+    }
       // Default to 'unlocked' for all levels
-      else {
-        status = 'unlocked';
+    else {
+          status = 'unlocked';
       }
 
       // Parse topic_description (JSON string) into coreTopics array
@@ -206,23 +206,23 @@ export const getCourseLevels = async (
         } catch (e) {
           console.warn(`[getCourseLevels] Failed to parse learning_materials for level ${level.id}:`, e);
           materials = [];
-        }
       }
+    }
 
-      return {
+    return {
         id: level.id,
         course_id: level.course_id,
         level_number: level.level_number,
         title: level.title,
         description: level.description,
-        status,
+      status,
         coreTopics: coreTopics || [],
         materials: materials || [],
-      };
-    });
+    };
+  });
 
     console.log(`[getCourseLevels] Returning ${levels.length} levels with status`);
-    return levels;
+  return levels;
   } catch (error: any) {
     console.error('[getCourseLevels] Error:', error);
     console.error('[getCourseLevels] Error stack:', error.stack);

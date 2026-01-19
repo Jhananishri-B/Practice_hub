@@ -19,7 +19,7 @@ const Dashboard = () => {
     const token = localStorage.getItem('token');
     console.log('Dashboard mounted. Token exists:', !!token, 'Token value:', token);
     if (token) {
-      fetchCourses();
+    fetchCourses();
     } else {
       console.error('No token found in localStorage! Redirecting to login...');
       navigate('/login');
@@ -82,7 +82,7 @@ const Dashboard = () => {
     if (title.includes('data science')) {
       return 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop';
     }
-    
+
     // Fallback gradient
     return null;
   };

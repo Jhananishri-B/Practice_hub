@@ -212,8 +212,8 @@ export const uploadCSVQuestionsController = async (req: MulterRequest, res: Resp
       return;
     }
 
-    const { level_id } = req.body;
-    logger.info(`[uploadCSVQuestionsController] level_id: ${level_id}`);
+    const { level_id, question_type } = req.body;
+    logger.info(`[uploadCSVQuestionsController] level_id: ${level_id}, question_type: ${question_type}`);
     logger.info(`[uploadCSVQuestionsController] Request body keys: ${Object.keys(req.body).join(', ')}`);
     
     if (!level_id) {
@@ -284,7 +284,9 @@ export const uploadCSVQuestionsController = async (req: MulterRequest, res: Resp
 
     // Process and create questions
     logger.info(`[uploadCSVQuestionsController] Processing ${parseResult.length} rows`);
-    const result = await parseAndCreateQuestionsFromCSV(parseResult, level_id);
+    // Default to mcq if question_type isn't provided
+    const normalizedQuestionType = (question_type || 'mcq') as 'coding' | 'mcq';
+    const result = await parseAndCreateQuestionsFromCSV(parseResult, level_id, normalizedQuestionType);
     logger.info(`[uploadCSVQuestionsController] Processing complete. Success: ${result.success}, Errors: ${result.errors.length}`);
 
     res.json({
@@ -333,18 +335,28 @@ export const generateQuestionsWithAIController = async (req: AuthRequest, res: R
 export const updateLevelDetailsController = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { levelId } = req.params;
-    const { description, learning_materials } = req.body;
+    const { title, description, learning_materials } = req.body;
 
     logger.info(`[updateLevelDetailsController] Updating level ${levelId}`);
     logger.info(`[updateLevelDetailsController] Request body:`, { 
+      hasTitle: title !== undefined,
       hasDescription: description !== undefined,
-      hasLearningMaterials: learning_materials !== undefined
+      hasLearningMaterials: learning_materials !== undefined,
+      learningMaterialsType: typeof learning_materials,
+      learningMaterialsKeys: learning_materials && typeof learning_materials === 'object' ? Object.keys(learning_materials) : 'N/A'
     });
+
+    // Log the actual content being saved (truncated for large objects)
+    if (learning_materials) {
+      const materialsStr = JSON.stringify(learning_materials);
+      logger.info(`[updateLevelDetailsController] Learning materials content (first 500 chars):`, materialsStr.substring(0, 500));
+    }
 
     // Import dynamically or move to top if no cycle
     const { updateLevelDetails } = await import('../services/adminService');
 
     await updateLevelDetails(levelId, {
+      title,
       description,
       learning_materials
     });

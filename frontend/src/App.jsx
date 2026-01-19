@@ -21,6 +21,7 @@ import AdminCourses from './pages/admin/courses';
 import AdminCourseLevels from './pages/admin/courseLevels';
 import AdminUsers from './pages/admin/users';
 import CreateQuestion from './pages/admin/createQuestion';
+import LevelQuestions from './pages/admin/levelQuestions';
 
 const AppRoutes = () => {
   const { user, loading } = useAuth();
@@ -133,6 +134,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute requireAdmin>
             <AdminCourseLevels />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/courses/:courseId/levels/:levelId/questions"
+        element={
+          <ProtectedRoute requireAdmin>
+            <LevelQuestions />
           </ProtectedRoute>
         }
       />

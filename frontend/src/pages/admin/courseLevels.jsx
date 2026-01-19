@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Sidebar from '../../components/Sidebar';
 import api from '../../services/api';
-import { Plus, Edit, Trash2, Clock, Upload, ArrowLeft, Loader, Sparkles } from 'lucide-react';
+import { Plus, Edit, Trash2, Clock, Upload, ArrowLeft, Loader, Sparkles, X } from 'lucide-react';
 
 const AdminCourseLevels = () => {
   const { courseId } = useParams();
@@ -11,7 +11,30 @@ const AdminCourseLevels = () => {
   const [course, setCourse] = useState(null);
   const [questions, setQuestions] = useState({});
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('coding'); // 'coding' | 'mcq'
+  const [editingLevel, setEditingLevel] = useState(null); // Track which level title is being edited: levelId
+  const mcqHeaders = [
+    'Problem Title',
+    'Question Description',
+    'Option A',
+    'Option B',
+    'Option C',
+    'Option D',
+    'Correct Answer (Text)',
+  ];
+
+  // Level title mapping for Machine Learning course
+  const levelTitleMap = {
+    1: 'ML Basics',
+    2: 'Regression Core',
+    3: 'Model Metrics',
+    4: 'Tree Models',
+    5: 'Probabilistic Models',
+    6: 'Advanced Classification',
+    7: 'Clustering Basics',
+    8: 'Advanced Clustering',
+    9: 'Model Comparison',
+    10: 'ML Mastery'
+  };
 
   // Modals
   const [timeLimitModal, setTimeLimitModal] = useState({ show: false, levelId: null, timeLimit: null });
@@ -149,17 +172,76 @@ const AdminCourseLevels = () => {
                   <div className="bg-blue-100 text-blue-700 w-12 h-12 rounded-xl flex items-center justify-center text-xl font-bold border border-blue-200">
                     {idx + 1}
                   </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-800">{level.title}</h3>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3">
+                      {editingLevel === level.id ? (
+                        <input
+                          type="text"
+                          defaultValue={level.title || levelTitleMap[level.level_number]}
+                          onBlur={(e) => {
+                            // Save the new title
+                            const newTitle = e.target.value.trim();
+                            const currentTitle = level.title || levelTitleMap[level.level_number];
+                            if (newTitle && newTitle !== currentTitle) {
+                              // Update level title via API
+                              api.put(`/admin/levels/${level.id}/details`, {
+                                title: newTitle
+                              }).then(() => {
+                                // Refresh data to get updated title
+                                fetchData();
+                                setEditingLevel(null);
+                                alert('✅ Title updated successfully!');
+                              }).catch(err => {
+                                alert('Failed to update level title: ' + (err.response?.data?.error || err.message));
+                                setEditingLevel(null);
+                              });
+                            } else {
+                              setEditingLevel(null);
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.target.blur();
+                            } else if (e.key === 'Escape') {
+                              setEditingLevel(null);
+                            }
+                          }}
+                          className="text-xl font-bold text-gray-800 border-2 border-blue-500 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          autoFocus
+                        />
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-xl font-bold text-gray-800">
+                            {level.title || levelTitleMap[level.level_number]}
+                          </h3>
+                          <button
+                            onClick={() => setEditingLevel(level.id)}
+                            className="text-gray-400 hover:text-blue-600 transition-colors p-1"
+                            title="Edit title"
+                          >
+                            <Edit size={16} />
+                          </button>
+                        </div>
+                      )}
+                      {editingLevel === level.id ? (
+                        <button
+                          onClick={() => setEditingLevel(null)}
+                          className="text-gray-400 hover:text-gray-600"
+                          title="Cancel editing"
+                        >
+                          <X size={18} />
+                        </button>
+                      ) : null}
+                    </div>
                     <p className="text-gray-500 text-sm mt-0.5">{level.description}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => navigate(`/courses/${courseId}/level/${level.id}/learn`)}
-                    className="flex items-center gap-2 px-4 py-2 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 transition-colors border border-purple-100 font-medium text-sm"
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors border border-blue-100 font-medium text-sm"
                   >
-                    <Edit size={16} /> Edit Overview
+                    <Edit size={16} /> View Overview
                   </button>
                   <button
                     onClick={() => setCsvUploadModal({ show: true, levelId: level.id, uploading: false, questionType: null })}
@@ -180,66 +262,21 @@ const AdminCourseLevels = () => {
                 </div>
               </div>
 
-              {/* Questions Body */}
+              {/* Questions Body - Navigate to questions page when buttons are clicked */}
               <div className="p-6 bg-gray-50/30">
-                <div className="flex items-center justify-between mb-6 border-b border-gray-200">
-                  <div className="flex items-center gap-6">
+                <div className="flex items-center gap-4">
                   <button
-                    onClick={() => setActiveTab('coding')}
-                    className={`pb-3 px-1 text-sm font-medium transition-all relative ${activeTab === 'coding' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                    onClick={() => navigate(`/admin/courses/${courseId}/levels/${level.id}/questions?type=coding`)}
+                    className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm hover:shadow-md"
                   >
                     Coding Questions
-                    {activeTab === 'coding' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 rounded-full"></div>}
                   </button>
                   <button
-                    onClick={() => setActiveTab('mcq')}
-                    className={`pb-3 px-1 text-sm font-medium transition-all relative ${activeTab === 'mcq' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                    onClick={() => navigate(`/admin/courses/${courseId}/levels/${level.id}/questions?type=mcq`)}
+                    className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm hover:shadow-md"
                   >
-                    Multiple Choice
-                    {activeTab === 'mcq' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 rounded-full"></div>}
+                    MCQ Questions
                   </button>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  {questions[level.id]?.filter(q => q.question_type === activeTab).length === 0 ? (
-                    <div className="text-center py-8 text-gray-400 text-sm italic">
-                      No {activeTab.toUpperCase()} questions in this level yet.
-                    </div>
-                  ) : (
-                    questions[level.id]?.filter(q => q.question_type === activeTab).map(q => (
-                      <div key={q.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between hover:border-blue-300 transition-colors group">
-                        <div className="flex items-center gap-3">
-                          <span className={`px-2 py-1 text-xs font-bold rounded uppercase ${q.difficulty === 'hard' ? 'bg-red-100 text-red-600' : q.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}`}>
-                            {q.difficulty}
-                          </span>
-                          <span className="text-gray-800 font-medium group-hover:text-blue-700 transition-colors">{q.title}</span>
-                        </div>
-                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => navigate(`/admin/questions/edit/${q.id}?type=${q.question_type}`)} className="p-1.5 hover:bg-gray-100 rounded text-gray-500" title="Edit Question">
-                            <Edit size={16} />
-                          </button>
-                          <button 
-                            onClick={async () => {
-                              if (confirm(`Are you sure you want to delete "${q.title}"? This action cannot be undone.`)) {
-                                try {
-                                  await api.delete(`/admin/questions/${q.id}`);
-                                  alert('Question deleted successfully');
-                                  fetchData();
-                                } catch (err) {
-                                  alert('Failed to delete question: ' + (err.response?.data?.error || err.message));
-                                }
-                              }
-                            }}
-                            className="p-1.5 hover:bg-red-50 rounded text-gray-500 hover:text-red-600" 
-                            title="Delete Question"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
                 </div>
               </div>
 
@@ -270,7 +307,22 @@ const AdminCourseLevels = () => {
                   </div>
                 ) : (
                   <div>
-                    <p className="text-sm text-gray-500 mb-3">Upload <b>{csvUploadModal.questionType}</b> questions CSV.</p>
+                    <p className="text-sm text-gray-500 mb-3">
+                      Upload <b>{csvUploadModal.questionType}</b> questions CSV.
+                    </p>
+                    {csvUploadModal.questionType === 'mcq' && (
+                      <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                        <p className="text-sm font-semibold text-gray-700 mb-2">Required columns (exact):</p>
+                        <ul className="text-sm text-gray-600 list-disc list-inside space-y-1">
+                          {mcqHeaders.map(header => (
+                            <li key={header}>{header}</li>
+                          ))}
+                        </ul>
+                        <p className="text-xs text-gray-500 mt-2">
+                          Correct Answer (Text) must exactly match one option (case-insensitive).
+                        </p>
+                      </div>
+                    )}
                     <input
                       type="file"
                       accept=".csv"

@@ -229,6 +229,7 @@ export const updateLevelTimeLimit = async (levelId: string, timeLimit: number | 
 export const updateLevelDetails = async (
   levelId: string,
   data: {
+    title?: string;
     description?: string;
     learning_materials?: any;
   }
@@ -247,6 +248,12 @@ export const updateLevelDetails = async (
     
   const updates: string[] = [];
   const params: any[] = [];
+
+  if (data.title !== undefined) {
+    updates.push('title = ?');
+    params.push(data.title || null);
+    console.log(`[updateLevelDetails] Adding title update`);
+  }
 
   if (data.description !== undefined) {
     updates.push('description = ?');

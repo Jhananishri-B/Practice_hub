@@ -115,12 +115,12 @@ const CourseLevels = () => {
                 <span className="flex items-center gap-2 font-semibold text-gray-800">
                   <BookOpen size={18} className="text-blue-600" />
                   Course Overview
-                </span>
+              </span>
                 {showOverview ? (
                   <ChevronUp size={20} className="text-gray-600" />
                 ) : (
                   <ChevronDown size={20} className="text-gray-600" />
-                )}
+            )}
               </button>
               {showOverview && (
                 <div className="px-4 pb-4 pt-2 border-t border-gray-200">
@@ -143,16 +143,16 @@ const CourseLevels = () => {
             >
               <div className="h-32 w-full overflow-hidden bg-gray-200 relative">
                 {getCourseImage() ? (
-                  <img
-                    src={getCourseImage()}
-                    alt={course?.title || 'Course banner'}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
+                <img
+                  src={getCourseImage()}
+                  alt={course?.title || 'Course banner'}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
                       e.target.onerror = null;
-                      e.target.style.display = 'none';
-                      e.target.parentElement.style.background = 'linear-gradient(to bottom right, #667eea, #764ba2)';
-                    }}
-                  />
+                    e.target.style.display = 'none';
+                    e.target.parentElement.style.background = 'linear-gradient(to bottom right, #667eea, #764ba2)';
+                  }}
+                />
                 ) : (
                   <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900"></div>
                 )}
@@ -217,16 +217,16 @@ const CourseLevels = () => {
                     <GraduationCap size={18} />
                     Learn
                   </button>
-                  <button
+                <button
                     onClick={() => handleLevelClick(level)}
                     className={`flex-1 py-2 rounded-lg font-medium transition-colors ${
                       level.status === 'completed'
-                        ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
                     }`}
-                  >
+                >
                     {level.status === 'completed' ? 'Review' : 'Practice'}
-                  </button>
+                </button>
                 </div>
               </div>
             </div>
@@ -273,8 +273,8 @@ const CourseLevels = () => {
                   Cancel
                 </button>
               </div>
-            </div>
-          </div>
+      </div>
+    </div>
         )}
 
       </div>

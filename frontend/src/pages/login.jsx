@@ -17,7 +17,7 @@ const Login = () => {
     setLoading(true);
 
     const result = await login(username, password);
-
+    
     if (result.success) {
       if (result.user.role === 'admin') {
         navigate('/admin/overview');
@@ -27,14 +27,14 @@ const Login = () => {
     } else {
       setError(result.error || 'Login failed');
     }
-
+    
     setLoading(false);
   };
 
   const handleGoogleSuccess = async (codeResponse) => {
     setError('');
     setLoading(true);
-
+    
     try {
       // Send authorization code to backend with redirect URI
       const redirectUri = window.location.origin;
@@ -83,9 +83,9 @@ const Login = () => {
               <GoogleLoginButton
                 onSuccess={handleGoogleSuccess}
                 onError={handleGoogleError}
-                disabled={loading}
+            disabled={loading}
               />
-              <div className="text-center text-gray-500 text-sm mb-4">or</div>
+          <div className="text-center text-gray-500 text-sm mb-4">or</div>
             </>
           )}
 
