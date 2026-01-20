@@ -33,91 +33,241 @@ export const parseAndCreateQuestionsFromCSV = async (
     return { success: 0, errors: [`Failed to validate level: ${levelError.message}`] };
   }
 
-  // Enforce questionType and new MCQ format only
+  // Determine question type
   const enforcedType = questionType || 'mcq';
-
-  if (enforcedType !== 'mcq') {
-    logger.warn(`[parseAndCreateQuestionsFromCSV] Only MCQ uploads are supported via CSV. Received type: ${enforcedType}`);
-    return { success: 0, errors: ['Only MCQ CSV uploads are supported. Please choose MCQ and provide the required columns.'] };
-  }
 
   for (let i = 0; i < csvData.length; i++) {
     const row = csvData[i];
     const rowNumber = i + 2; // +2 because row 1 is header, and arrays are 0-indexed
 
     try {
-      logger.info(`[parseAndCreateQuestionsFromCSV] Processing row ${rowNumber}. Keys: ${Object.keys(row).join(', ')}`);
+      logger.info(`[parseAndCreateQuestionsFromCSV] Processing row ${rowNumber}. Type: ${enforcedType}, Keys: ${Object.keys(row).join(', ')}`);
 
-      // Expected headers (case-insensitive, underscores applied by parser):
-      // Problem Title -> problem_title
-      // Question Description -> question_description
-      // Option A/B/C/D -> option_a / option_b / option_c / option_d
-      // Correct Answer (Text) -> correct_answer (must match one of the options, case-insensitive)
-      const requiredHeadersPresent =
-        row.problem_title !== undefined &&
-        row.question_description !== undefined &&
-        row.option_a !== undefined &&
-        row.option_b !== undefined &&
-        row.option_c !== undefined &&
-        row.option_d !== undefined &&
-        row.correct_answer !== undefined;
+      // Handle MCQ questions
+      if (enforcedType === 'mcq') {
+        // Expected headers for MCQ (case-insensitive, spaces converted to underscores by parser):
+        // title, description, option1, option2, option3, option4, correct_option, difficulty
+        const requiredHeadersPresent =
+          row.title !== undefined &&
+          row.description !== undefined &&
+          row.option1 !== undefined &&
+          row.option2 !== undefined &&
+          row.option3 !== undefined &&
+          row.option4 !== undefined &&
+          row.correct_option !== undefined;
 
-      if (!requiredHeadersPresent) {
-        errors.push(
-          `Row ${rowNumber}: Missing required columns. Expected headers: Problem Title, Question Description, Option A, Option B, Option C, Option D, Correct Answer (Text).`
-        );
+        if (!requiredHeadersPresent) {
+          errors.push(
+            `Row ${rowNumber}: Missing required columns. Expected headers: title, description, option1, option2, option3, option4, correct_option, difficulty.`
+          );
+          continue;
+        }
+
+        const title = row.title?.toString().trim();
+        const description = row.description?.toString().trim();
+        const opt1 = row.option1?.toString().trim();
+        const opt2 = row.option2?.toString().trim();
+        const opt3 = row.option3?.toString().trim();
+        const opt4 = row.option4?.toString().trim();
+        const correctOptionRaw = row.correct_option?.toString().trim();
+        const difficulty = row.difficulty?.toString().trim() || 'medium';
+
+        // Validate required fields
+        if (!title || !description) {
+          errors.push(`Row ${rowNumber}: Missing title or description`);
+          continue;
+        }
+
+        // Collect options (must have all four; ignore empty strings but require at least 2)
+        const optionTexts = [opt1, opt2, opt3, opt4].filter(Boolean) as string[];
+        if (optionTexts.length < 2) {
+          errors.push(`Row ${rowNumber}: MCQ questions must have at least 2 options (option1-option4)`);
+          continue;
+        }
+
+        if (!correctOptionRaw) {
+          errors.push(`Row ${rowNumber}: correct_option is required and must match one of the options exactly (case-insensitive)`);
+          continue;
+        }
+
+        // Validate difficulty - handle case-insensitive matching (e.g., "Easy" -> "easy")
+        const validDifficulties = ['easy', 'medium', 'hard'];
+        const normalizedDifficulty = difficulty.toLowerCase().trim();
+        if (!validDifficulties.includes(normalizedDifficulty)) {
+          errors.push(`Row ${rowNumber}: difficulty must be one of: easy, medium, hard. Got: "${difficulty}"`);
+          continue;
+        }
+
+        // Match correct answer against options (case-insensitive, trimmed)
+        const correctLower = correctOptionRaw.toLowerCase();
+        const matchedIndex = optionTexts.findIndex(opt => opt.toLowerCase() === correctLower);
+        if (matchedIndex === -1) {
+          errors.push(`Row ${rowNumber}: correct_option "${correctOptionRaw}" does not match any option (option1-option4). It must exactly match one of the option texts.`);
+          continue;
+        }
+
+        // Build options array with is_correct flag
+        const options = optionTexts.map((opt, idx) => ({
+          option_text: opt,
+          is_correct: idx === matchedIndex,
+        }));
+
+        await createMCQQuestion({
+          level_id: levelId,
+          title,
+          description,
+          options,
+          difficulty: normalizedDifficulty,
+        });
+
+        successCount++;
+      } 
+      // Handle Coding questions
+      else if (enforcedType === 'coding') {
+        // Expected headers for Coding (case-insensitive, spaces converted to underscores by parser):
+        // title, description, input_format, output_format, constraints, reference_solution, difficulty
+        const requiredHeadersPresent =
+          row.title !== undefined &&
+          row.description !== undefined &&
+          row.reference_solution !== undefined;
+
+        if (!requiredHeadersPresent) {
+          errors.push(
+            `Row ${rowNumber}: Missing required columns. Expected headers: title, description, reference_solution, difficulty. Optional: input_format, output_format, constraints.`
+          );
+          continue;
+        }
+
+        const title = row.title?.toString().trim();
+        const description = row.description?.toString().trim();
+        const inputFormat = row.input_format?.toString().trim() || null;
+        const outputFormat = row.output_format?.toString().trim() || null;
+        const constraints = row.constraints?.toString().trim() || null;
+        const referenceSolution = row.reference_solution?.toString().trim();
+        const difficulty = row.difficulty?.toString().trim() || 'medium';
+
+        // Validate required fields
+        if (!title || !description || !referenceSolution) {
+          errors.push(`Row ${rowNumber}: Missing title, description, or reference_solution`);
+          continue;
+        }
+
+        // Validate difficulty
+        const validDifficulties = ['easy', 'medium', 'hard'];
+        const normalizedDifficulty = difficulty.toLowerCase();
+        if (!validDifficulties.includes(normalizedDifficulty)) {
+          errors.push(`Row ${rowNumber}: difficulty must be one of: easy, medium, hard. Got: "${difficulty}"`);
+          continue;
+        }
+
+        // For coding questions, we need at least one test case
+        // Test cases can be provided in columns with two possible formats:
+        // Format 1: testcase1_input, testcase1_output, testcase1_hidden (no underscores)
+        // Format 2: test_case_1_input, test_case_1_output, test_case_1_hidden (with underscores)
+        const testCases: Array<{ input_data: string; expected_output: string; is_hidden: boolean }> = [];
+        
+        // Helper function to get test case value trying both naming formats
+        const getTestCaseValue = (index: number, field: 'input' | 'output' | 'hidden'): string | undefined => {
+          // Try format 1: testcase1_input (no underscores in "testcase")
+          const format1 = `testcase${index}_${field}`;
+          if (row[format1] !== undefined && row[format1] !== null && row[format1] !== '') {
+            logger.debug(`[parseAndCreateQuestionsFromCSV] Row ${rowNumber}: Found test case ${index} ${field} using format1: ${format1}`);
+            return row[format1]?.toString().trim();
+          }
+          // Try format 2: test_case_1_input (with underscores)
+          const format2 = `test_case_${index}_${field}`;
+          if (row[format2] !== undefined && row[format2] !== null && row[format2] !== '') {
+            logger.debug(`[parseAndCreateQuestionsFromCSV] Row ${rowNumber}: Found test case ${index} ${field} using format2: ${format2}`);
+            return row[format2]?.toString().trim();
+          }
+          return undefined;
+        };
+
+        // Log available column keys for debugging
+        const allKeys = Object.keys(row);
+        const testCaseKeys = allKeys.filter(key => key.includes('testcase') || key.includes('test_case'));
+        if (testCaseKeys.length > 0) {
+          logger.info(`[parseAndCreateQuestionsFromCSV] Row ${rowNumber}: Found test case related columns: ${testCaseKeys.join(', ')}`);
+        }
+
+        // Look for test case columns (try up to 20 test cases)
+        let testCaseIndex = 1;
+        let foundAnyTestCase = false;
+        
+        while (testCaseIndex <= 20) {
+          const input = getTestCaseValue(testCaseIndex, 'input');
+          const output = getTestCaseValue(testCaseIndex, 'output');
+          
+          // If we have both input and output, create a test case
+          if (input !== undefined && output !== undefined && input !== '' && output !== '') {
+            foundAnyTestCase = true;
+            const hiddenStr = getTestCaseValue(testCaseIndex, 'hidden');
+            // Check if hidden: true/1/"true"/"1", otherwise false
+            const isHidden = hiddenStr !== undefined && (
+              hiddenStr.toLowerCase() === 'true' || 
+              hiddenStr === '1' || 
+              hiddenStr.toLowerCase() === 'yes'
+            );
+
+            // Convert //n (double forward slash + n) to actual newlines (\n)
+            // This handles multi-line input/output in CSV format
+            // Example: "3//n5 5 5" becomes "3\n5 5 5"
+            const normalizeNewlines = (text: string): string => {
+              if (!text) return text;
+              return text.replace(/\/\/n/g, '\n');
+            };
+
+            const normalizedInput = normalizeNewlines(input);
+            const normalizedOutput = normalizeNewlines(output);
+
+            logger.debug(`[parseAndCreateQuestionsFromCSV] Row ${rowNumber}: Test case ${testCaseIndex} - Original input: "${input}", Normalized: "${normalizedInput}"`);
+
+            testCases.push({
+              input_data: normalizedInput,
+              expected_output: normalizedOutput,
+              is_hidden: isHidden,
+            });
+          } else if (input === undefined && output === undefined) {
+            // If neither format found for this index, stop looking
+            // (unless we already found some test cases, in which case continue a bit more)
+            if (foundAnyTestCase || testCaseIndex > 10) {
+              break;
+            }
+          }
+          
+          testCaseIndex++;
+        }
+
+        // Log test case extraction for debugging
+        logger.info(`[parseAndCreateQuestionsFromCSV] Row ${rowNumber}: Found ${testCases.length} test case(s)`);
+
+        // If no test cases provided, create a default one
+        if (testCases.length === 0) {
+          logger.warn(`[parseAndCreateQuestionsFromCSV] Row ${rowNumber}: No test cases found, creating default empty test case`);
+          testCases.push({
+            input_data: '',
+            expected_output: '',
+            is_hidden: false,
+          });
+        }
+
+        await createCodingQuestion({
+          level_id: levelId,
+          title,
+          description,
+          input_format: inputFormat || undefined,
+          output_format: outputFormat || undefined,
+          constraints: constraints || undefined,
+          reference_solution: referenceSolution,
+          difficulty: normalizedDifficulty,
+          test_cases: testCases,
+        });
+
+        successCount++;
+      } else {
+        errors.push(`Row ${rowNumber}: Unknown question type: ${enforcedType}. Must be 'mcq' or 'coding'.`);
         continue;
       }
-
-      const title = row.problem_title?.toString().trim();
-      const description = row.question_description?.toString().trim();
-      const optA = row.option_a?.toString().trim();
-      const optB = row.option_b?.toString().trim();
-      const optC = row.option_c?.toString().trim();
-      const optD = row.option_d?.toString().trim();
-      const correctAnswerRaw = row.correct_answer?.toString().trim();
-
-      // Validate required fields
-      if (!title || !description) {
-        errors.push(`Row ${rowNumber}: Missing Problem Title or Question Description`);
-        continue;
-      }
-
-      // Collect options (must have all four; ignore empty strings but require at least 2)
-      const optionTexts = [optA, optB, optC, optD].filter(Boolean) as string[];
-      if (optionTexts.length < 2) {
-        errors.push(`Row ${rowNumber}: MCQ questions must have at least 2 options (Option A-D)`);
-        continue;
-      }
-
-      if (!correctAnswerRaw) {
-        errors.push(`Row ${rowNumber}: Correct Answer is required and must match one of the options exactly (case-insensitive)`);
-        continue;
-      }
-
-      // Match correct answer against options (case-insensitive, trimmed)
-      const correctLower = correctAnswerRaw.toLowerCase();
-      const matchedIndex = optionTexts.findIndex(opt => opt.toLowerCase() === correctLower);
-      if (matchedIndex === -1) {
-        errors.push(`Row ${rowNumber}: Correct Answer "${correctAnswerRaw}" does not match any option (A-D). It must exactly match one of the option texts.`);
-        continue;
-      }
-
-      // Build options array with is_correct flag
-      const options = optionTexts.map((opt, idx) => ({
-        option_text: opt,
-        is_correct: idx === matchedIndex,
-      }));
-
-      await createMCQQuestion({
-        level_id: levelId,
-        title,
-        description,
-        options,
-        difficulty: row.difficulty?.toLowerCase() || 'medium',
-      });
-
-      successCount++;
     } catch (error: any) {
       logger.error(`[parseAndCreateQuestionsFromCSV] Error processing CSV row ${rowNumber}:`, error);
       logger.error(`[parseAndCreateQuestionsFromCSV] Row ${rowNumber} error message:`, error.message);

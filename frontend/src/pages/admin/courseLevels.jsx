@@ -13,13 +13,27 @@ const AdminCourseLevels = () => {
   const [loading, setLoading] = useState(true);
   const [editingLevel, setEditingLevel] = useState(null); // Track which level title is being edited: levelId
   const mcqHeaders = [
-    'Problem Title',
-    'Question Description',
-    'Option A',
-    'Option B',
-    'Option C',
-    'Option D',
-    'Correct Answer (Text)',
+    'title',
+    'description',
+    'option1',
+    'option2',
+    'option3',
+    'option4',
+    'correct_option',
+    'difficulty',
+  ];
+  const codingHeaders = [
+    'title',
+    'description',
+    'input_format',
+    'output_format',
+    'constraints',
+    'reference_solution',
+    'difficulty',
+    'test_case_1_input (optional)',
+    'test_case_1_output (optional)',
+    'test_case_2_input (optional)',
+    'test_case_2_output (optional)',
   ];
 
   // Level title mapping for Machine Learning course
@@ -315,11 +329,27 @@ const AdminCourseLevels = () => {
                         <p className="text-sm font-semibold text-gray-700 mb-2">Required columns (exact):</p>
                         <ul className="text-sm text-gray-600 list-disc list-inside space-y-1">
                           {mcqHeaders.map(header => (
-                            <li key={header}>{header}</li>
+                            <li key={header}><code className="bg-white px-1 py-0.5 rounded text-xs">{header}</code></li>
                           ))}
                         </ul>
                         <p className="text-xs text-gray-500 mt-2">
-                          Correct Answer (Text) must exactly match one option (case-insensitive).
+                          <code>correct_option</code> must exactly match one of <code>option1</code>, <code>option2</code>, <code>option3</code>, or <code>option4</code> (case-insensitive).
+                          <code>difficulty</code> must be one of: <code>easy</code>, <code>medium</code>, or <code>hard</code>.
+                        </p>
+                      </div>
+                    )}
+                    {csvUploadModal.questionType === 'coding' && (
+                      <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                        <p className="text-sm font-semibold text-gray-700 mb-2">Required columns (exact):</p>
+                        <ul className="text-sm text-gray-600 list-disc list-inside space-y-1">
+                          {codingHeaders.map(header => (
+                            <li key={header}><code className="bg-white px-1 py-0.5 rounded text-xs">{header}</code></li>
+                          ))}
+                        </ul>
+                        <p className="text-xs text-gray-500 mt-2">
+                          Required: <code>title</code>, <code>description</code>, <code>reference_solution</code>, <code>difficulty</code>.
+                          Optional: <code>input_format</code>, <code>output_format</code>, <code>constraints</code>, test case columns.
+                          <code>difficulty</code> must be one of: <code>easy</code>, <code>medium</code>, or <code>hard</code>.
                         </p>
                       </div>
                     )}
