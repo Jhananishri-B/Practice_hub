@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import Layout from '../../components/Layout';
 import api from '../../services/api';
-import { Search, Edit, Trash2, Trophy } from 'lucide-react';
+import { Search, Edit, Trash2, Trophy, RefreshCw } from 'lucide-react';
 
 const AdminLeaderboard = () => {
     const [leaderboard, setLeaderboard] = useState([]);
@@ -10,10 +10,11 @@ const AdminLeaderboard = () => {
 
     useEffect(() => {
         fetchData();
-    }, [searchTerm]);
+    }, []);
 
     const fetchData = async () => {
         try {
+            setLoading(true);
             const response = await api.get('/progress/leaderboard?limit=50');
             setLeaderboard(response.data);
         } catch (error) {
@@ -69,15 +70,25 @@ const AdminLeaderboard = () => {
                                 <p className="text-gray-600 text-sm">Top performers ranked by levels cleared</p>
                             </div>
                         </div>
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                            <input
-                                type="text"
-                                placeholder="Search by student name or ID..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            />
+                        <div className="flex items-center gap-3">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                                <input
+                                    type="text"
+                                    placeholder="Search by student name or ID..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                />
+                            </div>
+                            <button
+                                onClick={fetchData}
+                                className="flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+                                title="Refresh data"
+                            >
+                                <RefreshCw size={20} />
+                                <span className="hidden md:inline">Refresh</span>
+                            </button>
                         </div>
                     </div>
 

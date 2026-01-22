@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import Sidebar from '../../components/Sidebar';
 import api from '../../services/api';
-import { ArrowLeft, Edit, Trash2, Plus, X } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Plus } from 'lucide-react';
 
 const LevelQuestions = () => {
   const { courseId, levelId } = useParams();
@@ -13,8 +13,6 @@ const LevelQuestions = () => {
   const [loading, setLoading] = useState(true);
   const [questionType, setQuestionType] = useState(searchParams.get('type') || 'coding'); // 'coding' | 'mcq'
   const [selectedIds, setSelectedIds] = useState(new Set());
-  const [editingLevelTitle, setEditingLevelTitle] = useState(false);
-  const [editingLevelDescription, setEditingLevelDescription] = useState(false);
 
   // Level title mapping removed in favor of dynamic titles from backend
 
@@ -127,114 +125,13 @@ const LevelQuestions = () => {
           </button>
 
           <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <div className="flex items-center gap-3">
-                {editingLevelTitle ? (
-                  <input
-                    type="text"
-                    defaultValue={level?.title || ''}
-                    onBlur={(e) => {
-                      const newTitle = e.target.value.trim();
-                      const currentTitle = level?.title || '';
-                      if (newTitle && newTitle !== currentTitle) {
-                        api.put(`/admin/levels/${levelId}/details`, {
-                          title: newTitle
-                        }).then(() => {
-                          fetchData();
-                          setEditingLevelTitle(false);
-                          alert('✅ Level title updated successfully!');
-                        }).catch(err => {
-                          alert('Failed to update level title: ' + (err.response?.data?.error || err.message));
-                          setEditingLevelTitle(false);
-                        });
-                      } else {
-                        setEditingLevelTitle(false);
-                      }
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.target.blur();
-                      } else if (e.key === 'Escape') {
-                        setEditingLevelTitle(false);
-                      }
-                    }}
-                    className="text-4xl font-extrabold text-gray-900 tracking-tight border-2 border-blue-500 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    autoFocus
-                  />
-                ) : (
-                  <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
-                    {level?.title ? `Level ${level?.level_number}: ${level?.title}` : 'Level Questions'}
-                  </h1>
-                )}
-                {!editingLevelTitle && (
-                  <button
-                    onClick={() => setEditingLevelTitle(true)}
-                    className="text-gray-400 hover:text-blue-600 transition-colors p-2"
-                    title="Edit level title"
-                  >
-                    <Edit size={20} />
-                  </button>
-                )}
-                {editingLevelTitle && (
-                  <button
-                    onClick={() => setEditingLevelTitle(false)}
-                    className="text-gray-400 hover:text-gray-600"
-                    title="Cancel editing"
-                  >
-                    <X size={20} />
-                  </button>
-                )}
-              </div>
-              {editingLevelDescription ? (
-                <div className="mt-2">
-                  <textarea
-                    defaultValue={level?.description || ''}
-                    onBlur={(e) => {
-                      const newDescription = e.target.value.trim();
-                      const currentDescription = level?.description || '';
-                      if (newDescription !== currentDescription) {
-                        api.put(`/admin/levels/${levelId}/details`, {
-                          description: newDescription
-                        }).then(() => {
-                          fetchData();
-                          setEditingLevelDescription(false);
-                          alert('✅ Level description updated successfully!');
-                        }).catch(err => {
-                          alert('Failed to update level description: ' + (err.response?.data?.error || err.message));
-                          setEditingLevelDescription(false);
-                        });
-                      } else {
-                        setEditingLevelDescription(false);
-                      }
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && e.ctrlKey) {
-                        e.target.blur();
-                      } else if (e.key === 'Escape') {
-                        setEditingLevelDescription(false);
-                      }
-                    }}
-                    className="w-full text-sm text-gray-700 border-2 border-blue-500 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                    rows={3}
-                    autoFocus
-                    placeholder="Enter level description..."
-                  />
-                  <p className="text-xs text-gray-400 mt-1">Press Ctrl+Enter to save, Esc to cancel</p>
-                </div>
-              ) : (
-                <div className="flex items-start gap-2 mt-1">
-                  <p className="text-gray-500">
-                    {level?.description || 'No description'} • {questions.length} {questionType === 'coding' ? 'Coding' : 'MCQ'} Questions
-                  </p>
-                  <button
-                    onClick={() => setEditingLevelDescription(true)}
-                    className="text-gray-400 hover:text-blue-600 transition-colors p-1 flex-shrink-0"
-                    title="Edit description"
-                  >
-                    <Edit size={14} />
-                  </button>
-                </div>
-              )}
+            <div>
+              <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
+                {level?.title ? `Level ${level?.level_number}: ${level?.title}` : 'Level Questions'}
+              </h1>
+              <p className="text-gray-500 mt-1">
+                {level?.description ? `${level.description} • ` : ''}{questions.length} {questionType === 'coding' ? 'Coding' : 'MCQ'} Questions
+              </p>
             </div>
             <div className="flex items-center gap-3">
               {selectedIds.size > 0 && (

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import Layout from '../../components/Layout';
 import api from '../../services/api';
-import { Search, Plus, Edit, Trash2, Users } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Users, RefreshCw } from 'lucide-react';
 
 const AdminUsers = () => {
   const [users, setUsers] = useState([]);
@@ -14,11 +14,12 @@ const AdminUsers = () => {
 
   useEffect(() => {
     fetchUsers();
-  }, [searchTerm]);
+  }, []);
 
   const fetchUsers = async () => {
     try {
-      const response = await api.get(`/admin/users${searchTerm ? `?search=${searchTerm}` : ''}`);
+      setLoading(true);
+      const response = await api.get('/admin/users');
       setUsers(response.data);
     } catch (error) {
       console.error('Failed to fetch users:', error);
@@ -26,6 +27,18 @@ const AdminUsers = () => {
       setLoading(false);
     }
   };
+
+  // Client-side filtering for instant search
+  const filteredUsers = users.filter(user => {
+    if (!searchTerm) return true;
+    const search = searchTerm.toLowerCase();
+    return (
+      user.name?.toLowerCase().includes(search) ||
+      user.username?.toLowerCase().includes(search) ||
+      user.email?.toLowerCase().includes(search) ||
+      user.roll_number?.toLowerCase().includes(search)
+    );
+  });
 
   const handleAddUser = async (e) => {
     e.preventDefault();
@@ -124,11 +137,19 @@ const AdminUsers = () => {
                 />
               </div>
               <button
+                onClick={fetchUsers}
+                className="flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+                title="Refresh data"
+              >
+                <RefreshCw size={18} />
+                <span className="hidden md:inline">Refresh</span>
+              </button>
+              <button
                 onClick={() => setShowAddModal(true)}
                 className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
               >
                 <Plus size={18} />
-                Add User
+                <span className="hidden md:inline">Add User</span>
               </button>
             </div>
           </div>
@@ -146,8 +167,8 @@ const AdminUsers = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {users.length > 0 ? (
-                  users.map((user) => (
+                {filteredUsers.length > 0 ? (
+                  filteredUsers.map((user) => (
                     <tr key={user.id} className="hover:bg-blue-50/30 transition-colors group">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         #{user.id.substring(0, 8)}
