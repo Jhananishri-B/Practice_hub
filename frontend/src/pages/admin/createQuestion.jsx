@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import Layout from '../../components/Layout';
 import Editor from '@monaco-editor/react';
 import api from '../../services/api';
-import { Plus, Trash2, Save, CheckCircle, Upload } from 'lucide-react';
+import { Plus, Trash2, Save, CheckCircle } from 'lucide-react';
 
 const CreateQuestion = () => {
   const [searchParams] = useSearchParams();
@@ -12,7 +12,6 @@ const CreateQuestion = () => {
   const courseId = searchParams.get('courseId') || searchParams.get('course_id');
   const questionTypeParam = searchParams.get('type');
   const navigate = useNavigate();
-  const fileInputRef = useRef(null);
 
   const isEditMode = !!questionId;
   const [questionType, setQuestionType] = useState(questionTypeParam || 'coding');
@@ -246,61 +245,7 @@ const CreateQuestion = () => {
     setFormData({ ...formData, test_cases: newTestCases });
   };
 
-  const handleJsonUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const jsonData = JSON.parse(event.target.result);
-
-        // Basic validation
-        if (!jsonData.title || !jsonData.description) {
-          alert('Invalid JSON format. Required fields: title, description');
-          return;
-        }
-
-        // Detect type from JSON or default to current
-        if (jsonData.type) {
-          if (jsonData.type === 'coding' || jsonData.type === 'mcq') {
-            setQuestionType(jsonData.type);
-          }
-        } else if (jsonData.options) {
-          setQuestionType('mcq');
-        } else if (jsonData.test_cases) {
-          setQuestionType('coding');
-        }
-
-        // Update form data (merging with defaults for missing fields)
-        setFormData(prev => ({
-          ...prev,
-          title: jsonData.title || '',
-          description: jsonData.description || '',
-          input_format: jsonData.input_format || '',
-          output_format: jsonData.output_format || '',
-          constraints: jsonData.constraints || '',
-          reference_solution: jsonData.reference_solution || '',
-          difficulty: jsonData.difficulty || 'medium',
-          // Ensure test cases are arrays
-          test_cases: Array.isArray(jsonData.test_cases) ? jsonData.test_cases : prev.test_cases,
-          // Ensure options are arrays
-          options: Array.isArray(jsonData.options) ? jsonData.options : prev.options,
-          correct_answer: jsonData.correct_answer || ''
-        }));
-
-        alert('Question data imported successfully!');
-      } catch (error) {
-        console.error('Error importing JSON:', error);
-        alert('Failed to parse JSON.');
-      } finally {
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-      }
-    };
-    reader.readAsText(file);
-  };
 
   return (
     <Layout>
@@ -330,22 +275,6 @@ const CreateQuestion = () => {
             </div>
           </div>
 
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleJsonUpload}
-            accept=".json"
-            className="hidden"
-          />
-          <div className="flex justify-end mb-4">
-            <button
-              onClick={() => fileInputRef.current.click()}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-            >
-              <Upload size={18} />
-              Import JSON
-            </button>
-          </div>
         </div>
 
         {/* Success Popup */}

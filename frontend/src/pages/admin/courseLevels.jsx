@@ -12,6 +12,7 @@ const AdminCourseLevels = () => {
   const [questions, setQuestions] = useState({});
   const [loading, setLoading] = useState(true);
   const [editingLevel, setEditingLevel] = useState(null); // Track which level title is being edited: levelId
+  const [editingDescription, setEditingDescription] = useState(null); // Track which level description is being edited: levelId
   const mcqHeaders = [
     'title',
     'description',
@@ -53,6 +54,8 @@ const AdminCourseLevels = () => {
   // Modals
   const [timeLimitModal, setTimeLimitModal] = useState({ show: false, levelId: null, timeLimit: null });
   const [csvUploadModal, setCsvUploadModal] = useState({ show: false, levelId: null, uploading: false, questionType: null });
+  const [showCourseEditModal, setShowCourseEditModal] = useState(false);
+  const [courseFormData, setCourseFormData] = useState({ title: '', description: '', total_levels: 1 });
 
   useEffect(() => {
     fetchData();
@@ -106,7 +109,7 @@ const AdminCourseLevels = () => {
       if (res.data.errors && res.data.errors.length > 0) {
         alert(`Uploaded ${res.data.count} questions!\nErrors: ${res.data.errors.length}\n\n${res.data.errors.slice(0, 5).join('\n')}${res.data.errors.length > 5 ? '\n...' : ''}`);
       } else {
-      alert(`Uploaded ${res.data.count} questions! Errors: ${res.data.errors?.length || 0}`);
+        alert(`Uploaded ${res.data.count} questions! Errors: ${res.data.errors?.length || 0}`);
       }
       setCsvUploadModal({ show: false, levelId: null, uploading: false, questionType: null });
       fetchData();
@@ -136,6 +139,43 @@ const AdminCourseLevels = () => {
     } catch (err) {
       console.error('Failed to add level:', err);
       alert('Failed to add level');
+    }
+  };
+
+  const handleDeleteLevel = async (levelId) => {
+    if (!window.confirm('Are you sure you want to delete this level? This action cannot be undone.')) return;
+
+    try {
+      await api.delete(`/admin/levels/${levelId}`);
+      fetchData();
+    } catch (err) {
+      console.error('Failed to delete level:', err);
+      const errorMessage = err.response?.data?.error || 'Failed to delete level';
+      alert(errorMessage);
+    }
+  };
+
+  const openCourseEditModal = () => {
+    if (course) {
+      setCourseFormData({
+        title: course.title,
+        description: course.description || '',
+        total_levels: course.total_levels
+      });
+      setShowCourseEditModal(true);
+    }
+  };
+
+  const handleCourseUpdate = async (e) => {
+    e.preventDefault();
+    try {
+      await api.put(`/admin/courses/${courseId}`, courseFormData);
+      alert('Course updated successfully');
+      setShowCourseEditModal(false);
+      fetchData();
+    } catch (err) {
+      console.error('Failed to update course:', err);
+      alert('Failed to update course');
     }
   };
 
@@ -247,7 +287,57 @@ const AdminCourseLevels = () => {
                         </button>
                       ) : null}
                     </div>
-                    <p className="text-gray-500 text-sm mt-0.5">{level.description}</p>
+                    {editingDescription === level.id ? (
+                      <div className="mt-2">
+                        <textarea
+                          defaultValue={level.description || ''}
+                          onBlur={(e) => {
+                            // Save the new description
+                            const newDescription = e.target.value.trim();
+                            const currentDescription = level.description || '';
+                            if (newDescription !== currentDescription) {
+                              // Update level description via API
+                              api.put(`/admin/levels/${level.id}/details`, {
+                                description: newDescription
+                              }).then(() => {
+                                // Refresh data to get updated description
+                                fetchData();
+                                setEditingDescription(null);
+                                alert('✅ Description updated successfully!');
+                              }).catch(err => {
+                                alert('Failed to update level description: ' + (err.response?.data?.error || err.message));
+                                setEditingDescription(null);
+                              });
+                            } else {
+                              setEditingDescription(null);
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && e.ctrlKey) {
+                              e.target.blur();
+                            } else if (e.key === 'Escape') {
+                              setEditingDescription(null);
+                            }
+                          }}
+                          className="w-full text-sm text-gray-700 border-2 border-blue-500 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                          rows={3}
+                          autoFocus
+                          placeholder="Enter level description..."
+                        />
+                        <p className="text-xs text-gray-400 mt-1">Press Ctrl+Enter to save, Esc to cancel</p>
+                      </div>
+                    ) : (
+                      <div className="flex items-start gap-2 mt-0.5">
+                        <p className="text-gray-500 text-sm flex-1">{level.description || 'No description'}</p>
+                        <button
+                          onClick={() => setEditingDescription(level.id)}
+                          className="text-gray-400 hover:text-blue-600 transition-colors p-1 flex-shrink-0"
+                          title="Edit description"
+                        >
+                          <Edit size={14} />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -270,7 +360,11 @@ const AdminCourseLevels = () => {
                   >
                     <Plus size={20} />
                   </button>
-                  <button className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg">
+                  <button
+                    onClick={() => handleDeleteLevel(level.id)}
+                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
+                    title="Delete Level"
+                  >
                     <Trash2 size={20} />
                   </button>
                 </div>
@@ -299,6 +393,75 @@ const AdminCourseLevels = () => {
         </div>
 
 
+
+        {/* COURSE EDIT MODAL */}
+        {showCourseEditModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+              <div className="p-6 border-b border-gray-100">
+                <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                  <Edit className="text-blue-600" /> Edit Course
+                </h3>
+              </div>
+              <form onSubmit={handleCourseUpdate} className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Course Title
+                  </label>
+                  <input
+                    type="text"
+                    value={courseFormData.title}
+                    onChange={(e) => setCourseFormData({ ...courseFormData, title: e.target.value })}
+                    placeholder="e.g., Introduction to C"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Description
+                  </label>
+                  <textarea
+                    value={courseFormData.description}
+                    onChange={(e) => setCourseFormData({ ...courseFormData, description: e.target.value })}
+                    placeholder="Course description..."
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    rows={3}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Number of Levels
+                  </label>
+                  <input
+                    type="number"
+                    value={courseFormData.total_levels}
+                    onChange={(e) => setCourseFormData({ ...courseFormData, total_levels: parseInt(e.target.value) })}
+                    placeholder="e.g., 10"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                    min="1"
+                  />
+                </div>
+                <div className="flex gap-3 justify-end pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowCourseEditModal(false)}
+                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    Update Course
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         {/* CSV UPLOAD MODAL */}
         {csvUploadModal.show && (

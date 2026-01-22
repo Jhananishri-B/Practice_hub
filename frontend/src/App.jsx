@@ -5,6 +5,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 // Pages
 import Login from './pages/login';
 import Register from './pages/register';
+import ForgotPassword from './pages/forgotPassword';
 import Dashboard from './pages/dashboard';
 import CourseLevels from './pages/courseLevels';
 import Practice from './pages/practice';
@@ -22,6 +23,7 @@ import AdminCourseLevels from './pages/admin/courseLevels';
 import AdminUsers from './pages/admin/users';
 import CreateQuestion from './pages/admin/createQuestion';
 import LevelQuestions from './pages/admin/levelQuestions';
+import AdminLeaderboard from './pages/admin/leaderboard';
 
 const AppRoutes = () => {
   const { user, loading } = useAuth();
@@ -30,6 +32,7 @@ const AppRoutes = () => {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
 
       <Route
         path="/dashboard"
@@ -146,27 +149,35 @@ const AppRoutes = () => {
         }
       />
       <Route
-        path="/admin/questions/create"
+        path="/admin/leaderboard"
         element={
           <ProtectedRoute requireAdmin>
-            <CreateQuestion />
+            <AdminLeaderboard />
           </ProtectedRoute>
         }
       />
-      <Route
+      < Route
+        path="/admin/questions/create"
+        element={
+          < ProtectedRoute requireAdmin >
+            <CreateQuestion />
+          </ProtectedRoute >
+        }
+      />
+      < Route
         path="/admin/questions/edit/:questionId"
         element={
-          <ProtectedRoute requireAdmin>
+          < ProtectedRoute requireAdmin >
             <CreateQuestion />
-          </ProtectedRoute>
+          </ProtectedRoute >
         }
       />
 
-      <Route
+      < Route
         path="/"
         element={
           loading ? (
-            <div className="flex items-center justify-center h-screen">
+            <div className="flex items-center justify-center h-screen" >
               <div className="text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
                 <p className="text-gray-600">Loading...</p>
@@ -183,7 +194,7 @@ const AppRoutes = () => {
           )
         }
       />
-    </Routes>
+    </Routes >
   );
 };
 

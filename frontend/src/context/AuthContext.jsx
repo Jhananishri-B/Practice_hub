@@ -28,7 +28,7 @@ export const AuthProvider = ({ children }) => {
     // DEV BYPASS - Handle both lowercase and uppercase admin/user
     const usernameLower = username?.toLowerCase().trim();
     const usernameUpper = username?.toUpperCase().trim();
-    
+
     // Admin bypass
     if ((usernameLower === 'admin' || username === 'ADMIN' || username === 'admin@gmail.com') && password === '123') {
       const mockUser = { id: 'admin-1', username: 'ADMIN', role: 'admin', email: 'admin@gmail.com' };
@@ -38,7 +38,7 @@ export const AuthProvider = ({ children }) => {
       setUser(mockUser);
       return { success: true, user: mockUser };
     }
-    
+
     // User/Student bypass
     if ((usernameLower === 'user' || username === 'USER') && password === '123') {
       const mockUser = { id: 'user-1', username: 'USER', role: 'student', email: 'user@gmail.com' };
@@ -88,8 +88,8 @@ export const AuthProvider = ({ children }) => {
 
   const googleLogin = async (googleToken, code, redirectUri) => {
     try {
-      const payload = code 
-        ? { code, redirectUri: redirectUri || window.location.origin } 
+      const payload = code
+        ? { code, redirectUri: redirectUri || window.location.origin }
         : { token: googleToken };
       const response = await api.post('/auth/google', payload);
       const { token, user } = response.data;
@@ -107,6 +107,18 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const forgotPassword = async (email) => {
+    try {
+      await api.post('/auth/forgot-password', { email });
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Failed to send reset email',
+      };
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -114,7 +126,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, googleLogin, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, register, googleLogin, logout, forgotPassword, loading }}>
       {children}
     </AuthContext.Provider>
   );

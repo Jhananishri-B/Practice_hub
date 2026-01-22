@@ -4,7 +4,11 @@ import {
   getAllUsersController,
   getRecentActivityController,
   createCourseController,
+  updateCourseController,
+  deleteCourseController,
+
   createLevelController,
+  deleteLevelController,
   getCoursesWithLevelsController,
   createCodingQuestionController,
   createMCQQuestionController,
@@ -18,6 +22,10 @@ import {
   uploadCSVMiddleware,
   generateQuestionsWithAIController,
   updateLevelDetailsController,
+  createUserController,
+  updateUserController,
+  deleteUserController,
+  deleteQuestionsController,
 } from '../controllers/adminController';
 import { authenticate, requireAdmin } from '../middlewares/auth';
 
@@ -29,9 +37,15 @@ router.use(requireAdmin);
 
 router.get('/dashboard/stats', getDashboardStatsController);
 router.get('/users', getAllUsersController);
+router.post('/users', createUserController);
+router.put('/users/:userId', updateUserController);
+router.delete('/users/:userId', deleteUserController);
 router.get('/activity', getRecentActivityController);
 router.post('/courses', createCourseController);
+router.put('/courses/:courseId', updateCourseController);
+router.delete('/courses/:courseId', deleteCourseController);
 router.post('/levels', createLevelController);
+router.delete('/levels/:levelId', deleteLevelController);
 router.get('/courses/with-levels', getCoursesWithLevelsController);
 router.post('/questions/coding', createCodingQuestionController);
 router.post('/questions/mcq', createMCQQuestionController);
@@ -42,6 +56,7 @@ router.put('/questions/mcq/:questionId', updateMCQQuestionController);
 router.delete('/questions/:questionId', deleteQuestionController);
 router.put('/levels/:levelId/time-limit', updateLevelTimeLimitController);
 router.put('/levels/:levelId/details', updateLevelDetailsController);
+router.post('/questions/bulk-delete', deleteQuestionsController);
 router.post('/questions/upload-csv', uploadCSVMiddleware, uploadCSVQuestionsController);
 router.post('/questions/generate-ai', generateQuestionsWithAIController);
 

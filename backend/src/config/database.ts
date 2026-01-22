@@ -8,7 +8,7 @@ dotenv.config();
 // SSL Configuration
 const getSSLConfig = () => {
   const caCertPath = path.join(__dirname, '../../certs/ca-certificate.crt');
-  
+
   if (fs.existsSync(caCertPath)) {
     try {
       const caCert = fs.readFileSync(caCertPath, 'utf8');
@@ -36,7 +36,7 @@ if (process.env.DATABASE_URL) {
   let cleanUrl = process.env.DATABASE_URL;
   // Remove malformed SSL JSON from URL if present
   cleanUrl = cleanUrl.replace(/\?ssl=\{.*?\}/, '');
-  
+
   const url = new URL(cleanUrl);
 
   // Check if SSL is required (for TiDB Cloud and other cloud databases)
@@ -55,7 +55,7 @@ if (process.env.DATABASE_URL) {
     connectionLimit: 10,
     queueLimit: 0,
     multipleStatements: true,
-    connectTimeout: 10000, // 10 seconds connection timeout
+    connectTimeout: 60000, // 60 seconds connection timeout
     enableKeepAlive: true, // Keep connections alive
     keepAliveInitialDelay: 0, // Start keep-alive immediately
     ssl: sslConfig,
@@ -86,7 +86,7 @@ if (process.env.DATABASE_URL) {
   // Use 'localhost' when running outside Docker, 'mysql' when inside Docker
   const isDocker = process.env.DOCKER_ENV === 'true' || fs.existsSync('/.dockerenv');
   const defaultHost = isDocker ? 'mysql' : 'localhost';
-  
+
   connectionConfig = {
     host: process.env.DB_HOST || defaultHost,
     port: parseInt(process.env.DB_PORT || '3306'),
@@ -97,7 +97,7 @@ if (process.env.DATABASE_URL) {
     connectionLimit: 10,
     queueLimit: 0,
     multipleStatements: true,
-    connectTimeout: 10000, // 10 seconds connection timeout
+    connectTimeout: 60000, // 60 seconds connection timeout
     enableKeepAlive: true, // Keep connections alive
     keepAliveInitialDelay: 0, // Start keep-alive immediately
     ssl: sslConfig,
@@ -109,7 +109,7 @@ const pool = mysql.createPool(connectionConfig);
 // Handle new connections
 pool.on('connection', (connection: any) => {
   console.log('New MySQL connection established');
-  
+
   // Handle connection errors on individual connections
   connection.on('error', (err: any) => {
     console.error('Database connection error:', err);

@@ -1,22 +1,23 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Home, BookOpen, TrendingUp, MessageSquare, Trophy, LogOut } from 'lucide-react';
+import { Home, LayoutDashboard, TrendingUp, Bot, Trophy, LogOut, Users, GraduationCap } from 'lucide-react';
 
 const Sidebar = () => {
   const { user, logout } = useAuth();
   const location = useLocation();
 
   const studentMenuItems = [
-    { path: '/dashboard', label: 'Courses', icon: BookOpen },
+    { path: '/dashboard', label: 'Courses', icon: LayoutDashboard },
     { path: '/progress', label: 'My Progress', icon: TrendingUp },
-    { path: '/ai-coach', label: 'AI Coach', icon: MessageSquare },
+    { path: '/ai-coach', label: 'AI Coach', icon: Bot },
     { path: '/leaderboard', label: 'Leaderboard', icon: Trophy },
   ];
 
   const adminMenuItems = [
     { path: '/admin/overview', label: 'Overview', icon: Home },
-    { path: '/admin/users', label: 'User Management', icon: BookOpen },
-    { path: '/admin/courses', label: 'Courses & Questions', icon: BookOpen },
+    { path: '/admin/users', label: 'User Management', icon: Users },
+    { path: '/admin/courses', label: 'Courses & Questions', icon: GraduationCap },
+    { path: '/admin/leaderboard', label: 'Leaderboard', icon: Trophy },
   ];
 
   const menuItems = user?.role === 'admin' ? adminMenuItems : studentMenuItems;

@@ -135,8 +135,8 @@ export const createCodingQuestion = async (data: {
     const testCase = data.test_cases[i];
     const testCaseId = randomUUID();
     // Use test_case_number from testCase if provided, otherwise use index + 1
-    const testCaseNumber = (testCase as any).test_case_number !== undefined 
-      ? (testCase as any).test_case_number 
+    const testCaseNumber = (testCase as any).test_case_number !== undefined
+      ? (testCase as any).test_case_number
       : i + 1;
     await pool.query(
       `INSERT INTO test_cases (id, question_id, input_data, expected_output, is_hidden, test_case_number)
@@ -304,7 +304,7 @@ export const updateMCQQuestion = async (
      WHERE question_id = ? AND selected_option_id IS NOT NULL`,
     [questionId]
   );
-  
+
   // Also clear by specific option IDs as an additional safety measure
   if (existingOptionIds.length > 0) {
     const placeholders = existingOptionIds.map(() => '?').join(',');
@@ -358,7 +358,7 @@ export const deleteQuestion = async (questionId: string) => {
 
   // Get a connection for transaction
   const connection = await pool.getConnection();
-  
+
   try {
     await connection.beginTransaction();
 
@@ -366,7 +366,7 @@ export const deleteQuestion = async (questionId: string) => {
     // 1. Set selected_option_id to NULL in user_submissions for all mcq_options of this question
     // This must be done BEFORE deleting mcq_options to avoid foreign key constraint violation
     // Clear by question_id first (most comprehensive), then by specific option IDs
-    
+
     // First, clear ALL selected_option_id for this question (most important)
     const [updateResult1] = await connection.query(
       `UPDATE user_submissions 
@@ -374,7 +374,7 @@ export const deleteQuestion = async (questionId: string) => {
        WHERE question_id = ? AND selected_option_id IS NOT NULL`,
       [questionId]
     );
-    
+
     // Also clear by specific option IDs as an additional safety measure
     if (mcqOptionIds.length > 0) {
       const placeholders = mcqOptionIds.map(() => '?').join(',');
@@ -385,7 +385,7 @@ export const deleteQuestion = async (questionId: string) => {
         mcqOptionIds
       );
     }
-    
+
     // Double-check: Delete any remaining user_submissions that might still reference these options
     // This is a safety net in case the UPDATE didn't catch everything
     // Delete ANY user_submissions referencing these options, regardless of question_id
@@ -427,6 +427,98 @@ export const deleteQuestion = async (questionId: string) => {
        WHERE id = (SELECT course_id FROM levels WHERE id = ?)`,
       [levelId]
     );
+
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+};
+
+export const deleteQuestions = async (questionIds: string[]) => {
+  if (questionIds.length === 0) return;
+
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const placeholders = questionIds.map(() => '?').join(',');
+
+    // Get level IDs to update courses later
+    const levelResult = await connection.query(
+      `SELECT DISTINCT level_id FROM questions WHERE id IN (${placeholders})`,
+      questionIds
+    );
+    const levelIds = getRows(levelResult).map((row: any) => row.level_id);
+
+    // Get all mcq_options IDs
+    const mcqOptionsResult = await connection.query(
+      `SELECT id FROM mcq_options WHERE question_id IN (${placeholders})`,
+      questionIds
+    );
+    const mcqOptionIds = getRows(mcqOptionsResult).map((row: any) => row.id);
+
+    if (mcqOptionIds.length > 0) {
+      const optionPlaceholders = mcqOptionIds.map(() => '?').join(',');
+
+      await connection.query(
+        `UPDATE user_submissions 
+         SET selected_option_id = NULL 
+         WHERE selected_option_id IN (${optionPlaceholders})`,
+        mcqOptionIds
+      );
+
+      await connection.query(
+        `DELETE FROM user_submissions 
+         WHERE selected_option_id IN (${optionPlaceholders})`,
+        mcqOptionIds
+      );
+    }
+
+    // Delete related data
+    await connection.query(
+      `DELETE tcr FROM test_case_results tcr
+       INNER JOIN test_cases tc ON tcr.test_case_id = tc.id
+       WHERE tc.question_id IN (${placeholders})`,
+      questionIds
+    );
+
+    await connection.query(
+      `DELETE FROM user_submissions WHERE question_id IN (${placeholders})`,
+      questionIds
+    );
+
+    await connection.query(
+      `DELETE FROM session_questions WHERE question_id IN (${placeholders})`,
+      questionIds
+    );
+
+    await connection.query(
+      `DELETE FROM test_cases WHERE question_id IN (${placeholders})`,
+      questionIds
+    );
+
+    await connection.query(
+      `DELETE FROM mcq_options WHERE question_id IN (${placeholders})`,
+      questionIds
+    );
+
+    await connection.query(
+      `DELETE FROM questions WHERE id IN (${placeholders})`,
+      questionIds
+    );
+
+    if (levelIds.length > 0) {
+      const levelPlaceholders = levelIds.map(() => '?').join(',');
+      await connection.query(
+        `UPDATE courses SET updated_at = CURRENT_TIMESTAMP 
+         WHERE id IN (SELECT course_id FROM levels WHERE id IN (${levelPlaceholders}))`,
+        levelIds
+      );
+    }
 
     await connection.commit();
   } catch (error) {

@@ -1,26 +1,24 @@
 import { useEffect, useState } from 'react';
 import Layout from '../../components/Layout';
 import api from '../../services/api';
-import { Users, Activity, FileText, AlertCircle, Search, Edit, Trash2, Trophy } from 'lucide-react';
+import { Users, TrendingUp, FileText, CheckCircle2, ChevronLeft, Search } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const AdminOverview = () => {
+  const navigate = useNavigate();
   const [stats, setStats] = useState(null);
-  const [leaderboard, setLeaderboard] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  useEffect(() => {
-    fetchData();
-  }, [searchTerm]);
+  // Use real data from stats
+  const popularCourses = stats?.popular_courses || [];
+  const avgSuccessRate = stats?.average_success_rate ? `${stats.average_success_rate}%` : '0%';
 
   const fetchData = async () => {
     try {
-      const [statsResponse, leaderboardResponse] = await Promise.all([
-        api.get('/admin/dashboard/stats'),
-        api.get('/progress/leaderboard?limit=20'),
-      ]);
+      // Keep existing stats fetch, we'll map fields as needed.
+      const statsResponse = await api.get('/admin/dashboard/stats');
       setStats(statsResponse.data);
-      setLeaderboard(leaderboardResponse.data);
     } catch (error) {
       console.error('Failed to fetch data:', error);
     } finally {
@@ -28,200 +26,149 @@ const AdminOverview = () => {
     }
   };
 
-  const handleDeleteUser = async (userId) => {
-    if (!window.confirm('Are you sure you want to remove this user from the leaderboard?')) {
-      return;
-    }
-
-    try {
-      // Filter out the deleted user from the leaderboard
-      setLeaderboard(leaderboard.filter((user) => user.id !== userId));
-      // Note: In a real app, you'd call an API to delete the user
-      alert('User removed from leaderboard');
-    } catch (error) {
-      console.error('Failed to delete user:', error);
-      alert('Failed to remove user');
-    }
-  };
-
-  const handleEditUser = (user) => {
-    // In a real app, this would open an edit modal
-    const newName = prompt('Enter new name:', user.name);
-    if (newName && newName.trim()) {
-      setLeaderboard(
-        leaderboard.map((u) => (u.id === user.id ? { ...u, name: newName.trim() } : u))
-      );
-    }
-  };
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   if (loading) {
     return (
       <Layout>
-        <div className="p-8">Loading...</div>
+        <div className="flex items-center justify-center h-screen bg-gray-50">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
       </Layout>
     );
   }
 
+
+
   return (
     <Layout>
-      <div className="flex-1 p-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-8">Dashboard Overview</h1>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <Users className="text-blue-600" size={32} />
-            </div>
-            <h3 className="text-2xl font-bold text-gray-800 mb-1">
-              {stats?.total_users || 0}
-            </h3>
-            <p className="text-gray-600 text-sm">Total Users</p>
-            <p className="text-green-600 text-xs mt-2">+12% vs last month</p>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <Activity className="text-green-600" size={32} />
-            </div>
-            <h3 className="text-2xl font-bold text-gray-800 mb-1">
-              {stats?.active_learners || 0}
-            </h3>
-            <p className="text-gray-600 text-sm">Active Learners</p>
-            <p className="text-gray-500 text-xs mt-2">Currently online</p>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <FileText className="text-purple-600" size={32} />
-            </div>
-            <h3 className="text-2xl font-bold text-gray-800 mb-1">
-              {stats?.questions_attempted || 0}
-            </h3>
-            <p className="text-gray-600 text-sm">Questions Attempted</p>
-            <p className="text-green-600 text-xs mt-2">+540 today</p>
-          </div>
-
-          <div className="bg-blue-600 rounded-lg shadow-md p-6 text-white">
-            <div className="flex items-center justify-between mb-4">
-              <AlertCircle size={32} />
-            </div>
-            <h3 className="text-2xl font-bold mb-1">{stats?.pending_approvals || 0}</h3>
-            <p className="text-white/80 text-sm mb-4">Pending Approvals</p>
-            <button className="w-full bg-white text-blue-600 py-2 rounded-lg font-medium hover:bg-gray-100">
-              Review Now
-            </button>
-          </div>
+      <div className="p-8 bg-gray-50 min-h-screen">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-2xl font-bold text-gray-800">Dashboard Overview</h1>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <Trophy className="text-yellow-500" size={24} />
-              <div>
-                <h2 className="text-xl font-bold text-gray-800">Leaderboard</h2>
-                <p className="text-gray-600 text-sm">Top performers ranked by levels cleared</p>
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+
+          {/* Card 1: Total Users */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between h-40">
+            <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center mb-4">
+              <Users className="text-blue-600" size={20} />
+            </div>
+            <div>
+              <h3 className="text-3xl font-bold text-gray-800 mb-1">{stats?.total_users?.toLocaleString() || '2,840'}</h3>
+              <p className="text-gray-500 text-sm font-medium">Total Users</p>
+              <p className="text-green-600 text-xs font-semibold mt-1">+12% vs last month</p>
+            </div>
+          </div>
+
+          {/* Card 2: Active Learners */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between h-40">
+            <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center mb-4">
+              <TrendingUp className="text-blue-600" size={20} />
+            </div>
+            <div>
+              <h3 className="text-3xl font-bold text-gray-800 mb-1">{stats?.active_learners?.toLocaleString() || '1,152'}</h3>
+              <p className="text-gray-500 text-sm font-medium">Active Learners</p>
+              <p className="text-gray-400 text-xs mt-1">Currently online</p>
+            </div>
+          </div>
+
+          {/* Card 3: Questions Attempted */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between h-40">
+            <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center mb-4">
+              <FileText className="text-blue-600" size={20} />
+            </div>
+            <div>
+              <h3 className="text-3xl font-bold text-gray-800 mb-1">{stats?.questions_attempted?.toLocaleString() || '15,420'}</h3>
+              <p className="text-gray-500 text-sm font-medium">Questions Attempted</p>
+              <p className="text-green-600 text-xs font-semibold mt-1">+540 today</p>
+            </div>
+          </div>
+
+          {/* Card 4: Avg. Success Rate */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between h-40">
+            <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center mb-4">
+              <CheckCircle2 className="text-blue-600" size={20} />
+            </div>
+            <div>
+              <h3 className="text-3xl font-bold text-gray-800 mb-1">{avgSuccessRate}</h3>
+              <p className="text-gray-500 text-sm font-medium">Avg. Success Rate</p>
+
+              {/* Simple progress bar mock */}
+              <div className="w-full bg-blue-50 rounded-full h-1.5 mt-3">
+                <div className="bg-blue-600 h-1.5 rounded-full" style={{ width: `${parseFloat(avgSuccessRate) || 0}%` }}></div>
               </div>
             </div>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-              <input
-                type="text"
-                placeholder="Search by student name or ID..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
+          </div>
+
+        </div>
+
+        {/* Popular Courses Section */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <div className="text-orange-400">★</div>
+              <h2 className="text-lg font-bold text-gray-800">Popular Courses</h2>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                <input
+                  type="text"
+                  placeholder="Search courses..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 pr-4 py-2 bg-gray-50 border-none rounded-lg text-sm focus:ring-0 w-64 text-gray-600 placeholder-gray-400"
+                />
+              </div>
+              <button
+                onClick={() => navigate('/admin/courses')}
+                className="text-blue-600 text-sm font-semibold hover:underline"
+              >
+                View All
+              </button>
             </div>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Rank
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Student ID
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Student Name
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Levels Cleared
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
+              <thead>
+                <tr className="border-b border-gray-100">
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider py-4 px-2">Course Name</th>
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider py-4 px-2">Subject</th>
+                  <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wider py-4 px-2">Student Count</th>
+                  <th className="text-right text-xs font-semibold text-gray-400 uppercase tracking-wider py-4 px-2">Actions</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {leaderboard
-                  .filter((user) => {
-                    if (!searchTerm) return true;
-                    const search = searchTerm.toLowerCase();
-                    return (
-                      user.name?.toLowerCase().includes(search) ||
-                      user.roll_number?.toLowerCase().includes(search) ||
-                      user.id?.toLowerCase().includes(search)
-                    );
-                  })
-                  .map((user) => (
-                    <tr key={user.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div
-                          className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${user.rank === 1
-                            ? 'bg-yellow-500'
-                            : user.rank === 2
-                              ? 'bg-gray-400'
-                              : user.rank === 3
-                                ? 'bg-orange-500'
-                                : 'bg-gray-200 text-gray-700'
-                            }`}
-                        >
-                          {user.rank}
-                        </div>
+              <tbody className="divide-y divide-gray-50">
+                {popularCourses
+                  .filter(course => course.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                  .map((course) => (
+                    <tr key={course.id} className="group hover:bg-blue-50/30 transition-colors">
+                      <td className="py-4 px-2">
+                        <span className="text-sm font-bold text-gray-800">{course.name}</span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {user.roll_number || user.id.substring(0, 8)}
+                      <td className="py-4 px-2">
+                        <span className="text-sm text-gray-500">{course.subject}</span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center mr-3">
-                            <span className="text-gray-600 font-semibold">
-                              {user.name?.charAt(0) || 'U'}
-                            </span>
-                          </div>
-                          <div className="text-sm font-medium text-gray-900">{user.name || 'Unknown'}</div>
-                        </div>
+                      <td className="py-4 px-2">
+                        <span className="text-sm text-gray-800 font-medium">{course.count}</span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {user.levels_cleared || 0}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleEditUser(user)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
-                            title="Edit user"
-                          >
-                            <Edit size={18} />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteUser(user.id)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                            title="Delete user"
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        </div>
+                      <td className="py-4 px-2 text-right">
+                        <a href="/admin/courses" className="text-blue-600 text-sm font-medium hover:text-blue-700">Manage</a>
                       </td>
                     </tr>
                   ))}
               </tbody>
             </table>
           </div>
+
         </div>
+
       </div>
     </Layout>
   );

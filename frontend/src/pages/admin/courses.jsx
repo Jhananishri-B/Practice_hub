@@ -2,14 +2,15 @@ import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/Layout';
 import api from '../../services/api';
-import { Plus, Edit, Upload } from 'lucide-react';
+import { Plus, Edit, Upload, Trash2 } from 'lucide-react';
 
 const AdminCourses = () => {
   const [courses, setCourses] = useState([]);
-  const [showAddCourse, setShowAddCourse] = useState(false);
-  const [newCourse, setNewCourse] = useState({ title: '', description: '', total_levels: 1 });
+  const [showModal, setShowModal] = useState(false); // Renamed from showAddCourse for generic modal
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [currentCourseId, setCurrentCourseId] = useState(null);
+  const [formData, setFormData] = useState({ title: '', description: '', total_levels: 1 });
   const [loading, setLoading] = useState(true);
-  const fileInputRef = useRef(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -27,50 +28,52 @@ const AdminCourses = () => {
     }
   };
 
-  const handleAddCourse = async (e) => {
+  const openAddModal = () => {
+    setIsEditMode(false);
+    setFormData({ title: '', description: '', total_levels: 1 });
+    setCurrentCourseId(null);
+    setShowModal(true);
+  };
+
+  const openEditModal = (course) => {
+    setIsEditMode(true);
+    setFormData({
+      title: course.title,
+      description: course.description || '',
+      total_levels: course.total_levels
+    });
+    setCurrentCourseId(course.id);
+    setShowModal(true);
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await api.post('/admin/courses', newCourse);
-      setShowAddCourse(false);
-      setNewCourse({ title: '', description: '', total_levels: 1 });
+      if (isEditMode) {
+        await api.put(`/admin/courses/${currentCourseId}`, formData);
+        alert('Course updated successfully');
+      } else {
+        await api.post('/admin/courses', formData);
+        alert('Course created successfully');
+      }
+      setShowModal(false);
       fetchCourses();
     } catch (error) {
-      console.error('Failed to create course:', error);
-      alert('Failed to create course');
+      console.error('Failed to save course:', error);
+      alert('Failed to save course');
     }
   };
 
-  const handleJsonUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const jsonData = JSON.parse(event.target.result);
-
-        // Basic validation
-        if (!jsonData.title || !jsonData.total_levels) {
-          alert('Invalid JSON format. Required fields: title, total_levels');
-          return;
-        }
-
-        // Ensure description is at least an empty string if missing
-        if (jsonData.description === undefined) jsonData.description = '';
-
-        await api.post('/admin/courses', jsonData);
-        alert('Course imported successfully!');
-        fetchCourses();
-      } catch (error) {
-        console.error('Error importing JSON:', error);
-        alert('Failed to parse JSON or create course. ' + (error.response?.data?.error || error.message));
-      } finally {
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-      }
-    };
-    reader.readAsText(file);
+  const handleDelete = async (courseId) => {
+    if (!window.confirm('Are you sure you want to delete this course? This cannot be undone.')) return;
+    try {
+      await api.delete(`/admin/courses/${courseId}`);
+      alert('Course deleted successfully');
+      fetchCourses();
+    } catch (error) {
+      console.error('Failed to delete course:', error);
+      alert('Failed to delete course');
+    }
   };
 
   if (loading) {
@@ -89,36 +92,16 @@ const AdminCourses = () => {
             <h1 className="text-3xl font-bold text-gray-800">Course Management</h1>
             <p className="text-gray-600">Manage curriculum, subjects, and question banks</p>
           </div>
-          <div className="flex gap-3">
-            <button className="px-4 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50">
-              Save Draft
-            </button>
-            <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-              Publish Changes
-            </button>
-          </div>
+          {/* Removed unused buttons: Save Draft, Publish Changes */}
         </div>
 
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-gray-800">All Courses</h2>
             <div className="flex gap-2">
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleJsonUpload}
-                accept=".json"
-                className="hidden"
-              />
+              {/* Removed Import JSON button */}
               <button
-                onClick={() => fileInputRef.current.click()}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-              >
-                <Upload size={18} />
-                Import JSON
-              </button>
-              <button
-                onClick={() => setShowAddCourse(!showAddCourse)}
+                onClick={openAddModal}
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
                 <Plus size={18} />
@@ -127,53 +110,67 @@ const AdminCourses = () => {
             </div>
           </div>
 
-          {showAddCourse && (
-            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">NEW COURSE DETAILS</h3>
-              <form onSubmit={handleAddCourse} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Course Title
-                  </label>
-                  <input
-                    type="text"
-                    value={newCourse.title}
-                    onChange={(e) => setNewCourse({ ...newCourse, title: e.target.value })}
-                    placeholder="e.g., Introduction to Neural Networks"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Number of Levels
-                  </label>
-                  <input
-                    type="number"
-                    value={newCourse.total_levels}
-                    onChange={(e) => setNewCourse({ ...newCourse, total_levels: parseInt(e.target.value) })}
-                    placeholder="e.g., 5"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                    required
-                    min="1"
-                  />
-                </div>
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setShowAddCourse(false)}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                  >
-                    Create
-                  </button>
-                </div>
-              </form>
+          {showModal && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg shadow-md p-6 w-full max-w-md">
+                <h3 className="text-lg font-bold text-gray-800 mb-4">{isEditMode ? 'EDIT COURSE' : 'NEW COURSE DETAILS'}</h3>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Course Title
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      placeholder="e.g., Introduction to Neural Networks"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Description
+                    </label>
+                    <textarea
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      placeholder="Course description..."
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      rows={3}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Number of Levels
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.total_levels}
+                      onChange={(e) => setFormData({ ...formData, total_levels: parseInt(e.target.value) })}
+                      placeholder="e.g., 5"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      required
+                      min="1"
+                    />
+                  </div>
+                  <div className="flex gap-3 justify-end mt-4">
+                    <button
+                      type="button"
+                      onClick={() => setShowModal(false)}
+                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
+                      {isEditMode ? 'Update' : 'Create'}
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           )}
         </div>
@@ -205,8 +202,19 @@ const AdminCourses = () => {
                     <Plus size={18} />
                     Manage Questions
                   </button>
-                  <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg">
+                  <button
+                    onClick={() => openEditModal(course)}
+                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                    title="Edit Course"
+                  >
                     <Edit size={18} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(course.id)}
+                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                    title="Delete Course"
+                  >
+                    <Trash2 size={18} />
                   </button>
                 </div>
               </div>

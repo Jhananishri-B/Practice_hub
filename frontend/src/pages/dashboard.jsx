@@ -19,7 +19,7 @@ const Dashboard = () => {
     const token = localStorage.getItem('token');
     console.log('Dashboard mounted. Token exists:', !!token, 'Token value:', token);
     if (token) {
-    fetchCourses();
+      fetchCourses();
     } else {
       console.error('No token found in localStorage! Redirecting to login...');
       navigate('/login');
@@ -31,7 +31,7 @@ const Dashboard = () => {
     try {
       const token = localStorage.getItem('token');
       console.log('Fetching courses with token:', token ? token.substring(0, 30) + '...' : 'NO TOKEN');
-      
+
       const response = await api.get('/courses');
       console.log('Courses fetched successfully:', response.data?.length || 0, 'courses');
       console.log('Courses data:', response.data);
@@ -41,7 +41,7 @@ const Dashboard = () => {
       console.error('Error response:', error.response);
       console.error('Error status:', error.response?.status);
       console.error('Error details:', error.response?.data || error.message);
-      
+
       // If 401, token might be invalid - clear it
       if (error.response?.status === 401) {
         console.error('401 Unauthorized - Token issue. Current token:', localStorage.getItem('token'));
@@ -49,7 +49,7 @@ const Dashboard = () => {
         localStorage.removeItem('user');
         navigate('/login');
       }
-      
+
       setCourses([]); // Set empty array on error
     } finally {
       setLoading(false);
@@ -119,9 +119,10 @@ const Dashboard = () => {
                 return (
                   <div
                     key={course.id}
-                    className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
+                    onClick={() => navigate(`/courses/${course.id}/levels`)}
+                    className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer hover:scale-[1.02]"
                   >
-                    <div className="h-32 w-full overflow-hidden bg-gray-200 relative">
+                    <div className="h-48 w-full overflow-hidden bg-gray-200 relative">
                       {courseImage ? (
                         <img
                           src={courseImage}
@@ -140,12 +141,15 @@ const Dashboard = () => {
                     <div className="p-6">
                       <h3 className="text-xl font-bold text-gray-800 mb-2">{course.title}</h3>
                       <p className="text-gray-600 text-sm mb-3">{course.description}</p>
-                      
+
                       {/* Course Overview Section */}
                       {course.overview && (
                         <div className="mb-4">
                           <button
-                            onClick={() => setExpandedOverview(expandedOverview === course.id ? null : course.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpandedOverview(expandedOverview === course.id ? null : course.id);
+                            }}
                             className="flex items-center justify-between w-full text-left text-sm font-medium text-blue-600 hover:text-blue-800 mb-2"
                           >
                             <span className="flex items-center gap-2">
@@ -167,13 +171,7 @@ const Dashboard = () => {
                           )}
                         </div>
                       )}
-                      
-                      <button
-                        onClick={() => navigate(`/courses/${course.id}/levels`)}
-                        className="w-full bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-                      >
-                        Start Course →
-                      </button>
+
                     </div>
                   </div>
                 );

@@ -4,7 +4,10 @@ import {
   getRecentActivity,
   getDashboardStats,
   createCourse,
+  updateCourse,
+  deleteCourse,
   createLevel,
+  deleteLevel,
   getCoursesWithLevels,
 } from '../services/adminService';
 import {
@@ -44,6 +47,42 @@ export const getAllUsersController = async (req: AuthRequest, res: Response): Pr
     res.status(500).json({ error: 'Failed to fetch users' });
   }
 };
+// Force rebuild
+
+export const createUserController = async (req: AuthRequest, res: Response): Promise<void> => {
+  const { createUser } = await import('../services/adminService');
+  try {
+    const userId = await createUser(req.body);
+    res.json({ id: userId, message: 'User created successfully' });
+  } catch (error: any) {
+    logger.error('Create user error:', error);
+    res.status(500).json({ error: 'Failed to create user' });
+  }
+};
+
+export const updateUserController = async (req: AuthRequest, res: Response): Promise<void> => {
+  const { updateUser } = await import('../services/adminService');
+  try {
+    const { userId } = req.params;
+    await updateUser(userId, req.body);
+    res.json({ message: 'User updated successfully' });
+  } catch (error: any) {
+    logger.error('Update user error:', error);
+    res.status(500).json({ error: 'Failed to update user' });
+  }
+};
+
+export const deleteUserController = async (req: AuthRequest, res: Response): Promise<void> => {
+  const { deleteUser } = await import('../services/adminService');
+  try {
+    const { userId } = req.params;
+    await deleteUser(userId);
+    res.json({ message: 'User deleted successfully' });
+  } catch (error: any) {
+    logger.error('Delete user error:', error);
+    res.status(500).json({ error: 'Failed to delete user' });
+  }
+};
 
 export const getRecentActivityController = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -67,6 +106,30 @@ export const createCourseController = async (req: AuthRequest, res: Response): P
   }
 };
 
+export const updateCourseController = async (req: AuthRequest, res: Response): Promise<void> => {
+  const { updateCourse } = await import('../services/adminService');
+  try {
+    const { courseId } = req.params;
+    await updateCourse(courseId, req.body);
+    res.json({ message: 'Course updated successfully' });
+  } catch (error: any) {
+    logger.error('Update course error:', error);
+    res.status(500).json({ error: 'Failed to update course' });
+  }
+};
+
+export const deleteCourseController = async (req: AuthRequest, res: Response): Promise<void> => {
+  const { deleteCourse } = await import('../services/adminService');
+  try {
+    const { courseId } = req.params;
+    await deleteCourse(courseId);
+    res.json({ message: 'Course deleted successfully' });
+  } catch (error: any) {
+    logger.error('Delete course error:', error);
+    res.status(500).json({ error: 'Failed to delete course' });
+  }
+};
+
 export const createLevelController = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { course_id, level_number, title, description } = req.body;
@@ -75,6 +138,18 @@ export const createLevelController = async (req: AuthRequest, res: Response): Pr
   } catch (error: any) {
     logger.error('Create level error:', error);
     res.status(500).json({ error: 'Failed to create level' });
+  }
+};
+
+export const deleteLevelController = async (req: AuthRequest, res: Response): Promise<void> => {
+  const { deleteLevel } = await import('../services/adminService');
+  try {
+    const { levelId } = req.params;
+    await deleteLevel(levelId);
+    res.json({ message: 'Level deleted successfully' });
+  } catch (error: any) {
+    logger.error('Delete level error:', error);
+    res.status(500).json({ error: 'Failed to delete level' });
   }
 };
 
@@ -180,6 +255,27 @@ export const deleteQuestionController = async (req: AuthRequest, res: Response):
   }
 };
 
+export const deleteQuestionsController = async (req: AuthRequest, res: Response): Promise<void> => {
+  const { deleteQuestions } = await import('../services/questionService');
+  try {
+    const { questionIds } = req.body;
+
+    if (!Array.isArray(questionIds) || questionIds.length === 0) {
+      res.status(400).json({ error: 'Invalid or empty questionIds provided' });
+      return;
+    }
+
+    await deleteQuestions(questionIds);
+    res.json({ message: 'Questions deleted successfully' });
+  } catch (error: any) {
+    logger.error('Delete questions error:', error);
+    res.status(500).json({
+      error: error.message || 'Failed to delete questions',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+};
+
 export const updateLevelTimeLimitController = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { levelId } = req.params;
@@ -202,10 +298,10 @@ interface MulterRequest extends AuthRequest {
 export const uploadCSVQuestionsController = async (req: MulterRequest, res: Response): Promise<void> => {
   try {
     logger.info('[uploadCSVQuestionsController] CSV upload request received');
-    
+
     if (!req.file) {
       logger.warn('[uploadCSVQuestionsController] No file uploaded');
-      res.status(400).json({ 
+      res.status(400).json({
         error: 'No file uploaded',
         details: 'Please select a CSV file to upload'
       });
@@ -215,10 +311,10 @@ export const uploadCSVQuestionsController = async (req: MulterRequest, res: Resp
     const { level_id, question_type } = req.body;
     logger.info(`[uploadCSVQuestionsController] level_id: ${level_id}, question_type: ${question_type}`);
     logger.info(`[uploadCSVQuestionsController] Request body keys: ${Object.keys(req.body).join(', ')}`);
-    
+
     if (!level_id) {
       logger.warn('[uploadCSVQuestionsController] level_id is missing');
-      res.status(400).json({ 
+      res.status(400).json({
         error: 'level_id is required',
         details: 'Please ensure the level ID is included in the upload request'
       });
@@ -230,24 +326,24 @@ export const uploadCSVQuestionsController = async (req: MulterRequest, res: Resp
     const csvContent = req.file.buffer.toString('utf-8');
     logger.info(`[uploadCSVQuestionsController] CSV content length: ${csvContent.length} characters`);
     logger.info(`[uploadCSVQuestionsController] CSV preview (first 200 chars): ${csvContent.substring(0, 200)}`);
-    
+
     let parseResult: CSVRow[];
     try {
       parseResult = parse(csvContent, {
-      columns: true,
-      skip_empty_lines: true,
-      trim: true,
+        columns: true,
+        skip_empty_lines: true,
+        trim: true,
         relax_column_count: true, // Allow inconsistent column counts (handles extra/missing columns)
         relax_quotes: true, // Allow quotes in unquoted fields
-      cast: (value: any, context: any) => {
-        // Transform header names to lowercase with underscores
-        if (context.header) {
-          return value.trim().toLowerCase().replace(/\s+/g, '_');
-        }
-        return value;
-      },
-    }) as CSVRow[];
-      
+        cast: (value: any, context: any) => {
+          // Transform header names to lowercase with underscores
+          if (context.header) {
+            return value.trim().toLowerCase().replace(/\s+/g, '_');
+          }
+          return value;
+        },
+      }) as CSVRow[];
+
       // Log column count mismatches after parsing
       if (parseResult.length > 0) {
         const headerKeys = Object.keys(parseResult[0]);
@@ -265,8 +361,8 @@ export const uploadCSVQuestionsController = async (req: MulterRequest, res: Resp
     } catch (parseError: any) {
       logger.error('[uploadCSVQuestionsController] CSV parsing error:', parseError);
       logger.error('[uploadCSVQuestionsController] Parse error stack:', parseError.stack);
-      res.status(400).json({ 
-        error: 'Failed to parse CSV file', 
+      res.status(400).json({
+        error: 'Failed to parse CSV file',
         details: parseError.message,
         hint: 'Please check CSV format and ensure headers are correct'
       });
@@ -275,7 +371,7 @@ export const uploadCSVQuestionsController = async (req: MulterRequest, res: Resp
 
     if (parseResult.length === 0) {
       logger.warn('[uploadCSVQuestionsController] CSV file is empty or has no valid rows');
-      res.status(400).json({ 
+      res.status(400).json({
         error: 'CSV file is empty or has no valid rows',
         hint: 'Please ensure your CSV file has at least one data row (excluding headers)'
       });
@@ -299,9 +395,9 @@ export const uploadCSVQuestionsController = async (req: MulterRequest, res: Resp
     logger.error('[uploadCSVQuestionsController] Error message:', error.message);
     logger.error('[uploadCSVQuestionsController] Error stack:', error.stack);
     logger.error('[uploadCSVQuestionsController] Error name:', error.name);
-    
+
     const errorMessage = error.message || 'Failed to upload CSV file';
-    res.status(500).json({ 
+    res.status(500).json({
       error: errorMessage,
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
@@ -338,7 +434,7 @@ export const updateLevelDetailsController = async (req: AuthRequest, res: Respon
     const { title, description, learning_materials } = req.body;
 
     logger.info(`[updateLevelDetailsController] Updating level ${levelId}`);
-    logger.info(`[updateLevelDetailsController] Request body:`, { 
+    logger.info(`[updateLevelDetailsController] Request body:`, {
       hasTitle: title !== undefined,
       hasDescription: description !== undefined,
       hasLearningMaterials: learning_materials !== undefined,
@@ -368,9 +464,9 @@ export const updateLevelDetailsController = async (req: AuthRequest, res: Respon
     logger.error('[updateLevelDetailsController] Error stack:', error.stack);
     logger.error('[updateLevelDetailsController] Error message:', error.message);
     logger.error('[updateLevelDetailsController] Error code:', error.code);
-    
+
     const errorMessage = error.message || 'Failed to update level details';
-    res.status(500).json({ 
+    res.status(500).json({
       error: errorMessage,
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { login, createDefaultUsers } from '../services/authService';
+import { login, createDefaultUsers, register, forgotPassword } from '../services/authService';
 import { verifyGoogleToken, exchangeCodeForToken, findOrCreateGoogleUser } from '../services/googleAuthService';
 import logger from '../config/logger';
 
@@ -24,11 +24,11 @@ export const loginController = async (req: Request, res: Response): Promise<void
   } catch (error: any) {
     logger.error('Login error:', error);
     const errorMessage = error.message || 'Authentication failed';
-    
+
     // Provide helpful error messages
     if (errorMessage.includes('Invalid credentials')) {
-      res.status(401).json({ 
-        error: 'Invalid username or password. Default credentials: USER/123 or ADMIN/123' 
+      res.status(401).json({
+        error: 'Invalid username or password. Default credentials: USER/123 or ADMIN/123'
       });
     } else {
       res.status(401).json({ error: errorMessage });
@@ -65,5 +65,39 @@ export const googleLoginController = async (req: Request, res: Response): Promis
 
 export const initializeUsers = async (): Promise<void> => {
   await createDefaultUsers();
+};
+
+export const registerController = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { name, email, password } = req.body;
+
+    if (!name || !email || !password) {
+      res.status(400).json({ error: 'Name, email, and password are required' });
+      return;
+    }
+
+    const result = await register({ name, email, password });
+    res.json(result);
+  } catch (error: any) {
+    logger.error('Registration error:', error);
+    res.status(400).json({ error: error.message || 'Registration failed' });
+  }
+};
+
+export const forgotPasswordController = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      res.status(400).json({ error: 'Email is required' });
+      return;
+    }
+
+    const result = await forgotPassword(email);
+    res.json(result);
+  } catch (error: any) {
+    logger.error('Forgot password error:', error);
+    res.status(400).json({ error: error.message || 'Failed to process request' });
+  }
 };
 
