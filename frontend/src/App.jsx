@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { NavigationProvider } from './context/NavigationContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
 // Pages
@@ -202,7 +203,9 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <AppRoutes />
+        <NavigationProvider>
+          <AppRoutes />
+        </NavigationProvider>
       </AuthProvider>
     </Router>
   );

@@ -5,15 +5,15 @@ import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import {
   Search, Code, BookOpen, CheckCircle, TrendingUp, Flame,
-  ChevronRight, Trophy, Target, Clock, X, Check
+  ChevronRight, Clock, X, Check, ListChecks, ArrowRight
 } from 'lucide-react';
 
 const Progress = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [progress, setProgress] = useState(null);
-  const [leaderboard, setLeaderboard] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
+  const [tasks, setTasks] = useState([]);
   const [activeTab, setActiveTab] = useState('mcq'); // 'mcq' | 'coding'
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -24,35 +24,30 @@ const Progress = () => {
 
   const fetchData = async () => {
     try {
-      const [progressRes, leaderboardRes] = await Promise.all([
+      const [progressRes, activityRes, tasksRes] = await Promise.all([
         api.get('/progress/me'),
-        api.get('/progress/leaderboard?limit=3')
+        api.get('/progress/recent-activity?limit=20'),
+        api.get('/progress/tasks')
       ]);
       setProgress(progressRes.data);
-      setLeaderboard(leaderboardRes.data);
-
-      // Mock recent activity data (will be replaced with real API later)
-      setRecentActivity([
-        { id: 1, type: 'mcq', title: 'Introduction to Python Variables', course: 'Python', score: '10/10', passed: true, time: '2 mins ago' },
-        { id: 2, type: 'mcq', title: 'Data Structures: Linked Lists Basics', course: 'DSA', score: '4/10', passed: false, time: '45 mins ago' },
-        { id: 3, type: 'mcq', title: 'Java OOP Concepts: Inheritance', course: 'Java', score: '8/10', passed: true, time: '2 hours ago' },
-        { id: 4, type: 'coding', title: 'Two Sum Problem', course: 'DSA', score: 'Passed', passed: true, time: '3 hours ago' },
-        { id: 5, type: 'coding', title: 'Binary Search Implementation', course: 'Algorithms', score: 'Failed', passed: false, time: '1 day ago' },
-      ]);
+      setRecentActivity(activityRes.data || []);
+      setTasks(tasksRes.data || []);
     } catch (error) {
       console.error('Failed to fetch data:', error);
+      // Set empty arrays on error
+      setRecentActivity([]);
+      setTasks([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Calculate stats
-  const totalCoding = progress?.total_attempted || 142;
-  const totalMCQs = 856; // Will come from API later
-  const passPercentage = progress?.success_rate || 78.4;
-  const currentStreak = progress?.current_streak || 12;
-  const weeklyGoalTarget = 50;
-  const weeklyGoalProgress = 32;
+  // Calculate stats from real data
+  // Get total coding and MCQ counts from submissions
+  const totalCoding = progress?.total_attempted || 0;
+  const totalMCQs = recentActivity.filter(a => a.type === 'mcq').length;
+  const passPercentage = progress?.success_rate || 0;
+  const currentStreak = progress?.current_streak || 0;
 
   const filteredActivity = recentActivity.filter(a => a.type === activeTab);
 
@@ -176,6 +171,57 @@ const Progress = () => {
               </div>
             </div>
 
+            {/* Task Assigned Section */}
+            {tasks.length > 0 && (
+              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                    <ListChecks size={20} className="text-gray-400" />
+                    Task Assigned
+                  </h2>
+                </div>
+
+                <div className="space-y-3">
+                  {tasks.map((task) => (
+                    <div
+                      key={task.id}
+                      onClick={() => navigate(`/practice/${task.id}`)}
+                      className="flex items-center justify-between p-4 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer group border border-transparent hover:border-gray-100"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center bg-blue-100">
+                          {task.type === 'coding' ? (
+                            <Code className="text-blue-600" size={20} />
+                          ) : (
+                            <BookOpen className="text-blue-600" size={20} />
+                          )}
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-gray-800 group-hover:text-blue-600 transition-colors">
+                            {task.title}
+                          </h4>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded">
+                              {task.course}
+                            </span>
+                            <span className="text-gray-400 text-sm">
+                              {task.completed_questions}/{task.total_questions} completed
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="px-3 py-1 bg-orange-100 text-orange-700 text-xs font-medium rounded">
+                          In Progress
+                        </span>
+                        <ChevronRight className="text-gray-300 group-hover:text-blue-500 transition-colors" size={20} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Recent Activity Section */}
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
               <div className="flex items-center justify-between mb-6">
@@ -208,92 +254,60 @@ const Progress = () => {
               </div>
 
               <div className="space-y-3">
-                {filteredActivity.map((activity) => (
-                  <div
-                    key={activity.id}
-                    className="flex items-center justify-between p-4 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer group border border-transparent hover:border-gray-100"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${activity.passed ? 'bg-green-100' : 'bg-red-100'
-                        }`}>
-                        {activity.passed
-                          ? <Check className="text-green-600" size={20} />
-                          : <X className="text-red-500" size={20} />
-                        }
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-gray-800 group-hover:text-blue-600 transition-colors">
-                          {activity.title}
-                        </h4>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded">
-                            {activity.course}
-                          </span>
-                          <span className="text-gray-400 text-sm">Score: {activity.score}</span>
+                {filteredActivity.length > 0 ? (
+                  filteredActivity.map((activity) => (
+                    <div
+                      key={activity.id}
+                      onClick={() => navigate(`/results/${activity.id}`)}
+                      className="flex items-center justify-between p-4 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer group border border-transparent hover:border-gray-100"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${activity.passed ? 'bg-green-100' : 'bg-red-100'
+                          }`}>
+                          {activity.passed
+                            ? <Check className="text-green-600" size={20} />
+                            : <X className="text-red-500" size={20} />
+                          }
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-gray-800 group-hover:text-blue-600 transition-colors">
+                            {activity.title}
+                          </h4>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded">
+                              {activity.course}
+                            </span>
+                            <span className="text-gray-400 text-sm">Score: {activity.score}</span>
+                          </div>
                         </div>
                       </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-gray-400 text-sm">{activity.time}</span>
+                        <ChevronRight className="text-gray-300 group-hover:text-blue-500 transition-colors" size={20} />
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-gray-400 text-sm">{activity.time}</span>
-                      <ChevronRight className="text-gray-300 group-hover:text-blue-500 transition-colors" size={20} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <button className="w-full mt-4 py-3 text-blue-600 font-medium hover:bg-blue-50 rounded-xl transition-colors">
-                View All History
-              </button>
-            </div>
-
-            {/* Recommended for You Section */}
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                  💡 Recommended for You
-                </h2>
-                <button className="text-blue-600 text-sm font-medium hover:underline">See all</button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Coding Challenge Card */}
-                <div className="bg-gradient-to-br from-teal-500 to-cyan-600 rounded-2xl p-6 text-white relative overflow-hidden">
-                  <span className="px-3 py-1 bg-white/20 rounded-full text-xs font-medium backdrop-blur-sm">
-                    Coding Challenge
-                  </span>
-                  <h3 className="text-xl font-bold mt-4 mb-2">Binary Tree Traversal</h3>
-                  <p className="text-white/80 text-sm mb-6">Improve your DSA weak spots.</p>
-                  <button
-                    onClick={() => navigate('/dashboard')}
-                    className="px-6 py-2.5 bg-white text-teal-600 rounded-xl font-medium hover:bg-gray-100 transition-colors flex items-center gap-2"
-                  >
-                    Solve Now <ChevronRight size={18} />
-                  </button>
-                  <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-white/10 rounded-full"></div>
-                </div>
-
-                {/* MCQ Set Card */}
-                <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm relative">
-                  <div className="flex items-start justify-between">
-                    <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-medium">
-                      MCQ Set
-                    </span>
-                    <button className="text-gray-300 hover:text-yellow-500 transition-colors">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                      </svg>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <p>No recent activity found. Start practicing to see your progress!</p>
+                    <button
+                      onClick={() => navigate('/dashboard')}
+                      className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
+                    >
+                      Browse Courses <ArrowRight size={18} />
                     </button>
                   </div>
-                  <h3 className="text-xl font-bold text-gray-800 mt-4 mb-2">Advanced SQL Queries</h3>
-                  <p className="text-gray-500 text-sm mb-6">Based on your last failed attempt.</p>
-                  <button
-                    onClick={() => navigate('/dashboard')}
-                    className="w-full py-2.5 border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors"
-                  >
-                    Start Quiz
-                  </button>
-                </div>
+                )}
               </div>
+
+              {filteredActivity.length > 0 && (
+                <button 
+                  onClick={() => navigate('/dashboard')}
+                  className="w-full mt-4 py-3 text-blue-600 font-medium hover:bg-blue-50 rounded-xl transition-colors"
+                >
+                  View All History
+                </button>
+              )}
             </div>
           </div>
 
@@ -313,54 +327,6 @@ const Progress = () => {
               >
                 Continue Practice
               </button>
-            </div>
-
-            {/* Weekly Goal Card */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-              <h3 className="font-bold text-gray-800 mb-4">Weekly Goal</h3>
-              <div className="flex items-end justify-between mb-2">
-                <span className="text-gray-500 text-sm">Target: {weeklyGoalTarget} Qs</span>
-                <span className="text-blue-600 font-bold">{weeklyGoalProgress}/{weeklyGoalTarget}</span>
-              </div>
-              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all"
-                  style={{ width: `${(weeklyGoalProgress / weeklyGoalTarget) * 100}%` }}
-                ></div>
-              </div>
-            </div>
-
-            {/* Leaderboard Top 3 */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-gray-800">Leaderboard Top 3</h3>
-                <button
-                  onClick={() => navigate('/leaderboard')}
-                  className="text-blue-600 text-sm font-medium hover:underline"
-                >
-                  View All
-                </button>
-              </div>
-              <div className="space-y-3">
-                {leaderboard.slice(0, 3).map((player, idx) => (
-                  <div key={player.id} className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${idx === 0 ? 'bg-yellow-100 text-yellow-700' :
-                      idx === 1 ? 'bg-gray-100 text-gray-600' :
-                        'bg-orange-100 text-orange-700'
-                      }`}>
-                      {idx + 1}
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-800 text-sm">{player.name}</p>
-                      <p className="text-xs text-gray-400">{player.problems_solved} problems</p>
-                    </div>
-                    <Trophy className={`${idx === 0 ? 'text-yellow-500' :
-                      idx === 1 ? 'text-gray-400' :
-                        'text-orange-400'
-                      }`} size={18} />
-                  </div>
-                ))}
-              </div>
             </div>
 
           </div>
