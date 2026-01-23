@@ -9,6 +9,7 @@ export interface Course {
   description: string | null;
   overview: string | null;
   total_levels: number;
+  image_url?: string | null;
 }
 
 export interface Level {
@@ -18,48 +19,65 @@ export interface Level {
   title: string;
   description: string | null;
   status?: string;
+  image_url?: string | null;
 }
 
+// Restoration of getAllCourses
 export const getAllCourses = async (userId?: string): Promise<Course[]> => {
   try {
     console.log(`[getAllCourses] Fetching all courses for userId: ${userId || 'none'}`);
 
-    // Try to fetch with overview column first
+    // Strategy: Try most complete query first, degrade gracefully
     try {
+      // 1. Try with overview AND image_url
       const result = await pool.query(
-        'SELECT id, title, description, overview, total_levels FROM courses ORDER BY title'
+        'SELECT id, title, description, overview, total_levels, image_url FROM courses ORDER BY title'
       );
       const courses = getRows(result);
-      console.log(`[getAllCourses] Found ${courses.length} courses with overview`);
+      console.log(`[getAllCourses] Found ${courses.length} courses with overview and image_url`);
       return courses || [];
     } catch (queryError: any) {
-      // If overview column doesn't exist, fallback to query without it
-      if (queryError.code === 'ER_BAD_FIELD_ERROR' || queryError.message?.includes('Unknown column') || queryError.message?.includes('overview')) {
-        console.warn('[getAllCourses] Overview column not found, fetching without overview');
-        const result = await pool.query(
-          'SELECT id, title, description, total_levels FROM courses ORDER BY title'
-        );
-        const courses = getRows(result);
-        // Add null overview to each course
-        const coursesWithOverview = (courses || []).map((course: any) => ({
-          ...course,
-          overview: null
-        }));
-        console.log(`[getAllCourses] Found ${coursesWithOverview.length} courses without overview`);
-        return coursesWithOverview;
+      console.warn('[getAllCourses] Primary query failed:', queryError.code);
+
+      // Check if it's a column error
+      const isColumnError = queryError.code === 'ER_BAD_FIELD_ERROR' ||
+        queryError.message?.includes('Unknown column');
+
+      if (isColumnError) {
+        // 2. Try with overview (no image_url)
+        try {
+          const result = await pool.query(
+            'SELECT id, title, description, overview, total_levels FROM courses ORDER BY title'
+          );
+          const courses = getRows(result);
+          console.log(`[getAllCourses] Found ${courses.length} courses with overview (no image_url)`);
+          return courses || [];
+        } catch (err2: any) {
+          // 3. Try with image_url (no overview)
+          try {
+            const result = await pool.query(
+              'SELECT id, title, description, total_levels, image_url FROM courses ORDER BY title'
+            );
+            const courses = getRows(result);
+            return (courses || []).map((c: any) => ({ ...c, overview: null }));
+          } catch (err3) {
+            // 4. Fallback to basic (no overview, no image_url)
+            console.warn('[getAllCourses] Fallback to basic query');
+            const result = await pool.query(
+              'SELECT id, title, description, total_levels FROM courses ORDER BY title'
+            );
+            const courses = getRows(result);
+            return (courses || []).map((c: any) => ({ ...c, overview: null, image_url: null }));
+          }
+        }
       }
-      // Re-throw if it's a different error
       throw queryError;
     }
   } catch (error: any) {
     console.error('[getAllCourses] Error fetching courses:', error);
-    console.error('[getAllCourses] Error stack:', error.stack);
-    // On database timeout, return empty array so frontend doesn't break
     if (error.code === 'ETIMEDOUT' || error.code === 'ECONNREFUSED' || error.code === 'PROTOCOL_CONNECTION_LOST') {
-      console.warn('[getAllCourses] Database timeout/connection error, returning empty array');
       return [];
     }
-    // Re-throw other errors so controller can handle them
     throw error;
   }
 };
@@ -71,14 +89,31 @@ export const getCourseLevels = async (
   try {
     console.log(`[getCourseLevels] Starting for courseId: ${courseId}, userId: ${userId}`);
 
-    // Get all levels for the course
-    const levelsResult = await pool.query(
-      `SELECT l.id, l.course_id, l.level_number, l.title, l.description, l.topic_description, l.learning_materials
-     FROM levels l
-     WHERE l.course_id = ?
-     ORDER BY l.level_number`,
-      [courseId]
-    );
+    let levelsResult;
+    try {
+      // 1. Try with image_url
+      levelsResult = await pool.query(
+        `SELECT l.id, l.course_id, l.level_number, l.title, l.description, l.topic_description, l.learning_materials, l.image_url
+       FROM levels l
+       WHERE l.course_id = ?
+       ORDER BY l.level_number`,
+        [courseId]
+      );
+    } catch (err: any) {
+      if (err.code === 'ER_BAD_FIELD_ERROR' || err.message?.includes('Unknown column')) {
+        console.warn('[getCourseLevels] image_url column missing, falling back');
+        // 2. Fallback without image_url
+        levelsResult = await pool.query(
+          `SELECT l.id, l.course_id, l.level_number, l.title, l.description, l.topic_description, l.learning_materials
+           FROM levels l
+           WHERE l.course_id = ?
+           ORDER BY l.level_number`,
+          [courseId]
+        );
+      } else {
+        throw err;
+      }
+    }
 
     const levelsRows = getRows(levelsResult);
     console.log(`[getCourseLevels] Found ${levelsRows.length} levels for course ${courseId}`);
@@ -246,7 +281,7 @@ export const getCourseLevels = async (
 
 export const getLevelDetails = async (levelId: string): Promise<any> => {
   const result = await pool.query(
-    'SELECT id, title, description, topic_description, learning_materials, level_number FROM levels WHERE id = ?',
+    'SELECT id, title, description, topic_description, learning_materials, level_number, code_snippet FROM levels WHERE id = ?',
     [levelId]
   );
   const rows = getRows(result);

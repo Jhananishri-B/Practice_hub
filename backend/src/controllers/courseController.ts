@@ -69,7 +69,7 @@ export const getLevelDetailsController = async (req: AuthRequest, res: Response)
     // the lessonPlan structure for LevelOverview component
     const lessonPlan = level.learning_materials || {};
     let parsedLessonPlan: any = {};
-    
+
     if (typeof level.learning_materials === 'string') {
       try {
         parsedLessonPlan = JSON.parse(level.learning_materials);
@@ -82,7 +82,7 @@ export const getLevelDetailsController = async (req: AuthRequest, res: Response)
       parsedLessonPlan = level.learning_materials;
       logger.info(`[getLevelDetailsController] Using learning_materials object directly for level ${levelId}`);
     }
-    
+
     logger.info(`[getLevelDetailsController] Parsed lesson plan for level ${levelId}:`, {
       hasIntroduction: !!parsedLessonPlan.introduction,
       hasConcepts: !!(parsedLessonPlan.concepts && parsedLessonPlan.concepts.length > 0),
@@ -124,15 +124,15 @@ export const getLevelDetailsController = async (req: AuthRequest, res: Response)
       // Prioritize saved learning_materials.introduction over level.description
       introduction: parsedLessonPlan.introduction || level.description || '',
       // PRIORITY: Use saved learning_materials.concepts first, then fallback to topic_description
-      concepts: (parsedLessonPlan.concepts && parsedLessonPlan.concepts.length > 0) 
-        ? parsedLessonPlan.concepts 
+      concepts: (parsedLessonPlan.concepts && parsedLessonPlan.concepts.length > 0)
+        ? parsedLessonPlan.concepts
         : conceptsFromCoreTopics,
       // Prioritize saved learning_materials.resources over materials from topic_description
       resources: parsedLessonPlan.resources && parsedLessonPlan.resources.length > 0
         ? parsedLessonPlan.resources
         : level.materials || [],
       key_terms: parsedLessonPlan.key_terms || [],
-      example_code: parsedLessonPlan.example_code || '',
+      example_code: parsedLessonPlan.example_code || level.code_snippet || '',
       youtube_url: parsedLessonPlan.youtube_url || ''
     };
 

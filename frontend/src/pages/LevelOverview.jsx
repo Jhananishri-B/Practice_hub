@@ -358,36 +358,39 @@ const LevelOverview = () => {
                     </div>
                 ) : (
                     <div className="max-w-7xl mx-auto space-y-12 animate-in fade-in duration-500">
-                        {/* Header Section - Improved Layout */}
+                        {/* Header Section */}
                         <div className="space-y-6">
-                            <div className={`grid grid-cols-1 ${lessonPlan.youtube_url?.trim() ? 'lg:grid-cols-3' : ''} gap-6`}>
+                            <div className={`grid grid-cols-1 ${lessonPlan.youtube_url?.trim() ? 'lg:grid-cols-3' : ''} gap-8`}>
                                 {/* Left Column - Title and Info */}
-                                <div className={`space-y-4 ${lessonPlan.youtube_url?.trim() ? 'lg:col-span-2' : ''}`}>
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white shadow-lg">
-                                            <BookOpen size={28} />
+                                <div className={`space-y-6 ${lessonPlan.youtube_url?.trim() ? 'lg:col-span-2' : ''}`}>
+                                    <div className="space-y-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-200">
+                                                <BookOpen size={20} strokeWidth={2.5} />
+                                            </div>
+                                            <span className="text-xs font-bold text-blue-600 tracking-wider uppercase bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
+                                                LEVEL {lessonPlan.level_number ?? levelId}
+                                            </span>
                                         </div>
-                                        <div className="space-y-1">
-                                            <h3 className="text-xs font-bold text-blue-600 tracking-wider uppercase">LEVEL {lessonPlan.level_number ?? levelId}</h3>
-                                            <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight">
-                                                {lessonPlan.title || `Level ${levelId} Overview`}
-                                            </h1>
-                                        </div>
+
+                                        <h1 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tight leading-tight">
+                                            {lessonPlan.title || `Level ${levelId} Overview`}
+                                        </h1>
                                     </div>
 
-                                    <p className="text-gray-600 text-base leading-relaxed">
+                                    <p className="text-lg text-gray-600 leading-relaxed max-w-3xl">
                                         {lessonPlan.introduction}
                                     </p>
 
                                     {/* Key Terms */}
                                     {lessonPlan.key_terms && lessonPlan.key_terms.length > 0 && (
-                                        <div className="pt-2">
-                                            <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                                Key Terms
+                                        <div className="pt-4">
+                                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
+                                                KEY TERMS
                                             </h4>
                                             <div className="flex flex-wrap gap-2">
                                                 {lessonPlan.key_terms.map((term, idx) => (
-                                                    <span key={idx} className="px-3 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 rounded-lg text-xs font-bold tracking-wide border border-blue-100 shadow-sm">
+                                                    <span key={idx} className="px-4 py-2 bg-white border border-gray-200 text-blue-700 rounded-lg text-sm font-semibold shadow-sm hover:shadow-md hover:border-blue-200 transition-all cursor-default">
                                                         {term}
                                                     </span>
                                                 ))}
@@ -399,16 +402,20 @@ const LevelOverview = () => {
                                 {/* Right Column - YouTube Video */}
                                 {lessonPlan.youtube_url && lessonPlan.youtube_url.trim() && (
                                     <div className="lg:col-span-1">
-                                        <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl shadow-2xl overflow-hidden border-4 border-gray-700 sticky top-4">
-                                            <div className="p-3 bg-gradient-to-r from-red-600 to-red-500 flex items-center gap-2">
-                                                <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-                                                    <svg className="w-5 h-5 text-red-600" viewBox="0 0 24 24" fill="currentColor">
-                                                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-                                                    </svg>
+                                        <div className="bg-white rounded-2xl shadow-xl shadow-gray-200 overflow-hidden border border-gray-100 relative group transform hover:-translate-y-1 transition-transform duration-300">
+                                            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-red-500 to-red-600 z-10"></div>
+                                            <div className="p-4 bg-white border-b border-gray-50 flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center">
+                                                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                                                            <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                                                        </svg>
+                                                    </div>
+                                                    <span className="font-bold text-gray-800 text-sm">Video Tutorial</span>
                                                 </div>
-                                                <span className="text-white font-bold text-sm">Video Tutorial</span>
+                                                <ExternalLink size={14} className="text-gray-400 group-hover:text-red-500 transition-colors" />
                                             </div>
-                                            <div className="aspect-video bg-black">
+                                            <div className="aspect-video bg-black relative">
                                                 <iframe
                                                     width="100%"
                                                     height="100%"
@@ -428,34 +435,62 @@ const LevelOverview = () => {
                         {/* Core Topics Grid */}
                         <div>
                             <div className="flex items-center gap-2 mb-6">
-                                <span className="w-6 h-6 rounded bg-gray-200 flex items-center justify-center">
-                                    <div className="w-3 h-3 bg-gray-400 rounded-sm"></div>
-                                </span>
-                                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">CORE TOPICS</h3>
+                                <div className="w-1 h-6 bg-gray-200 rounded-full"></div>
+                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                                    CORE TOPICS
+                                </h3>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {lessonPlan.concepts.map((concept, idx) => (
-                                    <div key={idx} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow flex flex-col h-full">
-                                        <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
-                                            {/* Dynamic Icon based on index or content? Using generic icons for now */}
-                                            {[<Code size={20} />, <Lightbulb size={20} />, <Sparkles size={20} />, <BookOpen size={20} />][idx % 4]}
+                                    <div key={idx} className="bg-white p-6 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-gray-100 flex flex-col h-full group">
+                                        <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform duration-300">
+                                            {/* Dynamic Icon based on index */}
+                                            {[<Code size={24} />, <Lightbulb size={24} />, <Sparkles size={24} />, <BookOpen size={24} />][idx % 4]}
                                         </div>
-                                        <h3 className="font-bold text-gray-900 mb-2 text-lg">{concept.title}</h3>
+                                        <h3 className="font-bold text-gray-900 mb-3 text-lg group-hover:text-blue-600 transition-colors">
+                                            {concept.title}
+                                        </h3>
                                         <p className="text-sm text-gray-500 leading-relaxed flex-1">
-                                            {concept.explanation.length > 80
-                                                ? concept.explanation.substring(0, 80) + '...'
-                                                : concept.explanation}
+                                            {concept.explanation}
                                         </p>
                                     </div>
                                 ))}
                                 {lessonPlan.concepts.length === 0 && (
-                                    <div className="col-span-4 text-center py-12 text-gray-400 bg-white rounded-2xl border border-dashed border-gray-200">
-                                        No core topics defined yet.
+                                    <div className="col-span-3 text-center py-16 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                                        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3 text-gray-400">
+                                            <BookOpen size={20} />
+                                        </div>
+                                        <p className="text-gray-500 font-medium">No core topics defined yet.</p>
                                     </div>
                                 )}
                             </div>
                         </div>
+
+                        {/* Example Code Section */}
+                        {lessonPlan.example_code && (
+                            <div className="rounded-2xl overflow-hidden shadow-2xl bg-[#0F172A] border border-gray-800">
+                                <div className="flex items-center justify-between px-6 py-4 bg-[#1E293B] border-b border-gray-800">
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex gap-1.5">
+                                            <div className="w-3 h-3 rounded-full bg-red-500/80"></div>
+                                            <div className="w-3 h-3 rounded-full bg-yellow-500/80"></div>
+                                            <div className="w-3 h-3 rounded-full bg-green-500/80"></div>
+                                        </div>
+                                        <span className="text-xs font-mono text-gray-400 ml-2">EXAMPLE CODE</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                                        <Code size={14} />
+                                        <span>read-only</span>
+                                    </div>
+                                </div>
+                                <div className="relative group p-1">
+                                    <pre className="font-mono text-sm text-blue-100 overflow-x-auto p-6 leading-relaxed">
+                                        {lessonPlan.example_code}
+                                    </pre>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Lower Section: Materials & Assessment */}
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -467,7 +502,9 @@ const LevelOverview = () => {
                                         <FolderIcon className="text-gray-400" size={20} />
                                         <h3 className="font-bold text-gray-900 text-lg">Course Materials</h3>
                                     </div>
-                                    <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">{lessonPlan.resources.length} ASSETS</span>
+                                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider bg-gray-100 px-2 py-1 rounded">
+                                        {lessonPlan.resources.length} ASSETS
+                                    </span>
                                 </div>
 
                                 <div className="space-y-3">
@@ -477,60 +514,55 @@ const LevelOverview = () => {
                                             href={res.url}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="group bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover:border-blue-200 hover:shadow-md transition-all flex items-center gap-4"
+                                            className="group bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover:border-blue-200 hover:shadow-md hover:translate-x-1 transition-all flex items-center gap-4"
                                         >
-                                            <div className="w-10 h-10 rounded-lg bg-orange-50 text-orange-500 flex items-center justify-center group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">
+                                            <div className="w-10 h-10 rounded-lg bg-orange-50 text-orange-500 flex items-center justify-center group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors shadow-sm">
                                                 <BookOpen size={20} />
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <h4 className="font-bold text-gray-800 text-sm truncate group-hover:text-blue-700 transition-colors">
                                                     {res.title}
                                                 </h4>
-                                                <p className="text-xs text-gray-500 truncate">External Resource • Click to view</p>
+                                                <p className="text-xs text-gray-500 truncate flex items-center gap-1">
+                                                    <span>External Resource</span>
+                                                    <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+                                                    <span className="group-hover:text-blue-500 transition-colors">Click to view</span>
+                                                </p>
                                             </div>
-                                            <ExternalLink size={16} className="text-gray-300 group-hover:text-blue-400" />
+                                            <ExternalLink size={16} className="text-gray-300 group-hover:text-blue-400 transition-colors" />
                                         </a>
                                     ))}
                                     {lessonPlan.resources.length === 0 && (
-                                        <div className="text-sm text-gray-500 italic p-4 bg-white rounded-xl border border-gray-100">
-                                            No materials added.
-                                        </div>
-                                    )}
-
-                                    {/* Hardcoded extras just to fill space if empty (optional, matches design which lists multiple) */}
-                                    {lessonPlan.resources.length === 0 && (
-                                        <div className="opacity-50 pointer-events-none grayscale">
-                                            <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4 mb-3">
-                                                <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-500 flex items-center justify-center"><Code size={20} /></div>
-                                                <div><h4 className="font-bold text-gray-800 text-sm">Example Code Snippet</h4></div>
-                                            </div>
+                                        <div className="text-sm text-gray-500 italic p-6 bg-gray-50 rounded-xl border border-gray-100 text-center">
+                                            No materials added for this level.
                                         </div>
                                     )}
                                 </div>
                             </div>
 
-                            {/* Right Col: Assessment (Size: 8/12 - actually 7/12 looks better, let's use flex-1) */}
+                            {/* Right Col: Assessment (Size: 8/12) */}
                             <div className="lg:col-span-7">
-                                <div className="bg-blue-600 rounded-3xl p-8 md:p-10 text-white shadow-2xl relative overflow-hidden flex flex-col justify-between h-full min-h-[400px]">
+                                <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl p-8 md:p-10 text-white shadow-2xl shadow-blue-200 relative overflow-hidden flex flex-col justify-between h-full min-h-[400px] hover:shadow-3xl transition-shadow duration-500 group">
                                     {/* Background Decor */}
-                                    <div className="absolute top-0 right-0 p-12 opacity-10 pointer-events-none">
+                                    <div className="absolute top-0 right-0 p-12 opacity-10 pointer-events-none group-hover:scale-110 transition-transform duration-700 ease-out">
                                         <Sparkles size={300} />
                                     </div>
-                                    <div className="absolute bottom-0 right-0 w-64 h-64 bg-blue-500 rounded-full blur-3xl opacity-50 pointer-events-none -mr-16 -mb-16"></div>
+                                    <div className="absolute bottom-0 right-0 w-64 h-64 bg-blue-500 rounded-full blur-3xl opacity-50 pointer-events-none -mr-16 -mb-16 animate-pulse"></div>
 
                                     {/* Content */}
-                                    <div className="relative z-10 space-y-6">
-                                        <span className="inline-block px-3 py-1 bg-blue-500/50 border border-blue-400/30 rounded-full text-xs font-bold tracking-wider uppercase">
+                                    <div className="relative z-10 space-y-8">
+                                        <span className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-xs font-bold tracking-wider uppercase text-blue-50">
+                                            <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
                                             Assessment Ready
                                         </span>
 
                                         <div>
-                                            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-                                                Ready to Test Your Knowledge?
+                                            <h2 className="text-3xl md:text-5xl font-black mb-6 tracking-tight">
+                                                Ready to Test <br /> Your Knowledge?
                                             </h2>
-                                            <p className="text-blue-100 text-lg leading-relaxed max-w-lg">
+                                            <p className="text-blue-100 text-lg leading-relaxed max-w-lg font-medium">
                                                 Validation is the final step of learning. Prove your proficiency
-                                                in <strong>Level {lessonPlan.level_number ?? levelId}</strong> fundamentals and earn your certification badge.
+                                                in <strong className="text-white border-b-2 border-white/30">Level {lessonPlan.level_number ?? levelId}</strong> fundamentals and earn your certification badge.
                                             </p>
                                         </div>
                                     </div>
@@ -539,22 +571,26 @@ const LevelOverview = () => {
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-auto pt-10 relative z-10">
                                         <button
                                             onClick={() => navigate(`/mcq-practice/${courseId}/${levelId}`, { state: { sessionType: 'mcq' } })}
-                                            className="bg-white text-blue-900 px-6 py-4 rounded-xl font-bold hover:bg-blue-50 transition-colors shadow-lg flex items-center justify-center gap-3"
+                                            className="bg-white text-blue-900 px-6 py-5 rounded-2xl font-bold hover:bg-blue-50 transition-all shadow-lg hover:shadow-xl hover:-translate-y-1 flex items-center justify-center gap-4 group/btn"
                                         >
-                                            <CheckCircle size={20} className="text-blue-600" />
+                                            <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center group-hover/btn:scale-110 transition-transform">
+                                                <CheckCircle size={22} />
+                                            </div>
                                             <div className="text-left">
-                                                <div className="text-xs text-gray-500 font-normal uppercase">Quiz</div>
-                                                <div>Take MCQ Test</div>
+                                                <div className="text-xs text-blue-400 font-bold uppercase tracking-wider mb-0.5">Quiz</div>
+                                                <div className="text-lg">Take MCQ Test</div>
                                             </div>
                                         </button>
                                         <button
                                             onClick={() => navigate(`/practice/${courseId}/${levelId}`, { state: { sessionType: 'coding' } })}
-                                            className="bg-blue-500/40 backdrop-blur-sm border border-blue-400/30 text-white px-6 py-4 rounded-xl font-bold hover:bg-blue-500/50 transition-colors flex items-center justify-center gap-3"
+                                            className="bg-blue-500/30 backdrop-blur-md border border-white/20 text-white px-6 py-5 rounded-2xl font-bold hover:bg-white/20 transition-all flex items-center justify-center gap-4 hover:-translate-y-1"
                                         >
-                                            <Code size={20} />
+                                            <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
+                                                <Code size={22} />
+                                            </div>
                                             <div className="text-left">
-                                                <div className="text-xs text-blue-200 font-normal uppercase">Practice</div>
-                                                <div>Start Coding</div>
+                                                <div className="text-xs text-blue-200 font-bold uppercase tracking-wider mb-0.5">Practice</div>
+                                                <div className="text-lg">Start Coding</div>
                                             </div>
                                         </button>
                                     </div>
@@ -565,7 +601,7 @@ const LevelOverview = () => {
                     </div>
                 )}
             </div>
-        </Layout>
+        </Layout >
     );
 };
 
