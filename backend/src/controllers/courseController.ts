@@ -88,6 +88,7 @@ export const getLevelDetailsController = async (req: AuthRequest, res: Response)
       hasConcepts: !!(parsedLessonPlan.concepts && parsedLessonPlan.concepts.length > 0),
       hasResources: !!(parsedLessonPlan.resources && parsedLessonPlan.resources.length > 0),
       hasKeyTerms: !!(parsedLessonPlan.key_terms && parsedLessonPlan.key_terms.length > 0),
+      hasYoutubeUrl: !!parsedLessonPlan.youtube_url,
     });
 
     // Transform coreTopics from topic_description into concepts format for frontend
@@ -131,7 +132,8 @@ export const getLevelDetailsController = async (req: AuthRequest, res: Response)
         ? parsedLessonPlan.resources
         : level.materials || [],
       key_terms: parsedLessonPlan.key_terms || [],
-      example_code: parsedLessonPlan.example_code || ''
+      example_code: parsedLessonPlan.example_code || '',
+      youtube_url: parsedLessonPlan.youtube_url || ''
     };
 
     res.json(response);

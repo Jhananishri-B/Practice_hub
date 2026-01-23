@@ -13,8 +13,10 @@ api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
-    console.log('API Request:', config.url, 'with token:', token.substring(0, 20) + '...');
-  } else {
+    if (import.meta.env.DEV) {
+      console.log('API Request:', config.url, 'with token:', token.substring(0, 20) + '...');
+    }
+  } else if (import.meta.env.DEV) {
     console.warn('API Request without token:', config.url);
   }
   return config;
@@ -25,14 +27,17 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      console.error('401 Unauthorized - Token issue:', {
-        url: error.config?.url,
-        token: localStorage.getItem('token') ? 'Token exists' : 'No token',
-        tokenValue: localStorage.getItem('token')
-      });
-      // Optionally clear invalid token
+      // Clear invalid token and redirect to login (except for auth endpoints)
       if (error.config?.url !== '/auth/login' && error.config?.url !== '/auth/google') {
-        // Don't clear on auth endpoints
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        // Redirect to login page
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+      }
+      if (import.meta.env.DEV) {
+        console.error('401 Unauthorized - Token cleared and redirecting to login');
       }
     }
     return Promise.reject(error);

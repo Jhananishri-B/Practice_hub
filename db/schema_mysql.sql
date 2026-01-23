@@ -31,6 +31,8 @@ CREATE TABLE IF NOT EXISTS levels (
     level_number INTEGER NOT NULL,
     title VARCHAR(255) NOT NULL,
     description TEXT,
+    topic_description TEXT,
+    learning_materials TEXT,
     time_limit INTEGER,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

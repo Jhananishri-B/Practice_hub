@@ -9,7 +9,7 @@ const AdminCourses = () => {
   const [showModal, setShowModal] = useState(false); // Renamed from showAddCourse for generic modal
   const [isEditMode, setIsEditMode] = useState(false);
   const [currentCourseId, setCurrentCourseId] = useState(null);
-  const [formData, setFormData] = useState({ title: '', description: '', total_levels: 1 });
+  const [formData, setFormData] = useState({ title: '', description: '', total_levels: 1, image_url: '' });
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -30,7 +30,7 @@ const AdminCourses = () => {
 
   const openAddModal = () => {
     setIsEditMode(false);
-    setFormData({ title: '', description: '', total_levels: 1 });
+    setFormData({ title: '', description: '', total_levels: 1, image_url: '' });
     setCurrentCourseId(null);
     setShowModal(true);
   };
@@ -40,7 +40,8 @@ const AdminCourses = () => {
     setFormData({
       title: course.title,
       description: course.description || '',
-      total_levels: course.total_levels
+      total_levels: course.total_levels,
+      image_url: course.image_url || ''
     });
     setCurrentCourseId(course.id);
     setShowModal(true);
@@ -154,6 +155,25 @@ const AdminCourses = () => {
                       min="1"
                     />
                   </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Course Image URL
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.image_url}
+                      onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                      placeholder="e.g., https://example.com/image.jpg"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                  {formData.image_url && (
+                    <div className="mt-2">
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Preview</label>
+                      <img src={formData.image_url} alt="Preview" className="w-full h-32 object-cover rounded-lg border border-gray-200" onError={(e) => e.target.style.display = 'none'} />
+                    </div>
+                  )}
                   <div className="flex gap-3 justify-end mt-4">
                     <button
                       type="button"
@@ -234,8 +254,8 @@ const AdminCourses = () => {
             </div>
           ))}
         </div>
-      </div>
-    </Layout>
+      </div >
+    </Layout >
   );
 };
 

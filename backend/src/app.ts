@@ -28,24 +28,51 @@ dotenv.config();
 
 const app: Application = express();
 
-// Middleware
+// Middleware - CORS Configuration
+const isDevelopment = process.env.NODE_ENV !== 'production';
+const allowedOrigins = process.env.FRONTEND_URL 
+  ? [process.env.FRONTEND_URL]
+  : ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'];
+
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests) or any origin
-    return callback(null, true);
+    // Allow requests with no origin (like mobile apps, Postman, or curl requests)
+    if (!origin) {
+      return callback(null, true);
+    }
+    // In development, allow all localhost origins
+    if (isDevelopment && (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
+      return callback(null, true);
+    }
+    // Check if origin is in allowed list
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      // In development, be permissive; in production, be strict
+      if (isDevelopment) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    }
   },
   credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   exposedHeaders: ['Authorization'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use((req, res, next) => {
-  console.error(`DEBUG: Incoming Request ${req.method} ${req.url}`);
-  next();
-});
+// Request logging (only in development)
+if (process.env.NODE_ENV === 'development' || process.env.LOG_LEVEL === 'debug') {
+  app.use((req, res, next) => {
+    logger.debug(`Incoming Request ${req.method} ${req.url}`);
+    next();
+  });
+}
 
 // Root route
 app.get('/', (req, res) => {

@@ -38,6 +38,8 @@ const Practice = () => {
     const [lastRunError, setLastRunError] = useState(null);
     const [isRunning, setIsRunning] = useState(false);
     const [availableLanguages, setAvailableLanguages] = useState([{ value: 'python', label: 'Python 3.10' }]);
+    // Store user code for each question: { [questionIndex]: codeString }
+    const [userCodeByQuestion, setUserCodeByQuestion] = useState({});
     // LeetCode-style result state
     const [submitResult, setSubmitResult] = useState(null); // { status: 'Accepted'|'Wrong Answer'|'Runtime Error'|'Time Limit Exceeded', passed: number, total: number, runtime?: number }
 
@@ -88,7 +90,12 @@ const Practice = () => {
             }
 
             setSession(sessionData);
-            setCode(sessionData.questions[0]?.reference_solution || '');
+
+            // Initialize code for the first question
+            const firstQCode = sessionData.questions[0]?.reference_solution || '';
+            setCode(firstQCode);
+            setUserCodeByQuestion({ 0: firstQCode });
+
             setLoading(false);
         } catch (error) {
             console.error('Failed to start session:', error);
@@ -230,8 +237,11 @@ const Practice = () => {
         if (!session) return;
 
         if (!auto) {
-            const confirmFinish = window.confirm('Are you willing to finish the test?');
-            if (!confirmFinish) {
+            // Use a simple confirm. If it fails or is blocked, we might want a custom modal, 
+            // but for now let's ensure the logic flow is correct.
+            // Using a distinct variable name to avoid confusion
+            const shouldFinish = window.confirm('Are you sure you want to finish the test?');
+            if (!shouldFinish) {
                 return;
             }
         } else {
@@ -240,11 +250,15 @@ const Practice = () => {
 
         try {
             await api.post(`/sessions/${session.id}/complete`);
-            alert(auto ? 'Test submitted successfully' : 'Code submitted successfully');
-            navigate(`/results/${session.id}`);
+            // Only show alert if it's auto-submit, otherwise just navigate for smoother UX
+            if (auto) alert('Test submitted successfully');
+
+            // Force navigation and replace history to prevent going back
+            navigate(`/results/${session.id}`, { replace: true });
         } catch (error) {
             console.error('Failed to complete session:', error);
-            alert('Failed to complete session');
+            // Even if backend fails (e.g. already completed), try to navigate to results
+            navigate(`/results/${session.id}`, { replace: true });
         }
     };
 
@@ -290,21 +304,23 @@ const Practice = () => {
                                 <button
                                     key={index}
                                     onClick={() => {
+                                        // Save current code before switching
+                                        setUserCodeByQuestion(prev => ({
+                                            ...prev,
+                                            [currentQuestionIndex]: code
+                                        }));
+
                                         setCurrentQuestionIndex(index);
-                                        // Preserve code if moving back? For now, load ref
-                                        // Ideally we should store user code per question in state
-                                        // But for now, let's just warn or simple switch
-                                        // Assuming user code is shared or wiped? 
-                                        // actually existing logic wiped it: setCode(q.reference || '')
-                                        // We should allow navigation.
-                                        const confirmSwitch = code !== (q.reference_solution || '') ? window.confirm("Switching questions will discard unsaved code (unless we save it). Continue?") : true;
-                                        if (confirmSwitch) {
-                                            setCode(q.reference_solution || '');
-                                            // Clear results when switching questions
-                                            setSubmitResult(null);
-                                            setOutput('');
-                                            setLastRunError(null);
-                                        }
+
+                                        // Load saved code or reference solution
+                                        const savedCode = userCodeByQuestion[index];
+                                        const refCode = q.reference_solution || '';
+                                        setCode(savedCode !== undefined ? savedCode : refCode);
+
+                                        // Clear results when switching questions
+                                        setSubmitResult(null);
+                                        setOutput('');
+                                        setLastRunError(null);
                                     }}
                                     className={`px-4 py-2 rounded-lg font-medium border ${index === currentQuestionIndex
                                         ? 'bg-blue-600 text-white border-blue-600'
@@ -489,7 +505,14 @@ const Practice = () => {
                             height="100%"
                             language={language}
                             value={code}
-                            onChange={(value) => setCode(value || '')}
+                            onChange={(value) => {
+                                setCode(value || '');
+                                // Update persistent state as user types (debouncing could be added if performance issues arise)
+                                setUserCodeByQuestion(prev => ({
+                                    ...prev,
+                                    [currentQuestionIndex]: value || ''
+                                }));
+                            }}
                             theme="vs-dark"
                             options={{
                                 minimap: { enabled: false },

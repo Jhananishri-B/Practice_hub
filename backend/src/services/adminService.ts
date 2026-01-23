@@ -230,16 +230,16 @@ export const getDashboardStats = async () => {
   }
 };
 
-export const createCourse = async (data: { title: string; description?: string; total_levels: number }) => {
+export const createCourse = async (data: { title: string; description?: string; total_levels: number; image_url?: string }) => {
   const courseId = randomUUID();
   await pool.query(
-    'INSERT INTO courses (id, title, description, total_levels) VALUES (?, ?, ?, ?)',
-    [courseId, data.title, data.description || null, data.total_levels]
+    'INSERT INTO courses (id, title, description, total_levels, image_url) VALUES (?, ?, ?, ?, ?)',
+    [courseId, data.title, data.description || null, data.total_levels, data.image_url || null]
   );
   return courseId;
 };
 
-export const updateCourse = async (courseId: string, data: { title?: string; description?: string; total_levels?: number }) => {
+export const updateCourse = async (courseId: string, data: { title?: string; description?: string; total_levels?: number; image_url?: string }) => {
   const updates: string[] = [];
   const params: any[] = [];
 
@@ -254,6 +254,10 @@ export const updateCourse = async (courseId: string, data: { title?: string; des
   if (data.total_levels) {
     updates.push('total_levels = ?');
     params.push(data.total_levels);
+  }
+  if (data.image_url !== undefined) {
+    updates.push('image_url = ?');
+    params.push(data.image_url);
   }
 
   if (updates.length > 0) {
@@ -275,11 +279,12 @@ export const createLevel = async (data: {
   description?: string;
   topic_description?: string;
   learning_materials?: string; // or JSON string
+  image_url?: string;
 }) => {
   const levelId = randomUUID();
   await pool.query(
-    'INSERT INTO levels (id, course_id, level_number, title, description, topic_description, learning_materials) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    [levelId, data.course_id, data.level_number, data.title, data.description || null, data.topic_description || null, data.learning_materials || null]
+    'INSERT INTO levels (id, course_id, level_number, title, description, topic_description, learning_materials, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    [levelId, data.course_id, data.level_number, data.title, data.description || null, data.topic_description || null, data.learning_materials || null, data.image_url || null]
   );
   return levelId;
 };
@@ -294,7 +299,7 @@ export const getCoursesWithLevels = async () => {
     console.log('[getCoursesWithLevels] Fetching courses with levels');
 
     const coursesResult = await pool.query(
-      'SELECT id, title, description, total_levels, updated_at, created_at FROM courses ORDER BY title'
+      'SELECT id, title, description, total_levels, image_url, updated_at, created_at FROM courses ORDER BY title'
     );
 
     const courses = [];
@@ -304,7 +309,7 @@ export const getCoursesWithLevels = async () => {
     for (const course of coursesRows) {
       try {
         const levelsResult = await pool.query(
-          `SELECT l.id, l.level_number, l.title, l.description, l.time_limit,
+          `SELECT l.id, l.level_number, l.title, l.description, l.time_limit, l.image_url,
               COUNT(q.id) as question_count
        FROM levels l
        LEFT JOIN questions q ON l.id = q.level_id
@@ -357,6 +362,7 @@ export const updateLevelDetails = async (
     title?: string;
     description?: string;
     learning_materials?: any;
+    image_url?: string;
   }
 ) => {
   try {
@@ -399,6 +405,12 @@ export const updateLevelDetails = async (
       }
       params.push(learningMaterialsValue);
       console.log(`[updateLevelDetails] Adding learning_materials update (length: ${learningMaterialsValue ? learningMaterialsValue.length : 0})`);
+    }
+
+    if (data.image_url !== undefined) {
+      updates.push('image_url = ?');
+      params.push(data.image_url || null);
+      console.log(`[updateLevelDetails] Adding image_url update`);
     }
 
     if (updates.length === 0) {

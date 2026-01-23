@@ -327,15 +327,24 @@ const AdminCourseLevels = () => {
                         <p className="text-xs text-gray-400 mt-1">Press Ctrl+Enter to save, Esc to cancel</p>
                       </div>
                     ) : (
-                      <div className="flex items-start gap-2 mt-0.5">
-                        <p className="text-gray-500 text-sm flex-1">{level.description || 'No description'}</p>
-                        <button
-                          onClick={() => setEditingDescription(level.id)}
-                          className="text-gray-400 hover:text-blue-600 transition-colors p-1 flex-shrink-0"
-                          title="Edit description"
-                        >
-                          <Edit size={14} />
-                        </button>
+                      <div className="flex flex-col gap-2 mt-0.5">
+                        <div className="flex items-start gap-2">
+                          <p className="text-gray-500 text-sm flex-1">{level.description || 'No description'}</p>
+                          <button
+                            onClick={() => setEditingDescription(level.id)}
+                            className="text-gray-400 hover:text-blue-600 transition-colors p-1 flex-shrink-0"
+                            title="Edit details"
+                          >
+                            <Edit size={14} />
+                          </button>
+                        </div>
+                        {/* Image Preview if exists */}
+                        {level.image_url && (
+                          <div className="mt-2 text-xs text-gray-400 flex items-center gap-2">
+                            <span className="font-semibold text-xs border border-gray-200 px-1 rounded bg-gray-50">IMAGE</span>
+                            <a href={level.image_url} target="_blank" rel="noopener noreferrer" className="truncate max-w-[200px] hover:underline hover:text-blue-500">{level.image_url}</a>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
