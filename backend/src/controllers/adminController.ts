@@ -18,6 +18,7 @@ import {
   updateMCQQuestion,
   deleteQuestion,
   getQuestionById,
+  deleteQuestions,
 } from '../services/questionService';
 import { updateLevelTimeLimit } from '../services/adminService';
 import { parseAndCreateQuestionsFromCSV, CSVRow } from '../services/csvUploadService';
@@ -97,8 +98,8 @@ export const getRecentActivityController = async (req: AuthRequest, res: Respons
 
 export const createCourseController = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { title, description, total_levels } = req.body;
-    const courseId = await createCourse({ title, description, total_levels });
+    const { title, description, total_levels, image_url } = req.body;
+    const courseId = await createCourse({ title, description, total_levels, image_url });
     res.json({ id: courseId, message: 'Course created successfully' });
   } catch (error: any) {
     logger.error('Create course error:', error);
@@ -132,8 +133,8 @@ export const deleteCourseController = async (req: AuthRequest, res: Response): P
 
 export const createLevelController = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { course_id, level_number, title, description } = req.body;
-    const levelId = await createLevel({ course_id, level_number, title, description });
+    const { course_id, level_number, title, description, image_url } = req.body;
+    const levelId = await createLevel({ course_id, level_number, title, description, image_url });
     res.json({ id: levelId, message: 'Level created successfully' });
   } catch (error: any) {
     logger.error('Create level error:', error);
@@ -256,7 +257,6 @@ export const deleteQuestionController = async (req: AuthRequest, res: Response):
 };
 
 export const deleteQuestionsController = async (req: AuthRequest, res: Response): Promise<void> => {
-  const { deleteQuestions } = await import('../services/questionService');
   try {
     const { questionIds } = req.body;
 
@@ -454,7 +454,8 @@ export const updateLevelDetailsController = async (req: AuthRequest, res: Respon
     await updateLevelDetails(levelId, {
       title,
       description,
-      learning_materials
+      learning_materials,
+      image_url: req.body.image_url
     });
 
     logger.info(`[updateLevelDetailsController] Successfully updated level ${levelId}`);

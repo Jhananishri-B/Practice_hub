@@ -4,6 +4,49 @@ import Layout from '../components/Layout';
 import api from '../services/api';
 import { BookOpen, Code, Lightbulb, ExternalLink, ArrowRight, Sparkles, Loader, Edit, Save, Plus, X, Trash2, CheckCircle, FolderIcon } from 'lucide-react';
 
+const getYouTubeEmbedUrl = (input) => {
+    if (!input) return '';
+
+    // 1. Check for standard Playlist URL
+    if (input.includes('list=')) {
+        const listId = input.split('list=')[1]?.split('&')[0];
+        if (listId) return `https://www.youtube.com/embed?listType=playlist&list=${listId}`;
+    }
+
+    // 2. Parse all Video IDs from input (multiline support)
+    const videoIds = [];
+    const lines = input.split(/[\n,;]+/); // Split by newline, comma, or semicolon
+
+    lines.forEach(line => {
+        let id = '';
+        if (line.includes('youtu.be/')) {
+            id = line.split('youtu.be/')[1]?.split('?')[0];
+        } else if (line.includes('v=')) {
+            id = line.split('v=')[1]?.split('&')[0];
+        } else if (line.includes('youtube.com/embed/')) {
+            id = line.split('embed/')[1]?.split('?')[0];
+        } else if (line.trim().length === 11) {
+            // Potential raw video ID (YouTube IDs are 11 chars)
+            id = line.trim();
+        }
+
+        if (id && id.length === 11) {
+            videoIds.push(id);
+        }
+    });
+
+    if (videoIds.length === 0) return input; // Return raw if no logic matched
+
+    // 3. Construct Embed URL
+    if (videoIds.length === 1) {
+        return `https://www.youtube.com/embed/${videoIds[0]}`;
+    } else {
+        // Multiple videos: First one is main, rest are playlist
+        const [first, ...rest] = videoIds;
+        return `https://www.youtube.com/embed/${first}?playlist=${rest.join(',')}`;
+    }
+};
+
 const LevelOverview = () => {
     const { courseId, levelId } = useParams();
     const navigate = useNavigate();
@@ -12,17 +55,16 @@ const LevelOverview = () => {
     const [isAdmin, setIsAdmin] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
 
-    // Edit State
     const [editData, setEditData] = useState({
         introduction: '',
         concepts: [],
         resources: [],
         key_terms: [],
-        example_code: ''
+        example_code: '',
+        youtube_url: ''
     });
 
     useEffect(() => {
-        // Check Admin Role
         const userStr = localStorage.getItem('user');
         if (userStr) {
             try {
@@ -45,7 +87,8 @@ const LevelOverview = () => {
                 concepts: response.data.concepts || [],
                 resources: response.data.resources || [],
                 key_terms: response.data.key_terms || [],
-                example_code: response.data.example_code || ''
+                example_code: response.data.example_code || '',
+                youtube_url: response.data.youtube_url || ''
             });
             setLoading(false);
         } catch (error) {
@@ -70,17 +113,18 @@ const LevelOverview = () => {
                     introduction: editData.introduction,
                     concepts: editData.concepts,
                     resources: editData.resources,
-                    key_terms: editData.key_terms
+                    key_terms: editData.key_terms,
+                    youtube_url: editData.youtube_url
                 }
             };
 
             console.log('[LevelOverview] Saving payload:', payload);
             const response = await api.put(`/admin/levels/${levelId}/details`, payload);
             console.log('[LevelOverview] Save successful:', response.data);
-            
+
             // Show success popup
             alert("✅ Changes saved successfully!");
-            
+
             setIsEditing(false);
             fetchLessonPlan(); // Refresh
         } catch (error) {
@@ -271,6 +315,37 @@ const LevelOverview = () => {
                             </div>
 
                             <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">YouTube Video URL</label>
+                                <div className="space-y-2">
+                                    <textarea
+                                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 min-h-[100px] font-mono text-sm"
+                                        placeholder="Paste one or more YouTube URLs here (one per line)..."
+                                        value={editData.youtube_url}
+                                        onChange={(e) => setEditData({ ...editData, youtube_url: e.target.value })}
+                                    />
+                                    <p className="text-xs text-gray-500">
+                                        💡 Tip: Paste multiple video URLs (one per line) to create a playlist automatically. Or paste a single standard Playlist URL.
+                                    </p>
+                                    {editData.youtube_url && (
+                                        <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                            <p className="text-xs font-medium text-green-700 mb-2">✅ Preview:</p>
+                                            <div className="aspect-video bg-black rounded-lg overflow-hidden">
+                                                <iframe
+                                                    width="100%"
+                                                    height="100%"
+                                                    src={getYouTubeEmbedUrl(editData.youtube_url)}
+                                                    title="Video Preview"
+                                                    frameBorder="0"
+                                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                    allowFullScreen
+                                                ></iframe>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">Example Code</label>
                                 <textarea
                                     className="w-full p-4 border border-gray-300 rounded-lg font-mono text-sm min-h-[200px] bg-slate-900 text-white"
@@ -282,45 +357,68 @@ const LevelOverview = () => {
 
                     </div>
                 ) : (
-                    <div className="max-w-6xl mx-auto space-y-12 animate-in fade-in duration-500">
-                        {/* Header Section */}
+                    <div className="max-w-7xl mx-auto space-y-12 animate-in fade-in duration-500">
+                        {/* Header Section - Improved Layout */}
                         <div className="space-y-6">
-                            <button
-                                onClick={() => navigate(-1)}
-                                className="text-gray-500 hover:text-gray-900 text-sm flex items-center gap-2 transition-colors group"
-                            >
-                                <ArrowRight className="rotate-180 group-hover:-translate-x-1 transition-transform" size={16} />
-                                Back to Levels
-                            </button>
+                            <div className={`grid grid-cols-1 ${lessonPlan.youtube_url?.trim() ? 'lg:grid-cols-3' : ''} gap-6`}>
+                                {/* Left Column - Title and Info */}
+                                <div className={`space-y-4 ${lessonPlan.youtube_url?.trim() ? 'lg:col-span-2' : ''}`}>
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white shadow-lg">
+                                            <BookOpen size={28} />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <h3 className="text-xs font-bold text-blue-600 tracking-wider uppercase">LEVEL {lessonPlan.level_number ?? levelId}</h3>
+                                            <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight">
+                                                {lessonPlan.title || `Level ${levelId} Overview`}
+                                            </h1>
+                                        </div>
+                                    </div>
 
-                            <div className="space-y-4">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600">
-                                        <BookOpen size={24} />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <h3 className="text-sm font-bold text-blue-600 tracking-wider uppercase">LEVEL {lessonPlan.level_number ?? levelId}</h3>
-                                        <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight">
-                                            {lessonPlan.title || `Level ${levelId} Overview`}
-                                        </h1>
-                                    </div>
+                                    <p className="text-gray-600 text-base leading-relaxed">
+                                        {lessonPlan.introduction}
+                                    </p>
+
+                                    {/* Key Terms */}
+                                    {lessonPlan.key_terms && lessonPlan.key_terms.length > 0 && (
+                                        <div className="pt-2">
+                                            <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                                Key Terms
+                                            </h4>
+                                            <div className="flex flex-wrap gap-2">
+                                                {lessonPlan.key_terms.map((term, idx) => (
+                                                    <span key={idx} className="px-3 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 rounded-lg text-xs font-bold tracking-wide border border-blue-100 shadow-sm">
+                                                        {term}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
-                                <p className="text-gray-600 text-lg leading-relaxed max-w-3xl">
-                                    {lessonPlan.introduction}
-                                </p>
 
-                                {/* Key Terms */}
-                                {lessonPlan.key_terms && lessonPlan.key_terms.length > 0 && (
-                                    <div className="pt-4">
-                                        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                            Key Terms
-                                        </h4>
-                                        <div className="flex flex-wrap gap-2">
-                                            {lessonPlan.key_terms.map((term, idx) => (
-                                                <span key={idx} className="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-xs font-bold uppercase tracking-wide border border-gray-200">
-                                                    {term}
-                                                </span>
-                                            ))}
+                                {/* Right Column - YouTube Video */}
+                                {lessonPlan.youtube_url && lessonPlan.youtube_url.trim() && (
+                                    <div className="lg:col-span-1">
+                                        <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl shadow-2xl overflow-hidden border-4 border-gray-700 sticky top-4">
+                                            <div className="p-3 bg-gradient-to-r from-red-600 to-red-500 flex items-center gap-2">
+                                                <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
+                                                    <svg className="w-5 h-5 text-red-600" viewBox="0 0 24 24" fill="currentColor">
+                                                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                                                    </svg>
+                                                </div>
+                                                <span className="text-white font-bold text-sm">Video Tutorial</span>
+                                            </div>
+                                            <div className="aspect-video bg-black">
+                                                <iframe
+                                                    width="100%"
+                                                    height="100%"
+                                                    src={getYouTubeEmbedUrl(lessonPlan.youtube_url)}
+                                                    title="Course Video Tutorial"
+                                                    frameBorder="0"
+                                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                    allowFullScreen
+                                                ></iframe>
+                                            </div>
                                         </div>
                                     </div>
                                 )}

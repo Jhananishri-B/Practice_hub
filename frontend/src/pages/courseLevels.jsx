@@ -61,7 +61,10 @@ const CourseLevels = () => {
   const getCourseImage = () => {
     const title = course?.title?.toLowerCase() || '';
 
-    // Use external image URLs for each course
+    // 1. Check if course has a custom image uploaded/set in DB
+    if (course?.image_url) return course.image_url;
+
+    // 2. Fallback to hardcoded images based on title
     if (title.includes('c programming') || title === 'c') {
       return 'https://miro.medium.com/v2/resize:fit:1100/format:webp/1*2p6xGs1MCtjM7Giw5gmkpQ.jpeg';
     }
@@ -142,7 +145,17 @@ const CourseLevels = () => {
               className="bg-white rounded-lg shadow-md overflow-hidden"
             >
               <div className="h-48 w-full overflow-hidden bg-gray-200 relative">
-                {getCourseImage() ? (
+                {level.image_url ? (
+                  <img
+                    src={level.image_url}
+                    alt={level.title}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = "https://via.placeholder.com/400x200?text=No+Image";
+                    }}
+                  />
+                ) : getCourseImage() ? (
                   <img
                     src={getCourseImage()}
                     alt={course?.title || 'Course banner'}
@@ -220,8 +233,8 @@ const CourseLevels = () => {
                   <button
                     onClick={() => handleLevelClick(level)}
                     className={`flex-1 py-2 rounded-lg font-medium transition-colors ${level.status === 'completed'
-                        ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                      ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
                       }`}
                   >
                     {level.status === 'completed' ? 'Review' : 'Practice'}

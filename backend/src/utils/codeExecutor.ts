@@ -214,16 +214,29 @@ const executeCCode = async (
 };
 
 export const validateLanguage = (courseName: string, language: string): boolean => {
+  // Normalize keys to lowercase for case-insensitive lookup
   const courseLanguageMap: Record<string, string> = {
-    'Python': 'python',
-    'C Programming': 'c',
-    'Machine Learning': 'python',
-    'Data Science': 'python',
-    'Deep Learning': 'python',
-    'Cloud Computing': 'python',
+    'python': 'python',
+    'c programming': 'c',
+    'machine learning': 'python',
+    'data science': 'python',
+    'fundamentals of data science': 'python', // Explicitly added for the full course title
+    'deep learning': 'python',
+    'cloud computing': 'python',
+    'artificial intelligence': 'python', // Added for completeness if needed
   };
 
-  const expectedLanguage = courseLanguageMap[courseName];
-  return expectedLanguage ? language.toLowerCase() === expectedLanguage.toLowerCase() : false;
+  const normalizedCourseName = courseName.toLowerCase().trim();
+  const expectedLanguage = courseLanguageMap[normalizedCourseName];
+
+  if (!expectedLanguage) {
+    // Fallback: Default to python for unknown courses if not C
+    // or return false if we want to be strict. 
+    // Given the context, strict is better but with logging (which we can't do easily here without importing logger)
+    // Let's just return false but assume if it contains "C Programming" it might be C.
+    return false;
+  }
+
+  return language.toLowerCase() === expectedLanguage.toLowerCase();
 };
 

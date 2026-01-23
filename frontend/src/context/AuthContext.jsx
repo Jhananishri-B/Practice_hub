@@ -25,28 +25,30 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (username, password) => {
-    // DEV BYPASS - Handle both lowercase and uppercase admin/user
-    const usernameLower = username?.toLowerCase().trim();
-    const usernameUpper = username?.toUpperCase().trim();
+    // DEV BYPASS - Only enabled in development mode
+    if (import.meta.env.DEV || import.meta.env.MODE === 'development') {
+      const usernameLower = username?.toLowerCase().trim();
+      const usernameUpper = username?.toUpperCase().trim();
 
-    // Admin bypass
-    if ((usernameLower === 'admin' || username === 'ADMIN' || username === 'admin@gmail.com') && password === '123') {
-      const mockUser = { id: 'admin-1', username: 'ADMIN', role: 'admin', email: 'admin@gmail.com' };
-      const mockToken = 'mock-jwt-token-dev-bypass';
-      localStorage.setItem('token', mockToken);
-      localStorage.setItem('user', JSON.stringify(mockUser));
-      setUser(mockUser);
-      return { success: true, user: mockUser };
-    }
+      // Admin bypass
+      if ((usernameLower === 'admin' || username === 'ADMIN' || username === 'admin@gmail.com') && password === '123') {
+        const mockUser = { id: 'admin-1', username: 'ADMIN', role: 'admin', email: 'admin@gmail.com' };
+        const mockToken = 'mock-jwt-token-dev-bypass';
+        localStorage.setItem('token', mockToken);
+        localStorage.setItem('user', JSON.stringify(mockUser));
+        setUser(mockUser);
+        return { success: true, user: mockUser };
+      }
 
-    // User/Student bypass
-    if ((usernameLower === 'user' || username === 'USER') && password === '123') {
-      const mockUser = { id: 'user-1', username: 'USER', role: 'student', email: 'user@gmail.com' };
-      const mockToken = 'mock-jwt-token-dev-bypass-user';
-      localStorage.setItem('token', mockToken);
-      localStorage.setItem('user', JSON.stringify(mockUser));
-      setUser(mockUser);
-      return { success: true, user: mockUser };
+      // User/Student bypass
+      if ((usernameLower === 'user' || username === 'USER') && password === '123') {
+        const mockUser = { id: 'user-1', username: 'USER', role: 'student', email: 'user@gmail.com' };
+        const mockToken = 'mock-jwt-token-dev-bypass-user';
+        localStorage.setItem('token', mockToken);
+        localStorage.setItem('user', JSON.stringify(mockUser));
+        setUser(mockUser);
+        return { success: true, user: mockUser };
+      }
     }
 
     try {
