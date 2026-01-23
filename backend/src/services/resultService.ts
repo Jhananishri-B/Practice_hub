@@ -5,6 +5,7 @@ export const getSessionResults = async (sessionId: string, userId: string) => {
   // Get session info
   const sessionResult = await pool.query(
     `SELECT s.id, s.session_type, s.status, s.started_at, s.completed_at,
+            s.course_id, s.level_id,
             c.title as course_title, l.title as level_title
      FROM practice_sessions s
      JOIN courses c ON s.course_id = c.id

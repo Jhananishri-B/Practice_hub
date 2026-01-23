@@ -45,6 +45,7 @@ const executePythonCode = async (
 ): Promise<ExecutionResult> => {
   const scriptName = `script_${uuidv4()}.py`;
   const scriptPath = path.join(os.tmpdir(), scriptName);
+  const EXECUTION_TIMEOUT = 10000; // 10 seconds timeout
 
   try {
     await fs.writeFile(scriptPath, code);
@@ -55,6 +56,24 @@ const executePythonCode = async (
 
       let stdout = '';
       let stderr = '';
+      let isResolved = false;
+
+      // Set timeout to kill process if it takes too long
+      const timeout = setTimeout(() => {
+        if (!isResolved && pythonProcess && !pythonProcess.killed) {
+          pythonProcess.kill('SIGKILL');
+          isResolved = true;
+          const executionTime = Date.now() - startTime;
+          // Cleanup
+          fs.unlink(scriptPath).catch(() => {});
+          resolve({
+            success: false,
+            error: 'Time Limit Exceeded: Code execution exceeded 10 seconds',
+            output: stdout.replace(/\r\n/g, '\n'),
+            executionTime,
+          });
+        }
+      }, EXECUTION_TIMEOUT);
 
       // Handle input - normalize escaped characters before execution
       if (input) {
@@ -72,6 +91,10 @@ const executePythonCode = async (
       });
 
       pythonProcess.on('close', async (code) => {
+        if (isResolved) return;
+        isResolved = true;
+        clearTimeout(timeout);
+        
         const executionTime = Date.now() - startTime;
         // Cleanup
         try {
@@ -98,6 +121,10 @@ const executePythonCode = async (
       });
 
       pythonProcess.on('error', (err) => {
+        if (isResolved) return;
+        isResolved = true;
+        clearTimeout(timeout);
+        fs.unlink(scriptPath).catch(() => {});
         resolve({
           success: false,
           error: `Failed to spawn python: ${err.message}`
@@ -147,12 +174,32 @@ const executeCCode = async (
     });
 
     // Run the compiled executable
+    const EXECUTION_TIMEOUT = 10000; // 10 seconds timeout
     return new Promise((resolve) => {
       const startTime = Date.now();
       const process = spawn(outputFile);
 
       let stdout = '';
       let stderr = '';
+      let isResolved = false;
+
+      // Set timeout to kill process if it takes too long
+      const timeout = setTimeout(() => {
+        if (!isResolved && process && !process.killed) {
+          process.kill('SIGKILL');
+          isResolved = true;
+          const executionTime = Date.now() - startTime;
+          // Cleanup files
+          fs.unlink(sourceFile).catch(() => {});
+          fs.unlink(outputFile).catch(() => {});
+          resolve({
+            success: false,
+            error: 'Time Limit Exceeded: Code execution exceeded 10 seconds',
+            output: stdout.replace(/\r\n/g, '\n'),
+            executionTime,
+          });
+        }
+      }, EXECUTION_TIMEOUT);
 
       // Normalize escaped characters before execution
       if (input) {
@@ -170,6 +217,10 @@ const executeCCode = async (
       });
 
       process.on('close', async (code) => {
+        if (isResolved) return;
+        isResolved = true;
+        clearTimeout(timeout);
+        
         const executionTime = Date.now() - startTime;
 
         // Cleanup files
@@ -195,6 +246,11 @@ const executeCCode = async (
       });
 
       process.on('error', (err) => {
+        if (isResolved) return;
+        isResolved = true;
+        clearTimeout(timeout);
+        fs.unlink(sourceFile).catch(() => {});
+        fs.unlink(outputFile).catch(() => {});
         resolve({
           success: false,
           error: `Execution failed: ${err.message}`

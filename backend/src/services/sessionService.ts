@@ -481,8 +481,32 @@ export const runTestCases = async (
   code: string,
   language: string
 ) => {
+  // TiDB/MySQL connections can be dropped intermittently (ECONNRESET / PROTOCOL_CONNECTION_LOST).
+  // Add a small retry to make "Run test cases" resilient.
+  const queryWithRetry = async <T = any>(
+    sql: string,
+    params: any[],
+    retries: number = 2
+  ): Promise<T> => {
+    let lastErr: any;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        // @ts-ignore mysql2 typing for pool.query is broad; keep local
+        return await pool.query(sql, params);
+      } catch (err: any) {
+        lastErr = err;
+        const code = err?.code;
+        const isConnDrop = code === 'ECONNRESET' || code === 'PROTOCOL_CONNECTION_LOST';
+        if (!isConnDrop || attempt === retries) throw err;
+        // small backoff before retry
+        await new Promise((r) => setTimeout(r, 200 * (attempt + 1)));
+      }
+    }
+    throw lastErr;
+  };
+
   // Validate Session and get course info
-  const sessionResult = await pool.query(
+  const sessionResult = await queryWithRetry(
     `SELECT s.course_id, c.title as course_title
      FROM practice_sessions s 
      JOIN courses c ON s.course_id = c.id
@@ -503,7 +527,7 @@ export const runTestCases = async (
   }
 
   // Get ONLY visible test cases for "Run" mode
-  const testCasesResult = await pool.query(
+  const testCasesResult = await queryWithRetry(
     `SELECT id, input_data, expected_output, test_case_number 
      FROM test_cases 
      WHERE question_id = ? AND is_hidden = 0

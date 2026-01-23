@@ -486,21 +486,49 @@ const Practice = () => {
                 </div>
 
                 <div className="w-full md:w-1/2 bg-white border-t md:border-t-0 md:border-l border-gray-200 flex flex-col h-[500px] md:h-auto">
-                    <div className="p-4 border-b border-gray-200">
-                        <select
-                            value={language}
-                            onChange={(e) => setLanguage(e.target.value)}
-                            className="px-3 py-2 border border-gray-300 rounded-lg"
-                        >
-                            {availableLanguages.map((lang) => (
-                                <option key={lang.value} value={lang.value}>
-                                    {lang.label}
-                                </option>
-                            ))}
-                        </select>
+                    {/* Top Bar: Timer, Run, Submit, Finish Test */}
+                    <div className="p-4 border-b border-gray-200 flex items-center justify-between gap-3 bg-gray-50">
+                        <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-300 rounded-lg">
+                                <span className="text-sm font-medium text-gray-600">Time:</span>
+                                <span className="text-lg font-semibold text-gray-800 font-mono">
+                                    {formatTime(timeLeft)}
+                                </span>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={handleRun}
+                                disabled={isRunning}
+                                className={`flex items-center justify-center p-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors ${isRunning ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                title={isRunning ? 'Running...' : 'Run'}
+                            >
+                                {isRunning ? (
+                                    <div className="w-5 h-5 border-2 border-gray-600 border-t-transparent rounded-full animate-spin"></div>
+                                ) : (
+                                    <Play size={20} />
+                                )}
+                            </button>
+                            <button
+                                onClick={handleSubmit}
+                                disabled={isRunning}
+                                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                            >
+                                <Send size={18} />
+                                Submit
+                            </button>
+                            <button
+                                onClick={() => handleFinish(false)}
+                                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                            >
+                                <CheckCircle size={18} />
+                                Finish Test
+                            </button>
+                        </div>
                     </div>
 
-                    <div className="flex-1">
+                    {/* Code Editor */}
+                    <div className="flex-1" style={{ minHeight: '400px' }}>
                         <Editor
                             height="100%"
                             language={language}
@@ -523,61 +551,40 @@ const Practice = () => {
                         />
                     </div>
 
-                    <div className="p-4 border-t border-gray-200 space-y-4">
-                        <div className="flex items-center gap-4">
-                            <label className="flex items-center">
-                                <input
-                                    type="checkbox"
-                                    checked={useCustomInput}
-                                    onChange={(e) => setUseCustomInput(e.target.checked)}
-                                    className="mr-2"
-                                />
-                                <span className="text-sm text-gray-600">Test with custom input</span>
-                            </label>
-                            <div className="text-lg font-semibold text-gray-800">
-                                {formatTime(timeLeft)}
+                    {/* Terminal/Input Area - Enlarged */}
+                    <div className="border-t border-gray-200 bg-gray-900 flex flex-col" style={{ minHeight: '200px', maxHeight: '300px' }}>
+                        <div className="px-4 py-2 border-b border-gray-700 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Custom Input Terminal</span>
+                                <label className="flex items-center gap-2 ml-4">
+                                    <input
+                                        type="checkbox"
+                                        checked={useCustomInput}
+                                        onChange={(e) => setUseCustomInput(e.target.checked)}
+                                        className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-blue-600 focus:ring-blue-500 focus:ring-2"
+                                    />
+                                    <span className="text-sm text-gray-400">Enable custom input</span>
+                                </label>
                             </div>
                         </div>
-
-                        {useCustomInput && (
+                        <div className="flex-1 p-4">
                             <textarea
                                 value={customInput}
                                 onChange={(e) => setCustomInput(e.target.value)}
-                                placeholder="Enter custom input..."
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                                rows={3}
+                                placeholder={useCustomInput ? "Enter your custom input here..." : "Enable custom input to enter test data..."}
+                                disabled={!useCustomInput}
+                                className="w-full h-full px-4 py-3 bg-gray-800 text-green-400 font-mono text-sm rounded-lg border border-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none disabled:opacity-50 disabled:cursor-not-allowed"
+                                style={{ minHeight: '150px' }}
                             />
-                        )}
-
-                        <div className="flex gap-3">
-                            <button
-                                onClick={handleRun}
-                                disabled={isRunning}
-                                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors ${isRunning ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            >
-                                <Play size={18} />
-                                {isRunning ? 'Running...' : 'Run'}
-                            </button>
-                            <button
-                                onClick={handleSubmit}
-                                disabled={isRunning}
-                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                            >
-                                <Send size={18} />
-                                Submit
-                            </button>
-                            <button
-                                onClick={() => handleFinish(false)}
-                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                            >
-                                <CheckCircle size={18} />
-                                Finish Test
-                            </button>
                         </div>
+                    </div>
+
+                    {/* Bottom Section: Results and Output */}
+                    <div className="p-4 border-t border-gray-200 space-y-4 bg-white">
 
                         {/* LeetCode-style Submit Result Panel */}
                         {submitResult && (
-                            <div className={`mt-4 p-4 rounded-lg border-l-4 ${submitResult.status === 'Accepted'
+                            <div className={`p-4 rounded-lg border-l-4 ${submitResult.status === 'Accepted'
                                 ? 'bg-green-50 border-green-500'
                                 : 'bg-red-50 border-red-500'
                                 }`}>
@@ -606,7 +613,7 @@ const Practice = () => {
 
                         {/* Console Output */}
                         {(output || lastRunError) && (
-                            <div className="mt-4 p-3 bg-gray-900 text-white rounded-lg font-mono text-sm max-h-40 overflow-y-auto">
+                            <div className="p-3 bg-gray-900 text-white rounded-lg font-mono text-sm max-h-40 overflow-y-auto">
                                 <div className="flex justify-between items-center mb-1 border-b border-gray-700 pb-1">
                                     <span className="text-gray-400 text-xs">Console Output</span>
                                     {lastRunError && <span className="text-red-400 text-xs text-right">Execution Error</span>}

@@ -1,11 +1,13 @@
 import { Router } from 'express';
-import { getUserProgressController, getLeaderboardController } from '../controllers/progressController';
+import { getUserProgressController, getLeaderboardController, getUserRecentActivityController, getUserTasksController } from '../controllers/progressController';
 import { authenticate } from '../middlewares/auth';
 
 const router = Router();
 
 router.get('/me', authenticate, getUserProgressController);
 router.get('/leaderboard', getLeaderboardController);
+router.get('/recent-activity', authenticate, getUserRecentActivityController);
+router.get('/tasks', authenticate, getUserTasksController);
 
 export default router;
 

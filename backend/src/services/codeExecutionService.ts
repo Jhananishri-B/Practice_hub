@@ -23,11 +23,13 @@ export const evaluateCode = async (
 
   const results: TestCaseResult[] = [];
 
+  // Execute test cases sequentially (parallel could cause resource issues)
+  // Each execution has a 10-second timeout, so total time is bounded
   for (const testCase of testCases) {
     try {
       const startTime = Date.now();
 
-      // Execute code with test case input
+      // Execute code with test case input (with 10s timeout per test case)
       const executionResult = await executeCode(code, language, testCase.input_data);
       const executionTime = Date.now() - startTime;
 

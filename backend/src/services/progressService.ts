@@ -164,3 +164,129 @@ export const getLeaderboard = async (limit: number = 10) => {
     }));
   }
 };
+
+/**
+ * Get user's recent activity (completed sessions)
+ */
+export const getUserRecentActivity = async (userId: string, limit: number = 20) => {
+  try {
+    const result = await pool.query(
+      `SELECT 
+        s.id,
+        s.session_type,
+        s.status,
+        s.completed_at,
+        s.started_at,
+        c.title as course_title,
+        l.title as level_title,
+        COUNT(DISTINCT sq.question_id) as total_questions,
+        COUNT(DISTINCT CASE WHEN us.is_correct = true THEN us.question_id END) as correct_count,
+        COUNT(DISTINCT us.question_id) as attempted_count
+      FROM practice_sessions s
+      JOIN courses c ON s.course_id = c.id
+      JOIN levels l ON s.level_id = l.id
+      LEFT JOIN session_questions sq ON s.id = sq.session_id
+      LEFT JOIN user_submissions us ON s.id = us.session_id AND us.user_id = ?
+      WHERE s.user_id = ? AND s.status = 'completed' AND s.completed_at IS NOT NULL
+      GROUP BY s.id, s.session_type, s.status, s.completed_at, s.started_at, c.title, l.title
+      ORDER BY s.completed_at DESC
+      LIMIT ?`,
+      [userId, userId, limit]
+    );
+
+    const rows = getRows(result);
+    
+    return rows.map((row: any) => {
+      const totalQuestions = parseInt(row.total_questions) || 0;
+      const correctCount = parseInt(row.correct_count) || 0;
+      const attemptedCount = parseInt(row.attempted_count) || 0;
+      
+      // Calculate score
+      let score = '0/0';
+      if (row.session_type === 'mcq') {
+        score = `${correctCount}/${totalQuestions}`;
+      } else {
+        score = correctCount === totalQuestions ? 'Passed' : 'Failed';
+      }
+      
+      // Calculate time ago
+      const completedAt = new Date(row.completed_at);
+      const now = new Date();
+      const diffMs = now.getTime() - completedAt.getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMs / 3600000);
+      const diffDays = Math.floor(diffMs / 86400000);
+      
+      let timeAgo = '';
+      if (diffMins < 1) {
+        timeAgo = 'Just now';
+      } else if (diffMins < 60) {
+        timeAgo = `${diffMins} ${diffMins === 1 ? 'min' : 'mins'} ago`;
+      } else if (diffHours < 24) {
+        timeAgo = `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
+      } else {
+        timeAgo = `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
+      }
+      
+      return {
+        id: row.id,
+        type: row.session_type,
+        title: `${row.course_title} - ${row.level_title}`,
+        course: row.course_title,
+        score: score,
+        passed: correctCount === totalQuestions && totalQuestions > 0,
+        time: timeAgo,
+        completed_at: row.completed_at,
+      };
+    });
+  } catch (error: any) {
+    console.error('[getUserRecentActivity] Error:', error);
+    return [];
+  }
+};
+
+/**
+ * Get user's assigned tasks (incomplete sessions or upcoming assignments)
+ */
+export const getUserTasks = async (userId: string) => {
+  try {
+    // Get incomplete sessions
+    const incompleteResult = await pool.query(
+      `SELECT 
+        s.id,
+        s.session_type,
+        s.status,
+        s.started_at,
+        c.title as course_title,
+        l.title as level_title,
+        COUNT(DISTINCT sq.question_id) as total_questions,
+        COUNT(DISTINCT CASE WHEN sq.status = 'completed' THEN sq.question_id END) as completed_questions
+      FROM practice_sessions s
+      JOIN courses c ON s.course_id = c.id
+      JOIN levels l ON s.level_id = l.id
+      LEFT JOIN session_questions sq ON s.id = sq.session_id
+      WHERE s.user_id = ? AND s.status = 'in_progress'
+      GROUP BY s.id, s.session_type, s.status, s.started_at, c.title, l.title
+      ORDER BY s.started_at DESC
+      LIMIT 5`,
+      [userId]
+    );
+
+    const incompleteRows = getRows(incompleteResult);
+    
+    return incompleteRows.map((row: any) => ({
+      id: row.id,
+      type: row.session_type,
+      title: `${row.course_title} - ${row.level_title}`,
+      course: row.course_title,
+      level: row.level_title,
+      total_questions: parseInt(row.total_questions) || 0,
+      completed_questions: parseInt(row.completed_questions) || 0,
+      status: 'in_progress',
+      started_at: row.started_at,
+    }));
+  } catch (error: any) {
+    console.error('[getUserTasks] Error:', error);
+    return [];
+  }
+};
