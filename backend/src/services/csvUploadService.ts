@@ -12,7 +12,7 @@ export interface CSVRow {
 export const parseAndCreateQuestionsFromCSV = async (
   csvData: CSVRow[],
   levelId: string,
-  questionType?: 'coding' | 'mcq'
+  questionType?: 'coding' | 'mcq' | 'htmlcss'
 ): Promise<{ success: number; errors: string[] }> => {
   let successCount = 0;
   const errors: string[] = [];
@@ -121,7 +121,7 @@ export const parseAndCreateQuestionsFromCSV = async (
         });
 
         successCount++;
-      } 
+      }
       // Handle Coding questions
       else if (enforcedType === 'coding') {
         // Expected headers for Coding (case-insensitive, spaces converted to underscores by parser):
@@ -165,7 +165,7 @@ export const parseAndCreateQuestionsFromCSV = async (
         // Format 1: testcase1_input, testcase1_output, testcase1_hidden (no underscores)
         // Format 2: test_case_1_input, test_case_1_output, test_case_1_hidden (with underscores)
         const testCases: Array<{ input_data: string; expected_output: string; is_hidden: boolean }> = [];
-        
+
         // Helper function to get test case value trying both naming formats
         const getTestCaseValue = (index: number, field: 'input' | 'output' | 'hidden'): string | undefined => {
           // Try format 1: testcase1_input (no underscores in "testcase")
@@ -193,19 +193,19 @@ export const parseAndCreateQuestionsFromCSV = async (
         // Look for test case columns (try up to 20 test cases)
         let testCaseIndex = 1;
         let foundAnyTestCase = false;
-        
+
         while (testCaseIndex <= 20) {
           const input = getTestCaseValue(testCaseIndex, 'input');
           const output = getTestCaseValue(testCaseIndex, 'output');
-          
+
           // If we have both input and output, create a test case
           if (input !== undefined && output !== undefined && input !== '' && output !== '') {
             foundAnyTestCase = true;
             const hiddenStr = getTestCaseValue(testCaseIndex, 'hidden');
             // Check if hidden: true/1/"true"/"1", otherwise false
             const isHidden = hiddenStr !== undefined && (
-              hiddenStr.toLowerCase() === 'true' || 
-              hiddenStr === '1' || 
+              hiddenStr.toLowerCase() === 'true' ||
+              hiddenStr === '1' ||
               hiddenStr.toLowerCase() === 'yes'
             );
 
@@ -234,7 +234,7 @@ export const parseAndCreateQuestionsFromCSV = async (
               break;
             }
           }
-          
+
           testCaseIndex++;
         }
 
@@ -264,8 +264,79 @@ export const parseAndCreateQuestionsFromCSV = async (
         });
 
         successCount++;
+      }
+      // Handle HTML/CSS questions (special format for web development)
+      else if (enforcedType === 'htmlcss') {
+        // Expected headers for HTML/CSS (case-insensitive, spaces converted to underscores by parser):
+        // description, instructions, tags, assets, expectedHtml, expectedCss, expectedJs
+        // Note: column names are normalized to lowercase with underscores
+        const hasDescription = row.description !== undefined;
+        const hasExpectedHtml = row.expectedhtml !== undefined;
+
+        if (!hasDescription) {
+          errors.push(
+            `Row ${rowNumber}: Missing required column 'description'. Expected headers: description, instructions, tags, assets, expectedHtml, expectedCss, expectedJs.`
+          );
+          continue;
+        }
+
+        const description = row.description?.toString().trim();
+        const instructions = row.instructions?.toString().trim() || '';
+        const tags = row.tags?.toString().trim() || '';
+        const assets = row.assets?.toString().trim() || '';
+        const expectedHtml = row.expectedhtml?.toString().trim() || '';
+        const expectedCss = row.expectedcss?.toString().trim() || '';
+        const expectedJs = row.expectedjs?.toString().trim() || '';
+
+        // Validate required content
+        if (!description) {
+          errors.push(`Row ${rowNumber}: Description is empty or missing`);
+          continue;
+        }
+
+        // Create title from description (first 80 chars or first sentence)
+        let title = description.substring(0, 80);
+        const firstPeriod = description.indexOf('.');
+        if (firstPeriod > 0 && firstPeriod < 100) {
+          title = description.substring(0, firstPeriod);
+        }
+        if (title.length >= 80) {
+          title = title.substring(0, 77) + '...';
+        }
+
+        // Build the reference_solution as JSON containing HTML, CSS, JS
+        const solutionObject = {
+          html: expectedHtml,
+          css: expectedCss,
+          js: expectedJs
+        };
+        const referenceSolution = JSON.stringify(solutionObject);
+
+        // Create an empty test case (HTML/CSS questions don't use traditional test cases)
+        const testCases = [{
+          input_data: '',
+          expected_output: '',
+          is_hidden: false,
+        }];
+
+        // Log the HTML/CSS question creation
+        logger.info(`[parseAndCreateQuestionsFromCSV] Row ${rowNumber}: Creating HTML/CSS question with title: "${title}"`);
+
+        await createCodingQuestion({
+          level_id: levelId,
+          title,
+          description: instructions ? `${description}\n\n**Instructions:**\n${instructions}` : description,
+          input_format: tags || undefined, // Store tags in input_format for categorization
+          output_format: assets || undefined, // Store assets in output_format for future use
+          constraints: undefined,
+          reference_solution: referenceSolution,
+          difficulty: 'medium', // Default difficulty for HTML/CSS questions
+          test_cases: testCases,
+        });
+
+        successCount++;
       } else {
-        errors.push(`Row ${rowNumber}: Unknown question type: ${enforcedType}. Must be 'mcq' or 'coding'.`);
+        errors.push(`Row ${rowNumber}: Unknown question type: ${enforcedType}. Must be 'mcq', 'coding', or 'htmlcss'.`);
         continue;
       }
     } catch (error: any) {

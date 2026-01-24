@@ -258,9 +258,19 @@ const CourseLevels = () => {
               <div className="space-y-3">
                 <button
                   onClick={() => {
-                    navigate(`/practice/${courseId}/${modeSelection.level.id}`, {
-                      state: { sessionType: 'coding' },
-                    });
+                    // Check if this is an HTML/CSS course
+                    const courseTitle = (course?.title || '').toLowerCase();
+                    const isHtmlCssCourse = courseTitle.includes('html') || courseTitle.includes('css');
+
+                    if (isHtmlCssCourse) {
+                      navigate(`/html-css-practice/${courseId}/${modeSelection.level.id}`, {
+                        state: { sessionType: 'coding' },
+                      });
+                    } else {
+                      navigate(`/practice/${courseId}/${modeSelection.level.id}`, {
+                        state: { sessionType: 'coding' },
+                      });
+                    }
                     setModeSelection({ open: false, level: null });
                   }}
                   className="w-full px-4 py-3 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors"

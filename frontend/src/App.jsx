@@ -16,6 +16,7 @@ import Progress from './pages/progress';
 import Leaderboard from './pages/leaderboard';
 import AICoach from './pages/aiCoach';
 import LevelOverview from './pages/LevelOverview';
+import HtmlCssChallenge from './pages/HtmlCssChallenge';
 
 // Admin Pages
 import AdminOverview from './pages/admin/overview';
@@ -56,6 +57,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <LevelOverview />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/html-css-practice/:courseId/:levelId"
+        element={
+          <ProtectedRoute>
+            <HtmlCssChallenge />
           </ProtectedRoute>
         }
       />

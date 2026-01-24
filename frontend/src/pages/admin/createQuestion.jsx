@@ -36,12 +36,29 @@ const CreateQuestion = () => {
     correct_answer: '',
   });
 
+  // HTML/CSS code state for web development questions
+  const [htmlCssCode, setHtmlCssCode] = useState({
+    html: '',
+    css: '',
+    js: ''
+  });
+
+  // Image assets for HTML/CSS questions
+  const [assets, setAssets] = useState([]);
+
+  // Check if this is an HTML/CSS course
+  const isHtmlCssCourse = course?.title?.toLowerCase().includes('html') || course?.title?.toLowerCase().includes('css');
+
   useEffect(() => {
     // Get course info to determine language
-    if (courseId) {
+    // Try to get courseId from search params or from URL path
+    const effectiveCourseId = courseId || window.location.pathname.match(/\/admin\/courses\/([^\/]+)/)?.[1];
+
+    if (effectiveCourseId) {
       api.get('/admin/courses/with-levels')
         .then((response) => {
-          const courseData = response.data.find((c) => c.id === courseId);
+          const courseData = response.data.find((c) => c.id === effectiveCourseId);
+          console.log('[CreateQuestion] Found course:', courseData?.title, 'isHtmlCss:', courseData?.title?.toLowerCase().includes('html') || courseData?.title?.toLowerCase().includes('css'));
           setCourse(courseData);
         })
         .catch((error) => console.error('Failed to fetch course:', error));
@@ -50,7 +67,7 @@ const CreateQuestion = () => {
     // Load question data if editing
     if (isEditMode && questionId) {
       api.get(`/admin/questions/${questionId}`)
-        .then((response) => {
+        .then(async (response) => {
           const question = response.data;
           setQuestionType(question.question_type);
           setFormData({
@@ -96,6 +113,62 @@ const CreateQuestion = () => {
                 })()
                 : '',
           });
+
+          // Try to parse reference_solution as JSON for HTML/CSS questions
+          if (question.reference_solution) {
+            try {
+              const parsed = JSON.parse(question.reference_solution);
+              if (parsed.html !== undefined || parsed.css !== undefined || parsed.js !== undefined) {
+                setHtmlCssCode({
+                  html: parsed.html || '',
+                  css: parsed.css || '',
+                  js: parsed.js || ''
+                });
+              }
+            } catch (e) {
+              // Not JSON, treat as regular reference solution
+              console.log('Reference solution is not JSON, treating as regular code');
+            }
+          }
+
+          // Try to parse assets from output_format field (for HTML/CSS questions)
+          if (question.output_format) {
+            try {
+              // Try JSON format first
+              const parsedAssets = JSON.parse(question.output_format);
+              if (Array.isArray(parsedAssets)) {
+                setAssets(parsedAssets);
+              }
+            } catch (e) {
+              // If not JSON, try pipe-separated format: "name|path,name|path"
+              const assetsList = question.output_format.split(',').map(item => {
+                const parts = item.trim().split('|');
+                return {
+                  name: parts[0] || '',
+                  path: parts[1] || parts[0] || ''
+                };
+              }).filter(a => a.name);
+              setAssets(assetsList);
+            }
+          }
+
+          // If we don't have course info yet and question has level_id, fetch course from levels
+          if (!course && question.level_id) {
+            try {
+              const coursesRes = await api.get('/admin/courses/with-levels');
+              const courses = coursesRes.data;
+              // Find which course contains this level
+              const foundCourse = courses.find(c =>
+                c.levels?.some(l => l.id === question.level_id)
+              );
+              if (foundCourse) {
+                console.log('[CreateQuestion] Found course from question level:', foundCourse.title);
+                setCourse(foundCourse);
+              }
+            } catch (err) {
+              console.error('Failed to get course from level:', err);
+            }
+          }
         })
         .catch((error) => {
           console.error('Failed to load question:', error);
@@ -191,25 +264,61 @@ const CreateQuestion = () => {
           });
         }
       } else {
-        // Coding question validation
-        if (!formData.reference_solution || !formData.reference_solution.trim()) {
-          alert('Please enter a reference solution');
-          return;
-        }
+        // Coding question handling - different validation for HTML/CSS vs regular coding
+        if (isHtmlCssCourse) {
+          // HTML/CSS question - validate that at least HTML is provided
+          if (!htmlCssCode.html || !htmlCssCode.html.trim()) {
+            alert('Please enter expected HTML code');
+            return;
+          }
 
-        if (!formData.test_cases || formData.test_cases.length === 0) {
-          alert('Please add at least one test case');
-          return;
-        }
-
-        // Coding question (unchanged)
-        if (isEditMode) {
-          await api.put(`/admin/questions/coding/${questionId}`, formData);
-        } else {
-          await api.post('/admin/questions/coding', {
-            level_id: levelId,
-            ...formData,
+          // Build the reference_solution as JSON from htmlCssCode
+          const referenceSolution = JSON.stringify({
+            html: htmlCssCode.html,
+            css: htmlCssCode.css,
+            js: htmlCssCode.js
           });
+
+          // Store assets as JSON in output_format field
+          const assetsJson = assets.length > 0 ? JSON.stringify(assets) : '';
+
+          // For HTML/CSS, we use empty test cases since visual testing is different
+          const submitData = {
+            ...formData,
+            reference_solution: referenceSolution,
+            output_format: assetsJson,
+            test_cases: [{ input_data: '', expected_output: '', is_hidden: false }],
+          };
+
+          if (isEditMode) {
+            await api.put(`/admin/questions/coding/${questionId}`, submitData);
+          } else {
+            await api.post('/admin/questions/coding', {
+              level_id: levelId,
+              ...submitData,
+            });
+          }
+        } else {
+          // Regular coding question validation
+          if (!formData.reference_solution || !formData.reference_solution.trim()) {
+            alert('Please enter a reference solution');
+            return;
+          }
+
+          if (!formData.test_cases || formData.test_cases.length === 0) {
+            alert('Please add at least one test case');
+            return;
+          }
+
+          // Regular coding question
+          if (isEditMode) {
+            await api.put(`/admin/questions/coding/${questionId}`, formData);
+          } else {
+            await api.post('/admin/questions/coding', {
+              level_id: levelId,
+              ...formData,
+            });
+          }
         }
       }
 
@@ -291,24 +400,50 @@ const CreateQuestion = () => {
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <h2 className="text-lg font-bold text-gray-800 mb-4">Question Type</h2>
           <div className="flex gap-4">
-            <button
-              onClick={() => setQuestionType('coding')}
-              className={`px-6 py-3 rounded-lg font-medium ${questionType === 'coding'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700'
-                }`}
-            >
-              Coding Question
-            </button>
-            <button
-              onClick={() => setQuestionType('mcq')}
-              className={`px-6 py-3 rounded-lg font-medium ${questionType === 'mcq'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700'
-                }`}
-            >
-              MCQ Question
-            </button>
+            {/* For HTML/CSS course: show HTML/CSS instead of Coding, but keep MCQ */}
+            {isHtmlCssCourse ? (
+              <>
+                <button
+                  onClick={() => setQuestionType('coding')}
+                  className={`px-6 py-3 rounded-lg font-medium ${questionType === 'coding'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-100 text-gray-700'
+                    }`}
+                >
+                  HTML/CSS Challenge
+                </button>
+                <button
+                  onClick={() => setQuestionType('mcq')}
+                  className={`px-6 py-3 rounded-lg font-medium ${questionType === 'mcq'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700'
+                    }`}
+                >
+                  MCQ Question
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => setQuestionType('coding')}
+                  className={`px-6 py-3 rounded-lg font-medium ${questionType === 'coding'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700'
+                    }`}
+                >
+                  Coding Question
+                </button>
+                <button
+                  onClick={() => setQuestionType('mcq')}
+                  className={`px-6 py-3 rounded-lg font-medium ${questionType === 'mcq'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700'
+                    }`}
+                >
+                  MCQ Question
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -343,120 +478,265 @@ const CreateQuestion = () => {
 
           {questionType === 'coding' && (
             <>
-              <div className="grid grid-cols-2 gap-6">
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Input Format
-                  </label>
-                  <textarea
-                    value={formData.input_format}
-                    onChange={(e) => setFormData({ ...formData, input_format: e.target.value })}
-                    placeholder="Describe the expected input structure..."
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                    rows={4}
-                  />
-                </div>
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Output Format
-                  </label>
-                  <textarea
-                    value={formData.output_format}
-                    onChange={(e) => setFormData({ ...formData, output_format: e.target.value })}
-                    placeholder="Describe the expected output structure..."
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                    rows={4}
-                  />
-                </div>
-              </div>
+              {isHtmlCssCourse ? (
+                /* HTML/CSS Course - Show HTML, CSS, JS editors */
+                <>
+                  <div className="bg-white rounded-lg shadow-md p-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Expected HTML Code *
+                      </label>
+                    </div>
+                    <Editor
+                      height="300px"
+                      language="html"
+                      value={htmlCssCode.html}
+                      onChange={(value) => setHtmlCssCode({ ...htmlCssCode, html: value || '' })}
+                      theme="vs-light"
+                      options={{
+                        minimap: { enabled: false },
+                        fontSize: 14,
+                        wordWrap: 'on',
+                      }}
+                    />
+                  </div>
 
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Correct Solution ({getLanguageLabel()})
-                </label>
-                <Editor
-                  height="300px"
-                  language={getEditorLanguage()}
-                  value={formData.reference_solution}
-                  onChange={(value) => setFormData({ ...formData, reference_solution: value || '' })}
-                  theme="vs-light"
-                />
-              </div>
+                  <div className="bg-white rounded-lg shadow-md p-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Expected CSS Code
+                      </label>
+                    </div>
+                    <Editor
+                      height="250px"
+                      language="css"
+                      value={htmlCssCode.css}
+                      onChange={(value) => setHtmlCssCode({ ...htmlCssCode, css: value || '' })}
+                      theme="vs-light"
+                      options={{
+                        minimap: { enabled: false },
+                        fontSize: 14,
+                        wordWrap: 'on',
+                      }}
+                    />
+                  </div>
 
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-bold text-gray-800">Test Cases</h3>
-                  <button
-                    type="button"
-                    onClick={addTestCase}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                  >
-                    <Plus size={18} />
-                    Add Test Case
-                  </button>
-                </div>
-                <div className="space-y-4">
-                  {formData.test_cases.map((testCase, index) => (
-                    <div key={index} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="font-medium">Test Case {index + 1}</span>
-                        <div className="flex items-center gap-4">
-                          <label className="flex items-center">
+                  <div className="bg-white rounded-lg shadow-md p-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Expected JavaScript Code
+                      </label>
+                    </div>
+                    <Editor
+                      height="200px"
+                      language="javascript"
+                      value={htmlCssCode.js}
+                      onChange={(value) => setHtmlCssCode({ ...htmlCssCode, js: value || '' })}
+                      theme="vs-light"
+                      options={{
+                        minimap: { enabled: false },
+                        fontSize: 14,
+                        wordWrap: 'on',
+                      }}
+                    />
+                  </div>
+
+                  {/* Image Assets Section */}
+                  <div className="bg-white rounded-lg shadow-md p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                        <label className="block text-sm font-medium text-gray-700">
+                          Image Assets
+                        </label>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setAssets([...assets, { name: '', path: '' }])}
+                        className="flex items-center gap-2 px-3 py-1 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700"
+                      >
+                        <Plus size={16} />
+                        Add Asset
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mb-4">
+                      Define image assets that students can use in their HTML code (e.g., dog1.jpg → /assets/images/dog1.jpg)
+                    </p>
+                    {assets.length === 0 ? (
+                      <div className="text-center py-4 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-lg">
+                        No assets defined. Click "Add Asset" to add image references.
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {assets.map((asset, index) => (
+                          <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                             <input
-                              type="checkbox"
-                              checked={testCase.is_hidden}
-                              onChange={(e) =>
-                                updateTestCase(index, 'is_hidden', e.target.checked)
-                              }
-                              className="mr-2"
+                              type="text"
+                              value={asset.name}
+                              onChange={(e) => {
+                                const newAssets = [...assets];
+                                newAssets[index].name = e.target.value;
+                                setAssets(newAssets);
+                              }}
+                              placeholder="Asset name (e.g., dog1.jpg)"
+                              className="flex-1 px-3 py-2 border border-gray-300 rounded text-sm"
                             />
-                            <span className="text-sm text-gray-600">Hidden</span>
-                          </label>
-                          {formData.test_cases.length > 1 && (
+                            <span className="text-gray-400">→</span>
+                            <input
+                              type="text"
+                              value={asset.path}
+                              onChange={(e) => {
+                                const newAssets = [...assets];
+                                newAssets[index].path = e.target.value;
+                                setAssets(newAssets);
+                              }}
+                              placeholder="Path (e.g., /assets/images/dog1.jpg)"
+                              className="flex-1 px-3 py-2 border border-gray-300 rounded text-sm"
+                            />
                             <button
                               type="button"
-                              onClick={() => removeTestCase(index)}
-                              className="text-red-600 hover:text-red-700"
+                              onClick={() => {
+                                const newAssets = assets.filter((_, i) => i !== index);
+                                setAssets(newAssets);
+                              }}
+                              className="text-red-600 hover:text-red-700 p-1"
                             >
                               <Trash2 size={18} />
                             </button>
-                          )}
-                        </div>
+                          </div>
+                        ))}
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Input
-                          </label>
-                          <textarea
-                            value={testCase.input_data}
-                            onChange={(e) =>
-                              updateTestCase(index, 'input_data', e.target.value)
-                            }
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                            rows={3}
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Expected Output
-                          </label>
-                          <textarea
-                            value={testCase.expected_output}
-                            onChange={(e) =>
-                              updateTestCase(index, 'expected_output', e.target.value)
-                            }
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                            rows={3}
-                            required
-                          />
-                        </div>
-                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                    <p className="text-sm text-purple-700">
+                      <strong>HTML/CSS Challenge Mode:</strong> Students will write HTML, CSS, and JS code to match the expected output. The expected code above serves as the reference solution.
+                    </p>
+                  </div>
+                </>
+              ) : (
+                /* Regular Coding Course */
+                <>
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="bg-white rounded-lg shadow-md p-6">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Input Format
+                      </label>
+                      <textarea
+                        value={formData.input_format}
+                        onChange={(e) => setFormData({ ...formData, input_format: e.target.value })}
+                        placeholder="Describe the expected input structure..."
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        rows={4}
+                      />
                     </div>
-                  ))}
-                </div>
-              </div>
+                    <div className="bg-white rounded-lg shadow-md p-6">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Output Format
+                      </label>
+                      <textarea
+                        value={formData.output_format}
+                        onChange={(e) => setFormData({ ...formData, output_format: e.target.value })}
+                        placeholder="Describe the expected output structure..."
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                        rows={4}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-lg shadow-md p-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Correct Solution ({getLanguageLabel()})
+                    </label>
+                    <Editor
+                      height="300px"
+                      language={getEditorLanguage()}
+                      value={formData.reference_solution}
+                      onChange={(value) => setFormData({ ...formData, reference_solution: value || '' })}
+                      theme="vs-light"
+                    />
+                  </div>
+
+                  <div className="bg-white rounded-lg shadow-md p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-bold text-gray-800">Test Cases</h3>
+                      <button
+                        type="button"
+                        onClick={addTestCase}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                      >
+                        <Plus size={18} />
+                        Add Test Case
+                      </button>
+                    </div>
+                    <div className="space-y-4">
+                      {formData.test_cases.map((testCase, index) => (
+                        <div key={index} className="border border-gray-200 rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="font-medium">Test Case {index + 1}</span>
+                            <div className="flex items-center gap-4">
+                              <label className="flex items-center">
+                                <input
+                                  type="checkbox"
+                                  checked={testCase.is_hidden}
+                                  onChange={(e) =>
+                                    updateTestCase(index, 'is_hidden', e.target.checked)
+                                  }
+                                  className="mr-2"
+                                />
+                                <span className="text-sm text-gray-600">Hidden</span>
+                              </label>
+                              {formData.test_cases.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeTestCase(index)}
+                                  className="text-red-600 hover:text-red-700"
+                                >
+                                  <Trash2 size={18} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Input
+                              </label>
+                              <textarea
+                                value={testCase.input_data}
+                                onChange={(e) =>
+                                  updateTestCase(index, 'input_data', e.target.value)
+                                }
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                rows={3}
+                                required
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Expected Output
+                              </label>
+                              <textarea
+                                value={testCase.expected_output}
+                                onChange={(e) =>
+                                  updateTestCase(index, 'expected_output', e.target.value)
+                                }
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                rows={3}
+                                required
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
             </>
           )}
 

@@ -381,7 +381,7 @@ export const uploadCSVQuestionsController = async (req: MulterRequest, res: Resp
     // Process and create questions
     logger.info(`[uploadCSVQuestionsController] Processing ${parseResult.length} rows`);
     // Default to mcq if question_type isn't provided
-    const normalizedQuestionType = (question_type || 'mcq') as 'coding' | 'mcq';
+    const normalizedQuestionType = (question_type || 'mcq') as 'coding' | 'mcq' | 'htmlcss';
     const result = await parseAndCreateQuestionsFromCSV(parseResult, level_id, normalizedQuestionType);
     logger.info(`[uploadCSVQuestionsController] Processing complete. Success: ${result.success}, Errors: ${result.errors.length}`);
 

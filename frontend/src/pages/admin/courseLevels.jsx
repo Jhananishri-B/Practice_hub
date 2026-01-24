@@ -36,6 +36,18 @@ const AdminCourseLevels = () => {
     'test_case_2_input (optional)',
     'test_case_2_output (optional)',
   ];
+  const htmlCssHeaders = [
+    'description',
+    'instructions',
+    'tags',
+    'assets',
+    'expectedHtml',
+    'expectedCss',
+    'expectedJs',
+  ];
+
+  // Check if this is an HTML/CSS course
+  const isHtmlCssCourse = course?.title?.toLowerCase().includes('html') || course?.title?.toLowerCase().includes('css');
 
   // Level title mapping for Machine Learning course
   const levelTitleMap = {
@@ -483,10 +495,18 @@ const AdminCourseLevels = () => {
               </div>
               <div className="p-6 space-y-6">
                 {!csvUploadModal.questionType ? (
-                  <div className="flex gap-4">
-                    <button onClick={() => setCsvUploadModal({ ...csvUploadModal, questionType: 'coding' })} className="flex-1 py-4 border-2 border-dashed border-gray-300 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all flex flex-col items-center gap-2 text-gray-600 hover:text-blue-600">
-                      <span className="font-bold">Coding</span>
-                    </button>
+                  <div className="grid gap-4 grid-cols-2">
+                    {/* For HTML/CSS course: show HTML/CSS option instead of Coding */}
+                    {isHtmlCssCourse ? (
+                      <button onClick={() => setCsvUploadModal({ ...csvUploadModal, questionType: 'htmlcss' })} className="flex-1 py-4 border-2 border-dashed border-gray-300 rounded-xl hover:border-purple-500 hover:bg-purple-50 transition-all flex flex-col items-center gap-2 text-gray-600 hover:text-purple-600">
+                        <span className="font-bold">HTML/CSS</span>
+                      </button>
+                    ) : (
+                      <button onClick={() => setCsvUploadModal({ ...csvUploadModal, questionType: 'coding' })} className="flex-1 py-4 border-2 border-dashed border-gray-300 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all flex flex-col items-center gap-2 text-gray-600 hover:text-blue-600">
+                        <span className="font-bold">Coding</span>
+                      </button>
+                    )}
+                    {/* MCQ option stays the same for all courses */}
                     <button onClick={() => setCsvUploadModal({ ...csvUploadModal, questionType: 'mcq' })} className="flex-1 py-4 border-2 border-dashed border-gray-300 rounded-xl hover:border-green-500 hover:bg-green-50 transition-all flex flex-col items-center gap-2 text-gray-600 hover:text-green-600">
                       <span className="font-bold">MCQ</span>
                     </button>
@@ -522,6 +542,20 @@ const AdminCourseLevels = () => {
                           Required: <code>title</code>, <code>description</code>, <code>reference_solution</code>, <code>difficulty</code>.
                           Optional: <code>input_format</code>, <code>output_format</code>, <code>constraints</code>, test case columns.
                           <code>difficulty</code> must be one of: <code>easy</code>, <code>medium</code>, or <code>hard</code>.
+                        </p>
+                      </div>
+                    )}
+                    {csvUploadModal.questionType === 'htmlcss' && (
+                      <div className="mb-4 rounded-lg border border-purple-200 bg-purple-50 px-4 py-3">
+                        <p className="text-sm font-semibold text-purple-700 mb-2">Required columns (exact):</p>
+                        <ul className="text-sm text-purple-600 list-disc list-inside space-y-1">
+                          {htmlCssHeaders.map(header => (
+                            <li key={header}><code className="bg-white px-1 py-0.5 rounded text-xs">{header}</code></li>
+                          ))}
+                        </ul>
+                        <p className="text-xs text-purple-500 mt-2">
+                          Required: <code>description</code>, <code>expectedHtml</code>.
+                          Optional: <code>instructions</code>, <code>tags</code>, <code>assets</code>, <code>expectedCss</code>, <code>expectedJs</code>.
                         </p>
                       </div>
                     )}

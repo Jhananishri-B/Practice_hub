@@ -33,20 +33,20 @@ export interface PracticeSession {
 const ensureDevBypassUser = async (userId: string, username: string, role: string): Promise<void> => {
   try {
     console.log(`[ensureDevBypassUser] Checking for user: ${userId} (${username}, ${role})`);
-    
+
     // Check if user exists by ID
     const userCheck = await pool.query('SELECT id FROM users WHERE id = ?', [userId]);
     const userRows = getRows(userCheck);
-    
+
     if (userRows.length > 0) {
       console.log(`[ensureDevBypassUser] User ${userId} already exists`);
       return;
     }
-    
+
     // User doesn't exist, create it
     console.log(`[ensureDevBypassUser] Creating dev bypass user: ${userId} (${username}, ${role})`);
     const passwordHash = await hashPassword('dev-bypass-password');
-    
+
     // Use INSERT IGNORE or ON DUPLICATE KEY UPDATE to handle conflicts
     try {
       await pool.query(
@@ -86,22 +86,22 @@ export const startSession = async (
 ): Promise<PracticeSession> => {
   try {
     console.log(`[startSession] Starting session for userId: ${userId}, courseId: ${courseId}, levelId: ${levelId}, sessionType: ${requestedSessionType || 'auto'}`);
-    
+
     // Ensure dev bypass users exist in database (for foreign key constraints)
     if (userId === 'user-1' || userId === 'admin-1') {
       const role = userId === 'admin-1' ? 'admin' : 'student';
       const username = userId === 'admin-1' ? 'admin' : 'user';
       await ensureDevBypassUser(userId, username, role);
     }
-    
+
     // Get course info to determine default session type (with error handling)
     let courseTitle = '';
     try {
-  const courseResult = await pool.query(
-    'SELECT title FROM courses WHERE id = ?',
-    [courseId]
-  );
-  const courseRows = getRows(courseResult);
+      const courseResult = await pool.query(
+        'SELECT title FROM courses WHERE id = ?',
+        [courseId]
+      );
+      const courseRows = getRows(courseResult);
       courseTitle = courseRows[0]?.title || '';
       console.log(`[startSession] Course title: ${courseTitle}`);
     } catch (courseError: any) {
@@ -109,40 +109,40 @@ export const startSession = async (
       throw new Error(`Failed to fetch course: ${courseError.message}`);
     }
 
-  let sessionType: 'coding' | 'mcq';
+    let sessionType: 'coding' | 'mcq';
 
-  if (requestedSessionType === 'coding' || requestedSessionType === 'mcq') {
-    sessionType = requestedSessionType;
-  } else {
-    // Fallback: preserve original behaviour – ML Level 1 as MCQ, everything else coding
-    sessionType =
-      courseTitle === 'Machine Learning' &&
-        levelId.includes('660e8400-e29b-41d4-a716-446655440021')
-        ? 'mcq'
-        : 'coding';
-  }
+    if (requestedSessionType === 'coding' || requestedSessionType === 'mcq') {
+      sessionType = requestedSessionType;
+    } else {
+      // Fallback: preserve original behaviour – ML Level 1 as MCQ, everything else coding
+      sessionType =
+        courseTitle === 'Machine Learning' &&
+          levelId.includes('660e8400-e29b-41d4-a716-446655440021')
+          ? 'mcq'
+          : 'coding';
+    }
 
     console.log(`[startSession] Session type determined: ${sessionType}`);
 
     // Get questions for this level (with error handling)
-  let query = `SELECT id, question_type, title, description, input_format, output_format, constraints
+    let query = `SELECT id, question_type, title, description, input_format, output_format, constraints, reference_solution
                FROM questions
                WHERE level_id = ?`;
-  const params: any[] = [levelId];
+    const params: any[] = [levelId];
 
-  if (sessionType === 'coding') {
-    query += ' AND question_type = ? ORDER BY RAND() LIMIT 2';
-    params.push('coding');
-  } else if (sessionType === 'mcq') {
-    query += ' AND question_type = ? ORDER BY created_at ASC';
-    params.push('mcq');
-  } else {
-    query += ' ORDER BY created_at ASC';
-  }
+    if (sessionType === 'coding') {
+      query += ' AND question_type = ? ORDER BY RAND() LIMIT 2';
+      params.push('coding');
+    } else if (sessionType === 'mcq') {
+      query += ' AND question_type = ? ORDER BY created_at ASC';
+      params.push('mcq');
+    } else {
+      query += ' ORDER BY created_at ASC';
+    }
 
     let questionsRows: any[] = [];
     try {
-  const questionsResult = await pool.query(query, params);
+      const questionsResult = await pool.query(query, params);
       questionsRows = getRows(questionsResult);
       console.log(`[startSession] Found ${questionsRows.length} questions for level ${levelId}`);
     } catch (questionsError: any) {
@@ -152,19 +152,19 @@ export const startSession = async (
       throw new Error(`Failed to fetch questions: ${questionsError.message}`);
     }
 
-  if (questionsRows.length === 0) {
+    if (questionsRows.length === 0) {
       console.warn(`[startSession] No questions found for level ${levelId} with sessionType ${sessionType}`);
       throw new Error(`No questions available for this level. Please add questions before starting a session.`);
-  }
+    }
 
     // Create session (store total available questions) (with error handling)
-  const sessionId = randomUUID();
+    const sessionId = randomUUID();
     try {
-  await pool.query(
-    `INSERT INTO practice_sessions (id, user_id, course_id, level_id, session_type, status, total_questions, time_limit)
+      await pool.query(
+        `INSERT INTO practice_sessions (id, user_id, course_id, level_id, session_type, status, total_questions, time_limit)
      VALUES (?, ?, ?, ?, ?, 'in_progress', ?, 3600)`,
-    [sessionId, userId, courseId, levelId, sessionType, questionsRows.length]
-  );
+        [sessionId, userId, courseId, levelId, sessionType, questionsRows.length]
+      );
       console.log(`[startSession] Created session ${sessionId}`);
     } catch (sessionError: any) {
       console.error(`[startSession] Error creating session:`, sessionError.message);
@@ -172,36 +172,37 @@ export const startSession = async (
     }
 
     // Add questions to session and fetch options / test cases (with error handling)
-  const sessionQuestions = [];
-  for (let index = 0; index < questionsRows.length; index++) {
-    const q = questionsRows[index];
-    const questionData: any = {
-      question_id: q.id,
-      question_order: index + 1,
-      question_type: q.question_type,
-      title: q.title,
-      description: q.description,
-      input_format: q.input_format,
-      output_format: q.output_format,
-      constraints: q.constraints,
-    };
+    const sessionQuestions = [];
+    for (let index = 0; index < questionsRows.length; index++) {
+      const q = questionsRows[index];
+      const questionData: any = {
+        question_id: q.id,
+        question_order: index + 1,
+        question_type: q.question_type,
+        title: q.title,
+        description: q.description,
+        input_format: q.input_format,
+        output_format: q.output_format,
+        constraints: q.constraints,
+        reference_solution: q.reference_solution,
+      };
 
       try {
-    if (q.question_type === 'mcq') {
-      // Fetch options for MCQ questions
-      const optionsResult = await pool.query(
-        'SELECT id, option_text, is_correct, option_letter FROM mcq_options WHERE question_id = ? ORDER BY option_letter',
-        [q.id]
-      );
-      questionData.options = getRows(optionsResult);
+        if (q.question_type === 'mcq') {
+          // Fetch options for MCQ questions
+          const optionsResult = await pool.query(
+            'SELECT id, option_text, is_correct, option_letter FROM mcq_options WHERE question_id = ? ORDER BY option_letter',
+            [q.id]
+          );
+          questionData.options = getRows(optionsResult);
           console.log(`[startSession] Loaded ${questionData.options.length} options for MCQ question ${q.id}`);
-    } else if (q.question_type === 'coding') {
-      // Fetch test cases for coding questions so the UI can show visible / hidden test cases
-      const testCasesResult = await pool.query(
-        'SELECT id, input_data, expected_output, is_hidden, test_case_number FROM test_cases WHERE question_id = ? ORDER BY test_case_number',
-        [q.id]
-      );
-      questionData.test_cases = getRows(testCasesResult);
+        } else if (q.question_type === 'coding') {
+          // Fetch test cases for coding questions so the UI can show visible / hidden test cases
+          const testCasesResult = await pool.query(
+            'SELECT id, input_data, expected_output, is_hidden, test_case_number FROM test_cases WHERE question_id = ? ORDER BY test_case_number',
+            [q.id]
+          );
+          questionData.test_cases = getRows(testCasesResult);
           console.log(`[startSession] Loaded ${questionData.test_cases.length} test cases for coding question ${q.id}`);
         }
       } catch (questionDataError: any) {
@@ -212,36 +213,36 @@ export const startSession = async (
         } else if (q.question_type === 'coding') {
           questionData.test_cases = [];
         }
-    }
+      }
 
-    sessionQuestions.push(questionData);
+      sessionQuestions.push(questionData);
 
       // Insert session question (with error handling)
       try {
-    const sessionQuestionId = randomUUID();
-    await pool.query(
-      `INSERT INTO session_questions (id, session_id, question_id, question_order, status)
+        const sessionQuestionId = randomUUID();
+        await pool.query(
+          `INSERT INTO session_questions (id, session_id, question_id, question_order, status)
        VALUES (?, ?, ?, ?, 'not_attempted')`,
-      [sessionQuestionId, sessionId, q.id, index + 1]
-    );
+          [sessionQuestionId, sessionId, q.id, index + 1]
+        );
       } catch (sessionQuestionError: any) {
         console.error(`[startSession] Error inserting session question:`, sessionQuestionError.message);
         // Continue even if one session question insert fails
       }
-  }
+    }
 
     console.log(`[startSession] Successfully created session ${sessionId} with ${sessionQuestions.length} questions`);
 
-  return {
-    id: sessionId,
-    user_id: userId,
-    course_id: courseId,
-    level_id: levelId,
-    session_type: sessionType,
-    status: 'in_progress',
-    questions: sessionQuestions,
+    return {
+      id: sessionId,
+      user_id: userId,
+      course_id: courseId,
+      level_id: levelId,
+      session_type: sessionType,
+      status: 'in_progress',
+      questions: sessionQuestions,
       course_title: courseTitle,
-  };
+    };
   } catch (error: any) {
     console.error('[startSession] Error:', error);
     console.error('[startSession] Error stack:', error.stack);
