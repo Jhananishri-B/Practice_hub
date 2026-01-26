@@ -39,7 +39,6 @@ export const getUserRecentActivityController = async (req: AuthRequest, res: Res
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
-
     const limit = parseInt(req.query.limit as string) || 20;
     const activity = await getUserRecentActivity(userId, limit);
     res.json(activity);
@@ -65,4 +64,3 @@ export const getUserTasksController = async (req: AuthRequest, res: Response): P
     res.status(500).json({ error: 'Failed to fetch tasks' });
   }
 };
-
