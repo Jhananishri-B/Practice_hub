@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { Clock, CheckCircle, ChevronLeft, ChevronRight, RefreshCw, Check, Play, Trophy } from "lucide-react";
+import { Clock, CheckCircle, ChevronLeft, Trophy } from "lucide-react";
 import CodeEditor from "../components/CodeEditor";
 import PreviewFrame from "../components/PreviewFrame";
 import api from "../services/api";
@@ -343,52 +343,6 @@ export default function HtmlCssChallenge() {
                             Back to Levels
                         </button>
 
-                        {session.questions.length > 1 && (
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => handleQuestionChange(currentQuestionIndex - 1)}
-                                    disabled={currentQuestionIndex === 0}
-                                    className="px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 flex items-center gap-1"
-                                >
-                                    <ChevronLeft size={16} />
-                                    Previous
-                                </button>
-                                <button
-                                    onClick={() => handleQuestionChange(currentQuestionIndex + 1)}
-                                    disabled={currentQuestionIndex === session.questions.length - 1}
-                                    className="px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 flex items-center gap-1"
-                                >
-                                    Next
-                                    <ChevronRight size={16} />
-                                </button>
-                            </div>
-                        )}
-
-                        <button
-                            onClick={handleRunCode}
-                            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold flex items-center gap-2"
-                        >
-                            <Play size={18} />
-                            Run Code
-                        </button>
-
-                        <button
-                            onClick={handleSubmit}
-                            disabled={isSaving}
-                            className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold disabled:opacity-50 flex items-center gap-2"
-                        >
-                            {isSaving ? (
-                                <>
-                                    <RefreshCw size={20} className="animate-spin" />
-                                    Saving...
-                                </>
-                            ) : (
-                                <>
-                                    <Check size={20} />
-                                    Save Progress
-                                </>
-                            )}
-                        </button>
 
                         <button
                             onClick={handleSubmit}

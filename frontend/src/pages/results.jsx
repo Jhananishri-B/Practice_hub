@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
+import HtmlCssResult from '../components/HtmlCssResult';
 import api from '../services/api';
 import { CheckCircle, XCircle, MessageSquare, Send, X } from 'lucide-react';
 
@@ -118,6 +119,16 @@ const Results = () => {
       navigate('/dashboard', { replace: true });
     }
   };
+
+  // Check if this is an HTML/CSS challenge
+  // We check if the submission has language='html' or if the session type matches
+  const isHtmlCss = results.session.session_type === 'html-css' ||
+    results.session.session_type === 'html-css-challenge' ||
+    (results.questions[0]?.submission?.language === 'html');
+
+  if (isHtmlCss) {
+    return <HtmlCssResult results={results} onBack={handleBackToCourse} />;
+  }
 
   return (
     <Layout>

@@ -46,14 +46,15 @@ const PreviewFrame = forwardRef(({ code, isRestricted = false }, ref) => {
         }
     }, [code]);
 
-    // Expose updatePreview method via ref
+    // Expose updatePreview and content window via ref
     useImperativeHandle(ref, () => ({
         updatePreview: (newCode) => {
             if (iframeRef.current) {
                 const content = generatePreviewContent(newCode);
                 iframeRef.current.srcdoc = content;
             }
-        }
+        },
+        getWindow: () => iframeRef.current?.contentWindow
     }));
 
     return (
