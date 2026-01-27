@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { Clock, CheckCircle, ChevronLeft, ChevronRight, RefreshCw, Check, Play } from "lucide-react";
+import { Clock, CheckCircle, ChevronLeft, ChevronRight, RefreshCw, Check, Play, Trophy } from "lucide-react";
 import CodeEditor from "../components/CodeEditor";
 import PreviewFrame from "../components/PreviewFrame";
 import api from "../services/api";
@@ -122,9 +122,12 @@ export default function HtmlCssChallenge() {
                     } catch (e) {
                         const assetsList = q.output_format.split(',').map(item => {
                             const parts = item.trim().split('|');
+                            const rawPath = parts[1] || parts[0] || '';
+                            // Normalize path: replace backslashes with forward slashes
+                            const normalizedPath = rawPath.replace(/\\/g, '/');
                             return {
                                 name: parts[0] || '',
-                                path: parts[1] || parts[0] || ''
+                                path: normalizedPath
                             };
                         }).filter(a => a.name);
                         if (assetsList.length > 0) assets = assetsList;
@@ -372,7 +375,7 @@ export default function HtmlCssChallenge() {
                         <button
                             onClick={handleSubmit}
                             disabled={isSaving}
-                            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold disabled:opacity-50 flex items-center gap-2"
+                            className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold disabled:opacity-50 flex items-center gap-2"
                         >
                             {isSaving ? (
                                 <>
@@ -388,11 +391,19 @@ export default function HtmlCssChallenge() {
                         </button>
 
                         <button
+                            onClick={handleSubmit}
+                            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold flex items-center gap-2"
+                        >
+                            <CheckCircle size={20} />
+                            Submit Code
+                        </button>
+
+                        <button
                             onClick={() => handleFinish(false)}
                             className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold flex items-center gap-2"
                         >
-                            <CheckCircle size={20} />
-                            Finish & View Results
+                            <Trophy size={20} />
+                            Finish Test
                         </button>
 
                         {lastSaveTime && (

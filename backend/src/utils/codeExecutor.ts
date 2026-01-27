@@ -23,6 +23,14 @@ export const executeCode = async (
       result = await executePythonCode(code, input);
     } else if (language.toLowerCase() === 'c') {
       result = await executeCCode(code, input);
+    } else if (language.toLowerCase() === 'html') {
+      // For HTML, "execution" just means returning the code so it can be compared
+      // The frontend handles visual rendering
+      result = {
+        success: true,
+        output: code,
+        executionTime: 0
+      };
     } else {
       return {
         success: false,
@@ -65,7 +73,7 @@ const executePythonCode = async (
           isResolved = true;
           const executionTime = Date.now() - startTime;
           // Cleanup
-          fs.unlink(scriptPath).catch(() => {});
+          fs.unlink(scriptPath).catch(() => { });
           resolve({
             success: false,
             error: 'Time Limit Exceeded: Code execution exceeded 10 seconds',
@@ -94,7 +102,7 @@ const executePythonCode = async (
         if (isResolved) return;
         isResolved = true;
         clearTimeout(timeout);
-        
+
         const executionTime = Date.now() - startTime;
         // Cleanup
         try {
@@ -124,7 +132,7 @@ const executePythonCode = async (
         if (isResolved) return;
         isResolved = true;
         clearTimeout(timeout);
-        fs.unlink(scriptPath).catch(() => {});
+        fs.unlink(scriptPath).catch(() => { });
         resolve({
           success: false,
           error: `Failed to spawn python: ${err.message}`
@@ -190,8 +198,8 @@ const executeCCode = async (
           isResolved = true;
           const executionTime = Date.now() - startTime;
           // Cleanup files
-          fs.unlink(sourceFile).catch(() => {});
-          fs.unlink(outputFile).catch(() => {});
+          fs.unlink(sourceFile).catch(() => { });
+          fs.unlink(outputFile).catch(() => { });
           resolve({
             success: false,
             error: 'Time Limit Exceeded: Code execution exceeded 10 seconds',
@@ -220,7 +228,7 @@ const executeCCode = async (
         if (isResolved) return;
         isResolved = true;
         clearTimeout(timeout);
-        
+
         const executionTime = Date.now() - startTime;
 
         // Cleanup files
@@ -249,8 +257,8 @@ const executeCCode = async (
         if (isResolved) return;
         isResolved = true;
         clearTimeout(timeout);
-        fs.unlink(sourceFile).catch(() => {});
-        fs.unlink(outputFile).catch(() => {});
+        fs.unlink(sourceFile).catch(() => { });
+        fs.unlink(outputFile).catch(() => { });
         resolve({
           success: false,
           error: `Execution failed: ${err.message}`
@@ -276,20 +284,26 @@ export const validateLanguage = (courseName: string, language: string): boolean 
     'c programming': 'c',
     'machine learning': 'python',
     'data science': 'python',
-    'fundamentals of data science': 'python', // Explicitly added for the full course title
+    'fundamentals of data science': 'python',
     'deep learning': 'python',
     'cloud computing': 'python',
-    'artificial intelligence': 'python', // Added for completeness if needed
+    'artificial intelligence': 'python',
+    'html/css': 'html',
+    'web development': 'html',
+    'frontend development': 'html',
   };
 
   const normalizedCourseName = courseName.toLowerCase().trim();
+
+  // Flexible matching for HTML/CSS courses
+  if (normalizedCourseName.includes('html') || normalizedCourseName.includes('css') || normalizedCourseName.includes('web')) {
+    return language.toLowerCase() === 'html';
+  }
+
   const expectedLanguage = courseLanguageMap[normalizedCourseName];
 
   if (!expectedLanguage) {
     // Fallback: Default to python for unknown courses if not C
-    // or return false if we want to be strict. 
-    // Given the context, strict is better but with logging (which we can't do easily here without importing logger)
-    // Let's just return false but assume if it contains "C Programming" it might be C.
     return false;
   }
 

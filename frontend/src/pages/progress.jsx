@@ -185,7 +185,7 @@ const Progress = () => {
                   {tasks.map((task) => (
                     <div
                       key={task.id}
-                      onClick={() => navigate(`/practice/${task.id}`)}
+                      onClick={() => task.course_id && navigate(`/courses/${task.course_id}/levels`)}
                       className="flex items-center justify-between p-4 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer group border border-transparent hover:border-gray-100"
                     >
                       <div className="flex items-center gap-4">
@@ -301,7 +301,7 @@ const Progress = () => {
               </div>
 
               {filteredActivity.length > 0 && (
-                <button 
+                <button
                   onClick={() => navigate('/dashboard')}
                   className="w-full mt-4 py-3 text-blue-600 font-medium hover:bg-blue-50 rounded-xl transition-colors"
                 >

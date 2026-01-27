@@ -77,14 +77,37 @@ export const evaluateCode = async (
 
 const normalizeOutput = (output: string): string => {
   if (!output) return '';
-  // Normalize line endings and trim, but preserve structure
-  return output
+
+  // Try to parse as JSON first (for HTML/CSS submissions)
+  try {
+    // Only attempt if it looks like a JSON object containing code structure
+    if (output.trim().startsWith('{') && (output.includes('"html"') || output.includes('"css"') || output.includes('"js"'))) {
+      const parsed = JSON.parse(output);
+      // Normalize each component
+      const html = parsed.html ? normalizeCodeString(parsed.html) : '';
+      const css = parsed.css ? normalizeCodeString(parsed.css) : '';
+      const js = parsed.js ? normalizeCodeString(parsed.js) : '';
+
+      // Return a standard combined string for comparison
+      return JSON.stringify({ html, css, js });
+    }
+  } catch (e) {
+    // Not valid JSON or strictly structured, fall back to normal string normalization
+  }
+
+  return normalizeCodeString(output);
+};
+
+const normalizeCodeString = (str: string): string => {
+  if (!str) return '';
+  return str
     .replace(/\r\n/g, '\n')
     .replace(/\r/g, '\n')
     .split('\n')
-    .map((line) => line.trimEnd()) // Only trim trailing spaces, preserve leading
+    .map((line) => line.trim()) // Trim both ends to ignore indentation differences
+    .filter(line => line.length > 0) // Remove empty lines
     .join('\n')
-    .trim(); // Final trim of entire string
+    .trim();
 };
 
 

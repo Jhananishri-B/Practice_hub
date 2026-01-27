@@ -76,6 +76,7 @@ const Practice = () => {
             if (sessionData.session_type === 'mcq') {
                 navigate(`/mcq-practice/${courseId}/${levelId}`, {
                     state: { sessionType: 'mcq' },
+                    replace: true
                 });
                 return;
             }
@@ -91,10 +92,9 @@ const Practice = () => {
 
             setSession(sessionData);
 
-            // Initialize code for the first question
-            const firstQCode = sessionData.questions[0]?.reference_solution || '';
-            setCode(firstQCode);
-            setUserCodeByQuestion({ 0: firstQCode });
+            // Initialize code for the first question - start with empty code
+            setCode('');
+            setUserCodeByQuestion({ 0: '' });
 
             setLoading(false);
         } catch (error) {
@@ -312,10 +312,9 @@ const Practice = () => {
 
                                         setCurrentQuestionIndex(index);
 
-                                        // Load saved code or reference solution
+                                        // Load saved code or start with empty code
                                         const savedCode = userCodeByQuestion[index];
-                                        const refCode = q.reference_solution || '';
-                                        setCode(savedCode !== undefined ? savedCode : refCode);
+                                        setCode(savedCode !== undefined ? savedCode : '');
 
                                         // Clear results when switching questions
                                         setSubmitResult(null);

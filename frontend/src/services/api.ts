@@ -1,18 +1,20 @@
+/// <reference types="vite/client" />
 import axios from 'axios';
 import API_BASE_URL from '../config/api';
 
 const api = axios.create({
-  baseURL: `${API_BASE_URL}/api`,
+  // If API_BASE_URL already contains /api, don't append it again
+  baseURL: API_BASE_URL.endsWith('/api') ? API_BASE_URL : `${API_BASE_URL}/api`,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 30000, // 30 seconds timeout for all requests
+  timeout: 30000,
 });
 
 // Add token to requests
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
-  if (token) {
+  if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
     if (import.meta.env.DEV) {
       console.log('API Request:', config.url, 'with token:', token.substring(0, 20) + '...');
@@ -28,15 +30,19 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      // Get the requested URL
+      const requestedUrl = error.config?.url || '';
+
       // Clear invalid token and redirect to login (except for auth endpoints)
-      if (error.config?.url !== '/auth/login' && error.config?.url !== '/auth/google') {
+      if (!requestedUrl.includes('/auth/login') && !requestedUrl.includes('/auth/google')) {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        // Redirect to login page
+
         if (window.location.pathname !== '/login') {
           window.location.href = '/login';
         }
       }
+
       if (import.meta.env.DEV) {
         console.error('401 Unauthorized - Token cleared and redirecting to login');
       }

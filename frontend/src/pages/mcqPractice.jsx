@@ -66,6 +66,13 @@ const MCQPractice = () => {
     });
   };
 
+  const handleClearSelection = () => {
+    if (submitted) return;
+    const newSelectedOptions = { ...selectedOptions };
+    delete newSelectedOptions[currentQuestionIndex];
+    setSelectedOptions(newSelectedOptions);
+  };
+
   const handleGetHint = async () => {
     if (hint) {
       setShowHint(true);
@@ -139,7 +146,7 @@ const MCQPractice = () => {
     try {
       await api.post(`/sessions/${session.id}/complete`);
       if (auto) alert('Time is up! Test submitted automatically.');
-      navigate(`/results/${session.id}`);
+      navigate(`/results/${session.id}`, { replace: true });
     } catch (error) {
       console.error('Failed to complete session:', error);
       alert('Failed to complete session');
@@ -200,7 +207,12 @@ const MCQPractice = () => {
                   <div className="text-sm font-semibold text-gray-800">
                     Time Left: {formatTime(timeLeft)}
                   </div>
-
+                  <button
+                    onClick={() => handleFinish(false)}
+                    className="px-4 py-1.5 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+                  >
+                    Finish Test
+                  </button>
                 </div>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
@@ -279,6 +291,23 @@ const MCQPractice = () => {
                 ))}
               </div>
 
+              {/* Clear Selection Button - Always visible */}
+              {!submitted && (
+                <div className="mt-4">
+                  <button
+                    onClick={handleClearSelection}
+                    disabled={!selectedOption}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm rounded-lg border transition-colors ${selectedOption
+                        ? 'text-gray-600 hover:text-red-600 hover:bg-red-50 border-gray-200 hover:border-red-200 cursor-pointer'
+                        : 'text-gray-400 border-gray-200 bg-gray-50 cursor-not-allowed'
+                      }`}
+                  >
+                    <X size={16} />
+                    Clear
+                  </button>
+                </div>
+              )}
+
               {submitted && (
                 <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
                   <p className="text-green-800 font-medium">Answer submitted!</p>
@@ -292,7 +321,7 @@ const MCQPractice = () => {
                 disabled={!selectedOption}
                 className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                {currentQuestionIndex === session.questions.length - 1 ? 'Finish Test' : 'Next Question'}
+                {currentQuestionIndex === session.questions.length - 1 ? 'Submit Test' : 'Next Question'}
                 {currentQuestionIndex < session.questions.length - 1 && <ArrowRight size={18} />}
               </button>
             </div>

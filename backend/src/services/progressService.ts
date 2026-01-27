@@ -4,14 +4,14 @@ import { getRows, getFirstRow } from '../utils/mysqlHelper';
 export const getUserProgress = async (userId: string) => {
   try {
     console.log(`[getUserProgress] Fetching progress for userId: ${userId}`);
-    
+
     // Get stats (with error handling)
     let stats = {
       total_attempted: 0,
       total_solved: 0,
       success_rate: 0,
     };
-    
+
     try {
       const statsResult = await pool.query(
         `SELECT 
@@ -33,7 +33,7 @@ export const getUserProgress = async (userId: string) => {
       current_streak: 0,
       longest_streak: 0,
     };
-    
+
     try {
       const streakResult = await pool.query(
         `SELECT current_streak, longest_streak
@@ -49,7 +49,7 @@ export const getUserProgress = async (userId: string) => {
 
     // Get recent session (with error handling)
     let recentSession = null;
-    
+
     try {
       const recentSessionResult = await pool.query(
         `SELECT s.id, c.title as course_title, l.title as level_title,
@@ -95,7 +95,7 @@ export const getUserProgress = async (userId: string) => {
 export const getLeaderboard = async (limit: number = 10) => {
   try {
     console.log(`[getLeaderboard] Fetching leaderboard with limit: ${limit}`);
-    
+
     // First, try to get real data
     const result = await pool.query(
       `SELECT 
@@ -195,12 +195,12 @@ export const getUserRecentActivity = async (userId: string, limit: number = 20) 
     );
 
     const rows = getRows(result);
-    
+
     return rows.map((row: any) => {
       const totalQuestions = parseInt(row.total_questions) || 0;
       const correctCount = parseInt(row.correct_count) || 0;
       const attemptedCount = parseInt(row.attempted_count) || 0;
-      
+
       // Calculate score
       let score = '0/0';
       if (row.session_type === 'mcq') {
@@ -208,7 +208,7 @@ export const getUserRecentActivity = async (userId: string, limit: number = 20) 
       } else {
         score = correctCount === totalQuestions ? 'Passed' : 'Failed';
       }
-      
+
       // Calculate time ago
       const completedAt = new Date(row.completed_at);
       const now = new Date();
@@ -216,7 +216,7 @@ export const getUserRecentActivity = async (userId: string, limit: number = 20) 
       const diffMins = Math.floor(diffMs / 60000);
       const diffHours = Math.floor(diffMs / 3600000);
       const diffDays = Math.floor(diffMs / 86400000);
-      
+
       let timeAgo = '';
       if (diffMins < 1) {
         timeAgo = 'Just now';
@@ -227,7 +227,7 @@ export const getUserRecentActivity = async (userId: string, limit: number = 20) 
       } else {
         timeAgo = `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
       }
-      
+
       return {
         id: row.id,
         type: row.session_type,
@@ -254,6 +254,8 @@ export const getUserTasks = async (userId: string) => {
     const incompleteResult = await pool.query(
       `SELECT 
         s.id,
+        s.course_id,
+        s.level_id,
         s.session_type,
         s.status,
         s.started_at,
@@ -266,16 +268,18 @@ export const getUserTasks = async (userId: string) => {
       JOIN levels l ON s.level_id = l.id
       LEFT JOIN session_questions sq ON s.id = sq.session_id
       WHERE s.user_id = ? AND s.status = 'in_progress'
-      GROUP BY s.id, s.session_type, s.status, s.started_at, c.title, l.title
+      GROUP BY s.id, s.course_id, s.level_id, s.session_type, s.status, s.started_at, c.title, l.title
       ORDER BY s.started_at DESC
       LIMIT 5`,
       [userId]
     );
 
     const incompleteRows = getRows(incompleteResult);
-    
+
     return incompleteRows.map((row: any) => ({
       id: row.id,
+      course_id: row.course_id,
+      level_id: row.level_id,
       type: row.session_type,
       title: `${row.course_title} - ${row.level_title}`,
       course: row.course_title,

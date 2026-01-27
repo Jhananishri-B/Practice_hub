@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import api from '../services/api';
-import { Check, Lock, BookOpen, ExternalLink, ChevronDown, ChevronUp, GraduationCap } from 'lucide-react';
+import { Check, Lock, BookOpen, ExternalLink, ChevronDown, ChevronUp, GraduationCap, X, CheckCircle, Code } from 'lucide-react';
 
 const CourseLevels = () => {
   const { courseId } = useParams();
@@ -53,8 +53,6 @@ const CourseLevels = () => {
   };
 
   const handleLevelClick = (level) => {
-    // All levels are now unlocked, so no need to check status
-    // Ask user whether they want Coding Test or MCQ Practice
     setModeSelection({ open: true, level });
   };
 
@@ -232,12 +230,9 @@ const CourseLevels = () => {
                   </button>
                   <button
                     onClick={() => handleLevelClick(level)}
-                    className={`flex-1 py-2 rounded-lg font-medium transition-colors ${level.status === 'completed'
-                      ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                      : 'bg-blue-600 text-white hover:bg-blue-700'
-                      }`}
+                    className="flex-1 py-2 rounded-lg font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors"
                   >
-                    {level.status === 'completed' ? 'Review' : 'Practice'}
+                    TEST
                   </button>
                 </div>
               </div>
@@ -247,18 +242,23 @@ const CourseLevels = () => {
 
         {/* Mode selection dialog */}
         {modeSelection.open && modeSelection.level && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full">
-              <h2 className="text-xl font-bold text-gray-800 mb-4">
-                Choose Practice Type
-              </h2>
-              <p className="text-gray-600 mb-6">
-                Do you want to practice coding questions or MCQ questions for this level?
-              </p>
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[100] animate-in fade-in duration-300">
+            <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-[320px] w-full transform animate-in zoom-in-95 duration-200">
               <div className="space-y-3">
                 <button
                   onClick={() => {
-                    // Check if this is an HTML/CSS course
+                    navigate(`/mcq-practice/${courseId}/${modeSelection.level.id}`, {
+                      state: { sessionType: 'mcq' },
+                    });
+                    setModeSelection({ open: false, level: null });
+                  }}
+                  className="w-full py-4 rounded-xl bg-[#2563EB] text-white font-bold hover:bg-blue-700 transition-all shadow-md active:scale-[0.98]"
+                >
+                  MCQ Test
+                </button>
+
+                <button
+                  onClick={() => {
                     const courseTitle = (course?.title || '').toLowerCase();
                     const isHtmlCssCourse = courseTitle.includes('html') || courseTitle.includes('css');
 
@@ -273,24 +273,14 @@ const CourseLevels = () => {
                     }
                     setModeSelection({ open: false, level: null });
                   }}
-                  className="w-full px-4 py-3 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors"
+                  className="w-full py-4 rounded-xl bg-[#2563EB] text-white font-bold hover:bg-blue-700 transition-all shadow-md active:scale-[0.98]"
                 >
                   Coding Test
                 </button>
-                <button
-                  onClick={() => {
-                    navigate(`/mcq-practice/${courseId}/${modeSelection.level.id}`, {
-                      state: { sessionType: 'mcq' },
-                    });
-                    setModeSelection({ open: false, level: null });
-                  }}
-                  className="w-full px-4 py-3 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition-colors"
-                >
-                  MCQ Practice
-                </button>
+
                 <button
                   onClick={() => setModeSelection({ open: false, level: null })}
-                  className="w-full px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+                  className="w-full mt-4 py-2 text-slate-400 text-sm font-medium hover:text-slate-600 transition-colors"
                 >
                   Cancel
                 </button>

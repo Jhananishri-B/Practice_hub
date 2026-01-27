@@ -119,6 +119,8 @@ export const getLevelDetailsController = async (req: AuthRequest, res: Response)
       levelNumber: level.level_number,
       level_number: level.level_number,
       description: level.description,
+      course_id: level.course_id,
+      course_title: level.course_title,
       coreTopics: level.coreTopics || [],
       materials: level.materials || [],
       // Prioritize saved learning_materials.introduction over level.description
