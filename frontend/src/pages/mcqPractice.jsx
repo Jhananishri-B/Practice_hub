@@ -129,16 +129,19 @@ const MCQPractice = () => {
   const handleFinish = async (auto = false) => {
     if (!session) return;
 
-    // For manual finish (last question button), we might need to submit the last answer if not already submitted
-    // But handleNext calls this for the last question, so it's already submitted.
-    // However, if auto-submit triggers, we just finish.
-
-    // If auto is true, just finish.
     if (!auto) {
-      // Double check if we need a confirmation, but user requested streamlined flow.
-      // Let's keep confirmation only if explicitly "Finish"ed not via flow? 
-      // Actually, plan said "Finish Test" button on last question.
-      // User probably expects it to just finish.
+      // Auto-submit current answer if selected but not submitted
+      const selectedOptionId = selectedOptions[currentQuestionIndex];
+      if (selectedOptionId && !submitted) {
+        try {
+          await api.post(`/sessions/${session.id}/submit`, {
+            questionId: session.questions[currentQuestionIndex].question_id,
+            selected_option_id: selectedOptionId,
+          });
+        } catch (e) {
+          console.warn("Failed to auto-submit final answer", e);
+        }
+      }
     } else {
       setAutoSubmitted(true);
     }
@@ -298,8 +301,8 @@ const MCQPractice = () => {
                     onClick={handleClearSelection}
                     disabled={!selectedOption}
                     className={`flex items-center gap-2 px-4 py-2 text-sm rounded-lg border transition-colors ${selectedOption
-                        ? 'text-gray-600 hover:text-red-600 hover:bg-red-50 border-gray-200 hover:border-red-200 cursor-pointer'
-                        : 'text-gray-400 border-gray-200 bg-gray-50 cursor-not-allowed'
+                      ? 'text-gray-600 hover:text-red-600 hover:bg-red-50 border-gray-200 hover:border-red-200 cursor-pointer'
+                      : 'text-gray-400 border-gray-200 bg-gray-50 cursor-not-allowed'
                       }`}
                   >
                     <X size={16} />

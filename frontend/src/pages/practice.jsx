@@ -237,12 +237,23 @@ const Practice = () => {
         if (!session) return;
 
         if (!auto) {
-            // Use a simple confirm. If it fails or is blocked, we might want a custom modal, 
-            // but for now let's ensure the logic flow is correct.
-            // Using a distinct variable name to avoid confusion
-            const shouldFinish = window.confirm('Are you sure you want to finish the test?');
+            const shouldFinish = window.confirm('Are you sure you want to finish the test? Your current code will be submitted.');
             if (!shouldFinish) {
                 return;
+            }
+
+            // Auto-submit current code
+            const currentQ = session.questions[currentQuestionIndex];
+            if (code && code.trim()) {
+                try {
+                    await api.post(`/sessions/${session.id}/submit`, {
+                        questionId: currentQ.question_id,
+                        code,
+                        language,
+                    });
+                } catch (e) {
+                    console.warn("Failed to auto-submit final code", e);
+                }
             }
         } else {
             setAutoSubmitted(true);
@@ -323,7 +334,7 @@ const Practice = () => {
                                     }}
                                     className={`px-4 py-2 rounded-lg font-medium border ${index === currentQuestionIndex
                                         ? 'bg-blue-600 text-white border-blue-600'
-                                        : 'bg-gray-100 text-gray-700 border-gray-300'
+                                        : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-slate-600 hover:bg-gray-200 dark:hover:bg-slate-600'
                                         }`}
                                 >
                                     Q{index + 1}
@@ -332,16 +343,16 @@ const Practice = () => {
                         })}
                     </div>
 
-                    <div className="bg-white rounded-lg shadow-md p-6 mb-4">
-                        <h2 className="text-2xl font-bold text-gray-800 mb-4">{currentQuestion.title}</h2>
-                        <div className="prose max-w-none mb-4">
-                            <p className="text-gray-700 whitespace-pre-wrap">{currentQuestion.description}</p>
+                    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 mb-4 border border-transparent dark:border-slate-700">
+                        <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">{currentQuestion.title}</h2>
+                        <div className="prose dark:prose-invert max-w-none mb-4">
+                            <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{currentQuestion.description}</p>
                         </div>
 
                         {currentQuestion.constraints && (
                             <div className="mb-4">
-                                <h3 className="font-semibold text-gray-800 mb-2">Constraints:</h3>
-                                <p className="text-gray-600 text-sm whitespace-pre-wrap">{currentQuestion.constraints}</p>
+                                <h3 className="font-semibold text-gray-800 dark:text-white mb-2">Constraints:</h3>
+                                <p className="text-gray-600 dark:text-gray-400 text-sm whitespace-pre-wrap">{currentQuestion.constraints}</p>
                             </div>
                         )}
 
@@ -351,16 +362,16 @@ const Practice = () => {
                                 <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {currentQuestion.input_format && (
                                         <div>
-                                            <h3 className="font-semibold text-gray-800 mb-1">Sample Input</h3>
-                                            <pre className="bg-gray-50 p-3 rounded text-sm text-gray-700 whitespace-pre-wrap">
+                                            <h3 className="font-semibold text-gray-800 dark:text-white mb-1">Sample Input</h3>
+                                            <pre className="bg-gray-50 dark:bg-slate-700/50 p-3 rounded text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
                                                 {currentQuestion.input_format}
                                             </pre>
                                         </div>
                                     )}
                                     {currentQuestion.output_format && (
                                         <div>
-                                            <h3 className="font-semibold text-gray-800 mb-1">Sample Output</h3>
-                                            <pre className="bg-gray-50 p-3 rounded text-sm text-gray-700 whitespace-pre-wrap">
+                                            <h3 className="font-semibold text-gray-800 dark:text-white mb-1">Sample Output</h3>
+                                            <pre className="bg-gray-50 dark:bg-slate-700/50 p-3 rounded text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
                                                 {currentQuestion.output_format}
                                             </pre>
                                         </div>
@@ -368,7 +379,7 @@ const Practice = () => {
                                 </div>
                             )}
 
-                            <h3 className="font-semibold text-gray-800 mb-2">Test Cases:</h3>
+                            <h3 className="font-semibold text-gray-800 dark:text-white mb-2">Test Cases:</h3>
                             <style>{`
             @keyframes blink-green {
               0%, 100% { opacity: 1; }
@@ -393,44 +404,44 @@ const Practice = () => {
                                         <div
                                             key={tc.id}
                                             className={`p-3 rounded border text-sm ${status === 'passed'
-                                                ? 'border-green-500 bg-green-50 test-case-passed'
+                                                ? 'border-green-500 bg-green-50 dark:bg-green-900/20 test-case-passed'
                                                 : status === 'failed'
-                                                    ? 'border-red-500 bg-red-50 test-case-failed'
-                                                    : 'border-gray-200 bg-gray-50'
+                                                    ? 'border-red-500 bg-red-50 dark:bg-red-900/20 test-case-failed'
+                                                    : 'border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50'
                                                 }`}
                                         >
                                             <div className="flex items-center justify-between mb-1">
-                                                <span className="font-medium">
+                                                <span className="font-medium text-gray-700 dark:text-gray-300">
                                                     Test Case {index + 1}
                                                 </span>
                                                 {status === 'passed' && (
-                                                    <Check className="text-green-600" size={18} />
+                                                    <Check className="text-green-600 dark:text-green-400" size={18} />
                                                 )}
                                                 {status === 'failed' && (
-                                                    <X className="text-red-600" size={18} />
+                                                    <X className="text-red-600 dark:text-red-400" size={18} />
                                                 )}
                                             </div>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                                 <div>
-                                                    <span className="font-medium">Input:</span>
-                                                    <pre className="mt-1 text-gray-700 whitespace-pre-wrap">
+                                                    <span className="font-medium text-gray-600 dark:text-gray-400">Input:</span>
+                                                    <pre className="mt-1 text-gray-700 dark:text-gray-300 whitespace-pre-wrap bg-white/50 dark:bg-black/20 p-1 rounded">
                                                         {tc.input_data}
                                                     </pre>
                                                 </div>
                                                 <div>
-                                                    <span className="font-medium">Expected Output:</span>
-                                                    <pre className="mt-1 text-gray-700 whitespace-pre-wrap">
+                                                    <span className="font-medium text-gray-600 dark:text-gray-400">Expected Output:</span>
+                                                    <pre className="mt-1 text-gray-700 dark:text-gray-300 whitespace-pre-wrap bg-white/50 dark:bg-black/20 p-1 rounded">
                                                         {tc.expected_output}
                                                     </pre>
                                                 </div>
                                                 {result && !result.passed && (
                                                     <div className="md:col-span-2">
-                                                        <span className="font-medium text-red-600">Actual Output:</span>
-                                                        <pre className="mt-1 text-red-700 whitespace-pre-wrap">
+                                                        <span className="font-medium text-red-600 dark:text-red-400">Actual Output:</span>
+                                                        <pre className="mt-1 text-red-700 dark:text-red-300 whitespace-pre-wrap bg-red-50/50 dark:bg-red-900/20 p-1 rounded">
                                                             {result.actual_output || 'No output'}
                                                         </pre>
                                                         {result.error_message && (
-                                                            <div className="mt-1 text-red-600 text-xs">
+                                                            <div className="mt-1 text-red-600 dark:text-red-400 text-xs">
                                                                 Error: {result.error_message}
                                                             </div>
                                                         )}
@@ -447,32 +458,32 @@ const Practice = () => {
                                         <div
                                             key={tc.id}
                                             className={`p-3 rounded border flex items-center justify-between text-sm ${status === 'passed'
-                                                ? 'border-green-500 bg-green-50'
+                                                ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
                                                 : status === 'failed'
-                                                    ? 'border-red-500 bg-red-50'
-                                                    : 'border-gray-300 bg-gray-100'
+                                                    ? 'border-red-500 bg-red-50 dark:bg-red-900/20'
+                                                    : 'border-gray-300 dark:border-slate-600 bg-gray-100 dark:bg-slate-700'
                                                 }`}
                                         >
-                                            <span className="font-medium">
+                                            <span className="font-medium text-gray-700 dark:text-gray-300">
                                                 Hidden Test Case {visibleTestCases.length + index + 1}
                                             </span>
                                             <div className="flex items-center gap-2">
                                                 {status === 'passed' && (
                                                     <>
-                                                        <Check className="text-green-600" size={16} />
-                                                        <span className="text-green-600 text-sm">Passed</span>
+                                                        <Check className="text-green-600 dark:text-green-400" size={16} />
+                                                        <span className="text-green-600 dark:text-green-400 text-sm">Passed</span>
                                                     </>
                                                 )}
                                                 {status === 'failed' && (
                                                     <>
-                                                        <X className="text-red-600" size={16} />
-                                                        <span className="text-red-600 text-sm">Failed</span>
+                                                        <X className="text-red-600 dark:text-red-400" size={16} />
+                                                        <span className="text-red-600 dark:text-red-400 text-sm">Failed</span>
                                                     </>
                                                 )}
                                                 {status === 'pending' && (
                                                     <>
-                                                        <Lock size={16} className="text-gray-600" />
-                                                        <span className="text-gray-600">Locked</span>
+                                                        <Lock size={16} className="text-gray-600 dark:text-gray-400" />
+                                                        <span className="text-gray-600 dark:text-gray-400">Locked</span>
                                                     </>
                                                 )}
                                             </div>
@@ -484,13 +495,13 @@ const Practice = () => {
                     </div>
                 </div>
 
-                <div className="w-full md:w-1/2 bg-white border-t md:border-t-0 md:border-l border-gray-200 flex flex-col h-[500px] md:h-auto">
+                <div className="w-full md:w-1/2 bg-white dark:bg-slate-800 border-t md:border-t-0 md:border-l border-gray-200 dark:border-slate-700 flex flex-col h-[500px] md:h-auto transition-colors duration-300">
                     {/* Top Bar: Timer, Run, Submit, Finish Test */}
-                    <div className="p-4 border-b border-gray-200 flex items-center justify-between gap-3 bg-gray-50">
+                    <div className="p-4 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between gap-3 bg-gray-50 dark:bg-slate-900 transition-colors duration-300">
                         <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-300 rounded-lg">
-                                <span className="text-sm font-medium text-gray-600">Time:</span>
-                                <span className="text-lg font-semibold text-gray-800 font-mono">
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg">
+                                <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Time:</span>
+                                <span className="text-lg font-semibold text-gray-800 dark:text-white font-mono">
                                     {formatTime(timeLeft)}
                                 </span>
                             </div>
@@ -499,11 +510,11 @@ const Practice = () => {
                             <button
                                 onClick={handleRun}
                                 disabled={isRunning}
-                                className={`flex items-center justify-center p-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors ${isRunning ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                className={`flex items-center justify-center p-2.5 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-slate-600 transition-colors ${isRunning ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 title={isRunning ? 'Running...' : 'Run'}
                             >
                                 {isRunning ? (
-                                    <div className="w-5 h-5 border-2 border-gray-600 border-t-transparent rounded-full animate-spin"></div>
+                                    <div className="w-5 h-5 border-2 border-gray-600 dark:border-gray-400 border-t-transparent rounded-full animate-spin"></div>
                                 ) : (
                                     <Play size={20} />
                                 )}
@@ -551,7 +562,7 @@ const Practice = () => {
                     </div>
 
                     {/* Terminal/Input Area - Enlarged */}
-                    <div className="border-t border-gray-200 bg-gray-900 flex flex-col" style={{ minHeight: '200px', maxHeight: '300px' }}>
+                    <div className="border-t border-gray-200 dark:border-slate-700 bg-gray-900 flex flex-col" style={{ minHeight: '200px', maxHeight: '300px' }}>
                         <div className="px-4 py-2 border-b border-gray-700 flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">Custom Input Terminal</span>
@@ -579,31 +590,31 @@ const Practice = () => {
                     </div>
 
                     {/* Bottom Section: Results and Output */}
-                    <div className="p-4 border-t border-gray-200 space-y-4 bg-white">
+                    <div className="p-4 border-t border-gray-200 dark:border-slate-700 space-y-4 bg-white dark:bg-slate-800 transition-colors duration-300">
 
                         {/* LeetCode-style Submit Result Panel */}
                         {submitResult && (
                             <div className={`p-4 rounded-lg border-l-4 ${submitResult.status === 'Accepted'
-                                ? 'bg-green-50 border-green-500'
-                                : 'bg-red-50 border-red-500'
+                                ? 'bg-green-50 dark:bg-green-900/20 border-green-500'
+                                : 'bg-red-50 dark:bg-red-900/20 border-red-500'
                                 }`}>
                                 <div className="flex items-center justify-between mb-2">
-                                    <span className={`text-lg font-bold ${submitResult.status === 'Accepted' ? 'text-green-600' : 'text-red-600'
+                                    <span className={`text-lg font-bold ${submitResult.status === 'Accepted' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                                         }`}>
                                         {submitResult.status}
                                     </span>
                                     {submitResult.runtime && (
-                                        <span className="text-sm text-gray-500">
+                                        <span className="text-sm text-gray-500 dark:text-gray-400">
                                             Runtime: {submitResult.runtime}ms
                                         </span>
                                     )}
                                 </div>
-                                <div className="text-sm text-gray-700">
+                                <div className="text-sm text-gray-700 dark:text-gray-300">
                                     <span className="font-medium">{submitResult.passed}</span> / <span>{submitResult.total}</span> test cases passed
                                 </div>
                                 <button
                                     onClick={() => setSubmitResult(null)}
-                                    className="mt-2 text-xs text-gray-500 hover:text-gray-700"
+                                    className="mt-2 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
                                 >
                                     Dismiss
                                 </button>
