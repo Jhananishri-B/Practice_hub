@@ -157,6 +157,82 @@ export const startSession = async (
       throw new Error(`No questions available for this level. Please add questions before starting a session.`);
     }
 
+    // -----------------------------------------------------------------
+    // NEW: Check for existing in_progress session for this user and level
+    // -----------------------------------------------------------------
+    const existingSessionResult = await pool.query(
+      `SELECT id, session_type, status, total_questions, time_limit 
+       FROM practice_sessions 
+       WHERE user_id = ? AND level_id = ? AND status = 'in_progress' AND session_type = ?
+       ORDER BY started_at DESC LIMIT 1`,
+      [userId, levelId, sessionType]
+    );
+    const existingSessionRows = getRows(existingSessionResult);
+
+    if (existingSessionRows.length > 0) {
+      const existingSession = existingSessionRows[0];
+      console.log(`[startSession] Found existing in_progress session: ${existingSession.id}`);
+
+      // Fetch questions already assigned to this session
+      const assignedQuestionsResult = await pool.query(
+        `SELECT q.id, q.question_type, q.title, q.description, q.input_format, q.output_format, q.constraints, q.reference_solution
+         FROM session_questions sq
+         JOIN questions q ON sq.question_id = q.id
+         WHERE sq.session_id = ?
+         ORDER BY sq.question_order`,
+        [existingSession.id]
+      );
+      const assignedQuestionsRows = getRows(assignedQuestionsResult);
+
+      if (assignedQuestionsRows.length > 0) {
+        // Prepare questions with options/test cases
+        const sessionQuestions = [];
+        for (let index = 0; index < assignedQuestionsRows.length; index++) {
+          const q = assignedQuestionsRows[index];
+          const questionData: any = {
+            question_id: q.id,
+            question_order: index + 1,
+            question_type: q.question_type,
+            title: q.title,
+            description: q.description,
+            input_format: q.input_format,
+            output_format: q.output_format,
+            constraints: q.constraints,
+            reference_solution: q.reference_solution,
+          };
+
+          if (q.question_type === 'mcq') {
+            const optionsResult = await pool.query(
+              'SELECT id, option_text, is_correct, option_letter FROM mcq_options WHERE question_id = ? ORDER BY option_letter',
+              [q.id]
+            );
+            questionData.options = getRows(optionsResult);
+          } else if (q.question_type === 'coding') {
+            const testCasesResult = await pool.query(
+              'SELECT id, input_data, expected_output, is_hidden, test_case_number FROM test_cases WHERE question_id = ? ORDER BY test_case_number',
+              [q.id]
+            );
+            questionData.test_cases = getRows(testCasesResult);
+          }
+          sessionQuestions.push(questionData);
+        }
+
+        return {
+          id: existingSession.id,
+          user_id: userId,
+          course_id: courseId,
+          level_id: levelId,
+          session_type: existingSession.session_type,
+          status: existingSession.status,
+          questions: sessionQuestions,
+          course_title: courseTitle
+        };
+      }
+      // If no questions found for existing session, we fallback to creating a new one (cleanup)
+      await pool.query('DELETE FROM practice_sessions WHERE id = ?', [existingSession.id]);
+    }
+    // -----------------------------------------------------------------
+
     // Create session (store total available questions) (with error handling)
     const sessionId = randomUUID();
     try {
@@ -259,6 +335,7 @@ export const submitSolution = async (
     code?: string;
     language?: string;
     selected_option_id?: string;
+    isPassed?: boolean;
   }
 ) => {
   // Get session and question info
@@ -308,46 +385,68 @@ export const submitSolution = async (
 
     return { is_correct: isCorrect };
   } else {
-    // Handle coding submission
-    // Validate language
-    const courseResult = await pool.query(
-      `SELECT c.title FROM courses c
-       JOIN practice_sessions s ON c.id = s.course_id
-       WHERE s.id = ?`,
-      [sessionId]
-    );
-    const courseRows = getRows(courseResult);
-    const courseName = courseRows[0]?.title || '';
+    // Coding submission (including HTML/CSS)
+    // For HTML/CSS, we trust the client's evaluation (or just save it)
+    // because we can't easily run a DOM visual check on the backend.
+    const isHtmlCss = submission.language === 'html' || submission.language === 'css';
 
-    if (submission.language && !validateLanguage(courseName, submission.language)) {
-      throw new Error(`Invalid language for ${courseName} course`);
+    let isCorrect = false;
+    let passedCount = 0;
+    let totalTestCases = 0;
+    let testResults: any[] = [];
+
+    if (isHtmlCss) {
+      // Use the explicit passed status if provided
+      isCorrect = submission.isPassed === true;
+      passedCount = isCorrect ? 1 : 0;
+      totalTestCases = 1;
+    } else {
+      // Coding Logic (Standard)
+      const courseResult = await pool.query(
+        `SELECT c.title FROM courses c
+           JOIN practice_sessions s ON c.id = s.course_id
+           WHERE s.id = ?`,
+        [sessionId]
+      );
+      const courseRows = getRows(courseResult);
+      const courseName = courseRows[0]?.title || '';
+
+      if (submission.language && !validateLanguage(courseName, submission.language)) {
+        throw new Error(`Invalid language for ${courseName} course`);
+      }
+
+      // Get test cases
+      const testCasesResult = await pool.query(
+        'SELECT id, input_data, expected_output FROM test_cases WHERE question_id = ? ORDER BY test_case_number',
+        [questionId]
+      );
+
+      const testCasesRows = getRows(testCasesResult);
+      // Note: For some questions test cases might be missing, handling strictly here
+      if (testCasesRows.length === 0) {
+        // If no test cases, we might want to fail or just save. 
+        // But assuming standard coding problems have test cases.
+        throw new Error('No test cases found for this question');
+      }
+
+      // Evaluate code against test cases
+      const { evaluateCode } = await import('./codeExecutionService');
+      testResults = await evaluateCode(
+        submission.code || '',
+        submission.language || 'python',
+        testCasesRows,
+        courseName
+      );
+
+      passedCount = testResults.filter((r) => r.passed).length;
+      totalTestCases = testCasesRows.length;
+      isCorrect = passedCount === totalTestCases;
     }
 
-    // Get test cases
-    const testCasesResult = await pool.query(
-      'SELECT id, input_data, expected_output FROM test_cases WHERE question_id = ? ORDER BY test_case_number',
-      [questionId]
-    );
-
-    const testCasesRows = getRows(testCasesResult);
-    if (testCasesRows.length === 0) {
-      throw new Error('No test cases found for this question');
-    }
-
-    // Evaluate code against test cases
-    const { evaluateCode } = await import('./codeExecutionService');
-    const testResults = await evaluateCode(
-      submission.code || '',
-      submission.language || 'python',
-      testCasesRows,
-      courseName
-    );
-
-    const passedCount = testResults.filter((r) => r.passed).length;
-    const allPassed = passedCount === testCasesRows.length;
+    // Generate a submission ID
+    const submissionId = randomUUID();
 
     // Save submission
-    const submissionId = randomUUID();
     await pool.query(
       `INSERT INTO user_submissions (id, session_id, question_id, user_id, submission_type, submitted_code, language, test_cases_passed, total_test_cases, is_correct)
        VALUES (?, ?, ?, ?, 'coding', ?, ?, ?, ?, ?)`,
@@ -359,39 +458,41 @@ export const submitSolution = async (
         submission.code,
         submission.language,
         passedCount,
-        testCasesRows.length,
-        allPassed,
+        totalTestCases,
+        isCorrect,
       ]
     );
 
-    // Save test case results
-    for (const tr of testResults) {
-      const testResultId = randomUUID();
-      await pool.query(
-        `INSERT INTO test_case_results (id, submission_id, test_case_id, passed, actual_output, error_message, execution_time)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [
-          testResultId,
-          submissionId,
-          tr.test_case_id,
-          tr.passed,
-          tr.actual_output,
-          tr.error_message || null,
-          tr.execution_time || null,
-        ]
-      );
+    // Save test case results (only for standard coding)
+    if (!isHtmlCss) {
+      for (const tr of testResults) {
+        const testResultId = randomUUID();
+        await pool.query(
+          `INSERT INTO test_case_results (id, submission_id, test_case_id, passed, actual_output, error_message, execution_time)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [
+            testResultId,
+            submissionId,
+            tr.test_case_id,
+            tr.passed,
+            tr.actual_output,
+            tr.error_message || null,
+            tr.execution_time || null,
+          ]
+        );
+      }
     }
 
     // Update session question status
     await pool.query(
       `UPDATE session_questions SET status = ? WHERE session_id = ? AND question_id = ?`,
-      [allPassed ? 'completed' : 'attempted', sessionId, questionId]
+      [isCorrect ? 'completed' : 'attempted', sessionId, questionId]
     );
 
     return {
-      is_correct: allPassed,
+      is_correct: isCorrect,
       test_cases_passed: passedCount,
-      total_test_cases: testCasesRows.length,
+      total_test_cases: totalTestCases,
       test_results: testResults,
     };
   }

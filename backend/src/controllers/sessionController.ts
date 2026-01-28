@@ -29,7 +29,7 @@ export const startSessionController = async (req: AuthRequest, res: Response): P
       levelId,
       sessionType === 'coding' || sessionType === 'mcq' ? sessionType : undefined
     );
-    
+
     logger.info(`[startSessionController] Session created successfully: ${session.id}`);
     res.json(session);
   } catch (error: any) {
@@ -37,14 +37,14 @@ export const startSessionController = async (req: AuthRequest, res: Response): P
     logger.error('[startSessionController] Error stack:', error.stack);
     logger.error('[startSessionController] Error message:', error.message);
     logger.error('[startSessionController] Error code:', error.code);
-    
+
     // Return detailed error message for debugging
     const errorMessage = error.message || 'Failed to start session';
     const errorResponse: any = {
       error: errorMessage,
       code: error.code,
     };
-    
+
     // Include more details in development
     if (process.env.NODE_ENV === 'development') {
       errorResponse.details = error.stack;
@@ -52,7 +52,7 @@ export const startSessionController = async (req: AuthRequest, res: Response): P
       errorResponse.sqlState = error.sqlState;
       errorResponse.sqlCode = error.sqlCode;
     }
-    
+
     res.status(500).json(errorResponse);
   }
 };
@@ -60,7 +60,7 @@ export const startSessionController = async (req: AuthRequest, res: Response): P
 export const submitSolutionController = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { sessionId } = req.params;
-    const { questionId, code, language, selected_option_id } = req.body;
+    const { questionId, code, language, selected_option_id, isPassed } = req.body;
     const userId = req.user?.userId;
 
     if (!userId) {
@@ -72,6 +72,7 @@ export const submitSolutionController = async (req: AuthRequest, res: Response):
       code,
       language,
       selected_option_id,
+      isPassed
     });
 
     res.json(result);

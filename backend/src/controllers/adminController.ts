@@ -473,3 +473,15 @@ export const updateLevelDetailsController = async (req: AuthRequest, res: Respon
     });
   }
 };
+
+export const getStudentResultsController = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { getStudentResults } = await import('../services/adminService'); // Dynamic import
+    const searchTerm = req.query.search as string;
+    const results = await getStudentResults(searchTerm);
+    res.json(results);
+  } catch (error: any) {
+    logger.error('Get student results error:', error);
+    res.status(500).json({ error: 'Failed to fetch student results' });
+  }
+};

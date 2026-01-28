@@ -10,6 +10,7 @@ import {
   createLevelController,
   deleteLevelController,
   getCoursesWithLevelsController,
+  getStudentResultsController,
   createCodingQuestionController,
   createMCQQuestionController,
   getLevelQuestionsController,
@@ -47,6 +48,7 @@ router.delete('/courses/:courseId', deleteCourseController);
 router.post('/levels', createLevelController);
 router.delete('/levels/:levelId', deleteLevelController);
 router.get('/courses/with-levels', getCoursesWithLevelsController);
+router.get('/results', getStudentResultsController);
 router.post('/questions/coding', createCodingQuestionController);
 router.post('/questions/mcq', createMCQQuestionController);
 router.get('/levels/:levelId/questions', getLevelQuestionsController);

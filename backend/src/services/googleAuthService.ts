@@ -61,21 +61,32 @@ export const verifyGoogleToken = async (token: string): Promise<GoogleUserInfo> 
 };
 
 export const exchangeCodeForToken = async (code: string, redirectUri?: string): Promise<GoogleUserInfo> => {
+  // DEV BYPASS - If we're using a mock client ID or a mock code, return a mock user
+  if (GOOGLE_CLIENT_ID === 'mock_client_id' || code === 'mock_auth_code') {
+    logger.info('Using Google OAuth development bypass (Mock User)');
+    return {
+      id: 'mock-google-id-' + Date.now(),
+      email: 'student@example.com',
+      name: 'Mock Student User',
+      picture: 'https://via.placeholder.com/150'
+    };
+  }
+
   try {
     // Use the provided redirect URI or the default one
     const redirect = redirectUri || FRONTEND_URL;
-    
+
     logger.info(`Exchanging code with redirect URI: ${redirect}`);
-    
+
     // Create a new client instance with the redirect URI for code exchange
     const exchangeClient = new OAuth2Client(
       GOOGLE_CLIENT_ID,
       GOOGLE_CLIENT_SECRET,
       redirect
     );
-    
+
     const { tokens } = await exchangeClient.getToken(code);
-    
+
     if (!tokens.id_token) {
       throw new Error('No ID token received');
     }

@@ -23,16 +23,35 @@ const HtmlCssResult = ({ results, onBack }) => {
 
     // Extract current question data
     const question = results.questions[currentIndex];
-    const userCode = useMemo(() =>
-        question.submission?.submitted_code ? JSON.parse(question.submission.submitted_code) : { html: '', css: '' }
-        , [question]);
+
+    // Robust parsing for user code
+    const userCode = useMemo(() => {
+        if (!question?.submission?.submitted_code) return { html: '', css: '', js: '' };
+
+        try {
+            const raw = question.submission.submitted_code;
+            // If already an object (MySQL JSON type or previously parsed), return it
+            if (typeof raw === 'object' && raw !== null) return raw;
+            // Otherwise parse it
+            return JSON.parse(raw);
+        } catch (e) {
+            console.error("Failed to parse user code:", e);
+            // If it's a string but NOT JSON, might be direct HTML (old format)
+            if (typeof question.submission.submitted_code === 'string') {
+                return { html: question.submission.submitted_code, css: '', js: '' };
+            }
+            return { html: '', css: '', js: '' };
+        }
+    }, [question]);
 
     const correctCode = useMemo(() => {
         try {
-            if (!question.reference_solution) return { html: '', css: '' };
-            return JSON.parse(question.reference_solution);
+            if (!question?.reference_solution) return { html: '', css: '', js: '' };
+            const raw = question.reference_solution;
+            if (typeof raw === 'object' && raw !== null) return raw;
+            return JSON.parse(raw);
         } catch (e) {
-            return { html: question.reference_solution, css: '' };
+            return { html: question.reference_solution || '', css: '', js: '' };
         }
     }, [question]);
 
@@ -40,13 +59,14 @@ const HtmlCssResult = ({ results, onBack }) => {
     // --- Robust "Smart Match" Scoring Logic ---
     const runAnalysis = () => {
         setIsScoring(true);
-        // Wait for iframes
+        // Wait for iframes (increased timeout for reliability)
         setTimeout(() => {
             try {
                 const userWin = userPreviewRef.current?.getWindow();
                 const correctWin = correctPreviewRef.current?.getWindow();
 
                 if (!userWin || !correctWin) {
+                    console.warn("Analysis: Iframe windows not ready");
                     setScores({ structure: 0, content: 0, style: 0, total: 0 });
                     setIsScoring(false);
                     return;
@@ -55,7 +75,15 @@ const HtmlCssResult = ({ results, onBack }) => {
                 const userDoc = userWin.document;
                 const correctDoc = correctWin.document;
 
+                // Ensure body is loaded
+                if (!userDoc.body || !correctDoc.body) {
+                    console.warn("Analysis: Documents not fully loaded");
+                    setIsScoring(false);
+                    return;
+                }
+
                 const correctElements = Array.from(correctDoc.body.querySelectorAll('*'));
+                console.log(`Analyzing: ${correctElements.length} elements to match`);
 
                 if (correctElements.length === 0) {
                     setScores({ structure: 100, content: 100, style: 100, total: 100 });
@@ -208,7 +236,7 @@ const HtmlCssResult = ({ results, onBack }) => {
                 console.error("Analysis failed", e);
                 setIsScoring(false);
             }
-        }, 1500);
+        }, 2500);
     };
 
     useEffect(() => {

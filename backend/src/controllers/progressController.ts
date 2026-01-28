@@ -50,14 +50,10 @@ export const getUserRecentActivityController = async (req: AuthRequest, res: Res
 
 export const getUserTasksController = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.userId;
-
-    if (!userId) {
+    const userId = req.user?.userId;    if (!userId) {
       res.status(401).json({ error: 'Unauthorized' });
       return;
-    }
-
-    const tasks = await getUserTasks(userId);
+    }    const tasks = await getUserTasks(userId);
     res.json(tasks);
   } catch (error: any) {
     logger.error('Get user tasks error:', error);

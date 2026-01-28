@@ -124,7 +124,8 @@ const Results = () => {
   // We check if the submission has language='html' or if the session type matches
   const isHtmlCss = results.session.session_type === 'html-css' ||
     results.session.session_type === 'html-css-challenge' ||
-    (results.questions[0]?.submission?.language === 'html');
+    (results.questions[0]?.submission?.language === 'html') ||
+    (results.session.course_title && /html|css/i.test(results.session.course_title));
 
   if (isHtmlCss) {
     return <HtmlCssResult results={results} onBack={handleBackToCourse} />;

@@ -35,6 +35,8 @@ export const getAllUsers = async (searchTerm?: string) => {
   return getRows(result).map((row: any) => ({
     ...row,
     levels_practiced: parseInt(row.levels_practiced) || 0,
+    created_at: row.created_at ? new Date(row.created_at).toISOString() : null,
+    last_practice_date: row.last_practice_date ? new Date(row.last_practice_date).toISOString() : null,
   }));
 };
 
@@ -115,7 +117,10 @@ export const getRecentActivity = async (searchTerm?: string) => {
   query += ' ORDER BY ps.started_at DESC LIMIT 50';
 
   const result = await pool.query(query, params);
-  return getRows(result);
+  return getRows(result).map((row: any) => ({
+    ...row,
+    started_at: row.started_at ? new Date(row.started_at).toISOString() : null,
+  }));
 };
 
 export const getDashboardStats = async () => {
@@ -437,4 +442,93 @@ export const updateLevelDetails = async (
     // Re-throw the error so controller can handle it
     throw error;
   }
+};
+
+export const getStudentResults = async (searchTerm?: string) => {
+  let query = `
+    SELECT 
+      ps.id as session_id,
+      u.roll_number as student_id,
+      u.name as student_name,
+      ps.completed_at,
+      c.title as course_title,
+      l.title as level_title,
+      l.level_number,
+      ps.session_type,
+      
+      -- Calculate scores
+      COUNT(DISTINCT q.id) as total_questions,
+      
+      -- MCQ Score Calculation
+      SUM(CASE WHEN us.submission_type = 'mcq' AND us.is_correct = 1 THEN 1 ELSE 0 END) as mcq_correct,
+      
+      -- Coding Score Calculation (for non-HTML/CSS)
+      SUM(CASE WHEN us.submission_type = 'coding' AND us.is_correct = 1 THEN 1 ELSE 0 END) as coding_correct,
+      
+      -- HTML/CSS Score 
+      MAX(us.language) as language
+      
+    FROM practice_sessions ps
+    JOIN users u ON ps.user_id = u.id
+    JOIN courses c ON ps.course_id = c.id
+    JOIN levels l ON ps.level_id = l.id
+    LEFT JOIN session_questions sq ON ps.id = sq.session_id
+    LEFT JOIN questions q ON sq.question_id = q.id
+    LEFT JOIN user_submissions us ON ps.id = us.session_id AND q.id = us.question_id
+    
+    WHERE ps.status = 'completed'
+  `;
+
+  const params: any[] = [];
+
+  if (searchTerm) {
+    query += ' AND (LOWER(u.name) LIKE LOWER(?) OR LOWER(u.roll_number) LIKE LOWER(?) OR LOWER(c.title) LIKE LOWER(?))';
+    const searchPattern = `%${searchTerm}%`;
+    params.push(searchPattern, searchPattern, searchPattern);
+  }
+
+  query += ' GROUP BY ps.id, u.roll_number, u.name, ps.completed_at, c.title, l.title, l.level_number, ps.session_type';
+  query += ' ORDER BY ps.completed_at DESC';
+
+  const result = await pool.query(query, params);
+  const rows = getRows(result);
+
+  return rows.map((row: any) => {
+    // Determine Pass/Fail Status
+    let status = 'Fail';
+    let score = 0;
+
+    // Check if it is HTML/CSS based on course title or language
+    const isHtmlCss = (row.course_title && row.course_title.toLowerCase().includes('html')) ||
+      (row.language === 'html' || row.language === 'css');
+
+    if (row.session_type === 'mcq') {
+      // MCQ Logic: >= 60%
+      const percentage = row.total_questions > 0 ? (row.mcq_correct / row.total_questions) * 100 : 0;
+      score = percentage;
+      if (percentage >= 60) status = 'Pass';
+    } else if (isHtmlCss) {
+      // HTML/CSS Logic: >= 75%
+      const percentage = row.total_questions > 0 ? (row.coding_correct / row.total_questions) * 100 : 0;
+      score = percentage;
+      if (percentage >= 75) status = 'Pass';
+    } else {
+      // Coding Logic (Standard): 100%
+      const percentage = row.total_questions > 0 ? (row.coding_correct / row.total_questions) * 100 : 0;
+      score = percentage;
+      if (percentage === 100 && row.total_questions > 0) status = 'Pass';
+    }
+
+    return {
+      session_id: row.session_id,
+      student_id: row.student_id || 'N/A',
+      student_name: row.student_name,
+      date_time: row.completed_at ? new Date(row.completed_at).toISOString() : null,
+      course: row.course_title,
+      level: `Level - ${row.level_number}`,
+      test_type: isHtmlCss ? 'HTML/CSS' : (row.session_type === 'mcq' ? 'MCQ' : 'Coding'),
+      status: status,
+      score: Math.round(score)
+    };
+  });
 };

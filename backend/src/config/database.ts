@@ -59,6 +59,7 @@ if (process.env.DATABASE_URL) {
     enableKeepAlive: true, // Keep connections alive
     keepAliveInitialDelay: 0, // Start keep-alive immediately
     ssl: sslConfig,
+    timezone: 'Z',
   };
 
   // Add SSL configuration if required
@@ -101,6 +102,7 @@ if (process.env.DATABASE_URL) {
     enableKeepAlive: true, // Keep connections alive
     keepAliveInitialDelay: 0, // Start keep-alive immediately
     ssl: sslConfig,
+    timezone: 'Z',
   };
 }
 
